@@ -1,0 +1,146 @@
+package moe.GetTheNya.AniForge.ui.detail
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
+import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
+import moe.GetTheNya.AniForge.core.model.Anime
+import javax.inject.Inject
+
+@HiltViewModel
+class DetailViewModel @Inject constructor(
+    private val animeRepository: AnimeRepository,
+    private val userTrackingDao: UserTrackingDao
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
+    val uiState = _uiState.asStateFlow()
+
+    private var currentAnimeId: Long = 0L
+
+    fun loadAnimeDetail(anilistId: Long) {
+        currentAnimeId = anilistId
+        viewModelScope.launch {
+            _uiState.value = DetailUiState.Loading
+            try {
+                val anime = animeRepository.getAnimeById(anilistId)
+                if (anime == null) {
+                    _uiState.value = DetailUiState.Error("Anime not found in catalog")
+                    return@launch
+                }
+
+                // Load screenshots and relations in parallel
+                val screenshots = animeRepository.getScreenshots(anilistId)
+                val relations = animeRepository.getRelations(anilistId)
+
+                // Combine with live user tracking flow
+                userTrackingDao.observeTrackingForAnime(anilistId)
+                    .collect { tracking ->
+                        _uiState.value = DetailUiState.Success(
+                            anime = anime,
+                            screenshots = screenshots,
+                            relations = relations,
+                            tracking = tracking
+                        )
+                    }
+            } catch (e: Exception) {
+                _uiState.value = DetailUiState.Error(e.message ?: "Failed to load details")
+            }
+        }
+    }
+
+    fun updateWatchStatus(status: String) {
+        val state = _uiState.value as? DetailUiState.Success ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentTracking = state.tracking ?: UserTrackingEntity(
+                anilistId = currentAnimeId,
+                watchStatus = status,
+                episodeProgress = 0,
+                score = null,
+                notes = null,
+                lastModified = System.currentTimeMillis()
+            )
+
+            val updated = currentTracking.copy(
+                watchStatus = status,
+                lastModified = System.currentTimeMillis()
+            )
+            userTrackingDao.insertOrUpdate(updated)
+        }
+    }
+
+    fun incrementEpisodeProgress() {
+        val state = _uiState.value as? DetailUiState.Success ?: return
+        val maxEpisodes = state.anime.episodes ?: Int.MAX_VALUE
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentTracking = state.tracking ?: UserTrackingEntity(
+                anilistId = currentAnimeId,
+                watchStatus = "CURRENT",
+                episodeProgress = 0,
+                score = null,
+                notes = null,
+                lastModified = System.currentTimeMillis()
+            )
+
+            if (currentTracking.episodeProgress < maxEpisodes) {
+                val newProgress = currentTracking.episodeProgress + 1
+                val newStatus = if (newProgress == maxEpisodes) "COMPLETED" else currentTracking.watchStatus
+                val updated = currentTracking.copy(
+                    episodeProgress = newProgress,
+                    watchStatus = newStatus,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(updated)
+            }
+        }
+    }
+
+    fun decrementEpisodeProgress() {
+        val state = _uiState.value as? DetailUiState.Success ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentTracking = state.tracking ?: return@launch
+            if (currentTracking.episodeProgress > 0) {
+                val updated = currentTracking.copy(
+                    episodeProgress = currentTracking.episodeProgress - 1,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(updated)
+            }
+        }
+    }
+
+    fun saveNotes(notes: String) {
+        val state = _uiState.value as? DetailUiState.Success ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val currentTracking = state.tracking ?: UserTrackingEntity(
+                anilistId = currentAnimeId,
+                watchStatus = "PLANNING",
+                episodeProgress = 0,
+                score = null,
+                notes = notes,
+                lastModified = System.currentTimeMillis()
+            )
+            val updated = currentTracking.copy(
+                notes = notes,
+                lastModified = System.currentTimeMillis()
+            )
+            userTrackingDao.insertOrUpdate(updated)
+        }
+    }
+}
+
+sealed interface DetailUiState {
+    data object Loading : DetailUiState
+    data class Success(
+        val anime: Anime,
+        val screenshots: List<String>,
+        val relations: List<Anime>,
+        val tracking: UserTrackingEntity?
+    ) : DetailUiState
+    data class Error(val message: String) : DetailUiState
+}

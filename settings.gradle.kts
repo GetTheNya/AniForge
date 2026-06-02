@@ -24,3 +24,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "AniForge"
 include(":app")
+include(":core:model")
+include(":core:database")
+include(":core:network")
+
