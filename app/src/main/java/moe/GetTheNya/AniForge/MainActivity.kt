@@ -40,6 +40,13 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -294,6 +301,7 @@ class MainActivity : ComponentActivity() {
                                                 contentLayer = contentLayer,
                                                 pagerWindowPositionState = pagerWindowPosition,
                                                 bottomBarWindowPositionState = bottomBarWindowPosition,
+                                                scrollPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
                                                     .graphicsLayer {
@@ -417,6 +425,7 @@ fun FloatingBottomNavigation(
     contentLayer: GraphicsLayer,
     pagerWindowPositionState: State<Offset>,
     bottomBarWindowPositionState: MutableState<Offset>,
+    scrollPosition: () -> Float,
     modifier: Modifier = Modifier
 ) {
     val blurEffect = remember {
@@ -428,6 +437,16 @@ fun FloatingBottomNavigation(
             null
         }
     }
+
+    val tabColors = remember {
+        listOf(
+            Color(0xFFFF4081), // Home (Index 0)
+            Color(0xFF00FFCC), // Anime (Index 1)
+            Color(0xFFA855F7), // Seasons (Index 2)
+            Color(0xFF00FF87)  // Profile (Index 3)
+        )
+    }
+    val restColor = Color(0x66FFFFFF)
 
     Box(
         modifier = modifier
@@ -466,7 +485,53 @@ fun FloatingBottomNavigation(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 12.dp)
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithContent {
+                    // Draw base static layer (opaque white base mask)
+                    drawContent()
+                    
+                    val scrollPos = scrollPosition().coerceIn(0f, 3f)
+                    val tabWidth = size.width / 4f
+                    val sliderX = scrollPos * tabWidth
+                    val w = size.width.coerceAtLeast(1f)
+                    
+                    val baseIndex = scrollPos.toInt()
+                    val fraction = scrollPos - baseIndex
+                    
+                    val boundaryX = (baseIndex + 1) * tabWidth
+                    
+                    val f1 = (sliderX / w).coerceIn(0f, 1f)
+                    val f2 = (boundaryX / w).coerceIn(0f, 1f)
+                    val f3 = ((sliderX + tabWidth) / w).coerceIn(0f, 1f)
+                    
+                    val activeColor1 = tabColors[baseIndex]
+                    val activeColor2 = tabColors[(baseIndex + 1).coerceAtMost(3)]
+                    val restColorVal = Color(0x66FFFFFF)
+                    
+                    // Create color stops with duplicate coordinate stops for razor-sharp borders
+                    val colorStops = arrayOf(
+                        0.0f to restColorVal,
+                        f1 to restColorVal,
+                        f1 to activeColor1,
+                        f2 to activeColor1,
+                        f2 to activeColor2,
+                        f3 to activeColor2,
+                        f3 to restColorVal,
+                        1.0f to restColorVal
+                    )
+                    
+                    val brush = Brush.linearGradient(
+                        colorStops = colorStops,
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, 0f)
+                    )
+                    
+                    drawRect(
+                        brush = brush,
+                        blendMode = BlendMode.SrcIn
+                    )
+                },
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -477,10 +542,10 @@ fun FloatingBottomNavigation(
                 TabScreen.Profile to (Icons.Default.Person to "Profile")
             )
  
-            tabs.forEach { (tab, pair) ->
+            tabs.forEachIndexed { index, (tab, pair) ->
                 val (icon, label) = pair
                 val isSelected = selectedTab() == tab
-                val color = if (isSelected) NeonCoral else TextSecondary
+                val itemColor = Color.White
                 
                 Column(
                     modifier = Modifier
@@ -495,13 +560,13 @@ fun FloatingBottomNavigation(
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = color,
+                        tint = itemColor,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = label,
-                        color = color,
+                        color = itemColor,
                         fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
