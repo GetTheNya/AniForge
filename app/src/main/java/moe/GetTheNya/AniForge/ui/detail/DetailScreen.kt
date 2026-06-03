@@ -135,7 +135,7 @@ fun DetailContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
+                .heightIn(min = 300.dp)
         ) {
             AsyncImage(
                 model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
@@ -147,52 +147,79 @@ fun DetailContent(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
+                    .matchParentSize()
             )
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .matchParentSize()
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(Color.Transparent, Color(0x66000000), BackgroundDark)
                         )
                     )
             )
-            // Title info overlay
-            Column(
+            // Title & Poster Row overlay
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(20.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+                // Dedicated vertical poster image next to title section
+                AsyncImage(
+                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        .data(anime.coverLarge ?: anime.coverMedium)
+                        .precision(coil.size.Precision.EXACT)
+                        .allowHardware(true)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(90.dp)
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .wrapContentHeight()
+                        .fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = NeonCoral, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = NeonCoral, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${anime.scoreMal ?: "N/A"}",
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = anime.format ?: "",
+                            color = NeonCoral,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${anime.scoreMal ?: "N/A"}",
+                        text = anime.getDisplayTitle(preferUk = true),
                         color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = anime.format ?: "",
-                        color = NeonCoral,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = Int.MAX_VALUE,
+                        softWrap = true
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = anime.getDisplayTitle(preferUk = true),
-                    color = TextPrimary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
 

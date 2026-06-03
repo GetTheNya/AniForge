@@ -225,20 +225,43 @@ class MainActivity : ComponentActivity() {
                             key(entry.id) {
                                 val isTopMost = index == navController.backStack.lastIndex
                                 
+                                LaunchedEffect(entry.id) {
+                                    if (entry.screen != Screen.Tabs && !entry.isEntranceStarted) {
+                                        entry.animatableOffset.snapTo(screenWidthPx)
+                                        entry.isEntranceStarted = true
+                                        entry.animatableOffset.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = tween(durationMillis = 300)
+                                        )
+                                    }
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer {
                                             val lastIndex = navController.backStack.lastIndex
                                             if (isTopMost) {
-                                                val offsetVal = if (entry.isDragging) entry.dragOffset else entry.animatableOffset.value
+                                                val offsetVal = if (entry.isDragging) {
+                                                    entry.dragOffset
+                                                } else if (entry.screen != Screen.Tabs && !entry.isEntranceStarted) {
+                                                    screenWidthPx
+                                                } else {
+                                                    entry.animatableOffset.value
+                                                }
                                                 scaleX = 1.0f
                                                 scaleY = 1.0f
                                                 alpha = 1.0f
                                                 translationX = offsetVal
                                             } else if (index == lastIndex - 1) {
                                                 val topEntry = navController.backStack[lastIndex]
-                                                val topOffset = if (topEntry.isDragging) topEntry.dragOffset else topEntry.animatableOffset.value
+                                                val topOffset = if (topEntry.isDragging) {
+                                                    topEntry.dragOffset
+                                                } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
+                                                    screenWidthPx
+                                                } else {
+                                                    topEntry.animatableOffset.value
+                                                }
                                                 val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
                                                 val s = 0.95f + 0.05f * progress
                                                 val a = 0.6f + 0.4f * progress

@@ -36,6 +36,7 @@ class BackStackEntry(
     val animatableOffset = Animatable(0f)
     var dragOffset by mutableFloatStateOf(0f)
     var isDragging by mutableStateOf(false)
+    var isEntranceStarted by mutableStateOf(false)
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory
         get() = activity.defaultViewModelProviderFactory
