@@ -68,6 +68,12 @@ import moe.GetTheNya.AniForge.ui.profile.LogViewerScreen
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.animation.core.spring
+import moe.GetTheNya.AniForge.ui.navigation.BackStackEntry
 import moe.GetTheNya.AniForge.ui.profile.ProfileScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileViewModel
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -107,11 +113,30 @@ class MainActivity : ComponentActivity() {
                 databaseManager.updateCatalogIfAvailable()
             }
 
+            val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+            val screenWidthPx = with(LocalDensity.current) { screenWidth.toPx() }
+
+            // Dynamic Relative Parallax triggerDismissAnimation
+            val triggerDismissAnimation: (BackStackEntry) -> Unit = { entry ->
+                if (navController.backStack.contains(entry) && entry.animatableOffset.value < screenWidthPx) {
+                    coroutineScope.launch {
+                        entry.isDragging = false
+                        entry.animatableOffset.snapTo(0f)
+                        entry.animatableOffset.animateTo(
+                            targetValue = screenWidthPx,
+                            animationSpec = tween(durationMillis = 300)
+                        )
+                        navController.popBackStack()
+                    }
+                }
+            }
+
             // Zero-Overhead Double-Tap Exit BackHandler
             var lastBackPressTime by remember { mutableLongStateOf(0L) }
             BackHandler(enabled = true) {
-                if (navController.backStack.size > 1) {
-                    navController.popBackStack()
+                val topEntry = navController.backStack.lastOrNull()
+                if (topEntry != null && topEntry.screen != Screen.Tabs) {
+                    triggerDismissAnimation(topEntry)
                 } else if (pagerState.currentPage != 0) {
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(0)
@@ -163,113 +188,216 @@ class MainActivity : ComponentActivity() {
                         val pagerWindowPosition = remember { mutableStateOf(Offset.Zero) }
                         val bottomBarWindowPosition = remember { mutableStateOf(Offset.Zero) }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .nestedScroll(nestedScrollConnection)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .onGloballyPositioned { coordinates ->
-                                        pagerWindowPosition.value = coordinates.positionInWindow()
-                                    }
-                                    .drawWithContent {
-                                        contentLayer.record {
-                                            this@drawWithContent.drawContent()
-                                        }
-                                        drawLayer(contentLayer)
-                                    }
-                            ) {
-                                HorizontalPager(
-                                    state = pagerState,
-                                    modifier = Modifier.fillMaxSize()
-                                ) { page ->
-                                    when (page) {
-                                        0 -> HomeScreen(
-                                            viewModel = homeViewModel,
-                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
-                                        )
-                                        1 -> AnimeScreen()
-                                        2 -> DashboardScreen(
-                                            viewModel = dashboardViewModel,
-                                            preferUk = preferUk,
-                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
-                                        )
-                                        3 -> ProfileScreen(
-                                            viewModel = profileViewModel,
-                                            navController = navController
-                                        )
-                                    }
+                        // Optimized selection state to avoid root recomposition
+                        val selectedTabState = remember {
+                            derivedStateOf {
+                                when (pagerState.currentPage) {
+                                    0 -> TabScreen.Home
+                                    1 -> TabScreen.Anime
+                                    2 -> TabScreen.Seasons
+                                    3 -> TabScreen.Profile
+                                    else -> TabScreen.Seasons
                                 }
                             }
-
-                            // Floating Bottom Navigation Bar
-                            val selectedTab = when (pagerState.currentPage) {
-                                0 -> TabScreen.Home
-                                1 -> TabScreen.Anime
-                                2 -> TabScreen.Seasons
-                                3 -> TabScreen.Profile
-                                else -> TabScreen.Seasons
-                            }
-
-                            val bottomBarOffset by animateDpAsState(
-                                targetValue = if (isBottomBarVisible) 0.dp else 120.dp,
-                                animationSpec = tween(durationMillis = 300),
-                                label = "bottomBarOffset"
-                            )
-
-                            FloatingBottomNavigation(
-                                selectedTab = selectedTab,
-                                onTabSelected = { tab ->
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(tab.ordinal)
-                                    }
-                                },
-                                contentLayer = contentLayer,
-                                pagerWindowPositionState = pagerWindowPosition,
-                                bottomBarWindowPositionState = bottomBarWindowPosition,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .offset {
-                                        IntOffset(0, bottomBarOffset.roundToPx())
-                                    }
-                            )
                         }
 
-                        // Overlay active sub-screens on top of the tabs layout
-                        val subScreenEntries = navController.backStack.filter { it.screen != Screen.Tabs }
-                        subScreenEntries.forEach { entry ->
+                        val bottomBarOffset by animateDpAsState(
+                            targetValue = if (isBottomBarVisible) 0.dp else 120.dp,
+                            animationSpec = tween(durationMillis = 300),
+                            label = "bottomBarOffset"
+                        )
+
+                        navController.backStack.forEachIndexed { index, entry ->
                             key(entry.id) {
+                                val isTopMost = index == navController.backStack.lastIndex
+                                
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {}
+                                        .graphicsLayer {
+                                            val lastIndex = navController.backStack.lastIndex
+                                            if (isTopMost) {
+                                                val offsetVal = if (entry.isDragging) entry.dragOffset else entry.animatableOffset.value
+                                                scaleX = 1.0f
+                                                scaleY = 1.0f
+                                                alpha = 1.0f
+                                                translationX = offsetVal
+                                            } else if (index == lastIndex - 1) {
+                                                val topEntry = navController.backStack[lastIndex]
+                                                val topOffset = if (topEntry.isDragging) topEntry.dragOffset else topEntry.animatableOffset.value
+                                                val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
+                                                val s = 0.95f + 0.05f * progress
+                                                val a = 0.6f + 0.4f * progress
+                                                scaleX = s
+                                                scaleY = s
+                                                alpha = a
+                                                translationX = 0f
+                                            } else {
+                                                scaleX = 0.95f
+                                                scaleY = 0.95f
+                                                alpha = 0.0f
+                                                translationX = 0f
+                                            }
+                                        }
                                 ) {
-                                    CompositionLocalProvider(LocalViewModelStoreOwner provides entry) {
-                                        when (val screen = entry.screen) {
-                                            is Screen.Detail -> {
-                                                val scopedViewModel = remember(entry) {
-                                                    ViewModelProvider(entry)[DetailViewModel::class.java]
+                                    if (entry.screen == Screen.Tabs) {
+                                        // Main tabs layout
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .nestedScroll(nestedScrollConnection)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .onGloballyPositioned { coordinates ->
+                                                        pagerWindowPosition.value = coordinates.positionInWindow()
+                                                    }
+                                                    .drawWithContent {
+                                                        contentLayer.record {
+                                                            this@drawWithContent.drawContent()
+                                                        }
+                                                        drawLayer(contentLayer)
+                                                    }
+                                            ) {
+                                                HorizontalPager(
+                                                    state = pagerState,
+                                                    modifier = Modifier.fillMaxSize()
+                                                ) { page ->
+                                                    when (page) {
+                                                        0 -> HomeScreen(
+                                                            viewModel = homeViewModel,
+                                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                                                        )
+                                                        1 -> AnimeScreen()
+                                                        2 -> DashboardScreen(
+                                                            viewModel = dashboardViewModel,
+                                                            preferUk = preferUk,
+                                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                                                        )
+                                                        3 -> ProfileScreen(
+                                                            viewModel = profileViewModel,
+                                                            navController = navController
+                                                        )
+                                                    }
                                                 }
-                                                DetailScreen(
-                                                    anilistId = screen.animeId,
-                                                    navController = navController,
-                                                    viewModel = scopedViewModel,
-                                                    modifier = Modifier.padding(innerPadding)
-                                                )
                                             }
-                                            is Screen.LogViewer -> {
-                                                LogViewerScreen(
-                                                    viewModel = profileViewModel,
-                                                    navController = navController,
-                                                    modifier = Modifier.padding(innerPadding)
+
+                                            // Floating Bottom Navigation Bar (optimized with selectedTabState lambda)
+                                            FloatingBottomNavigation(
+                                                selectedTab = { selectedTabState.value },
+                                                onTabSelected = { tab ->
+                                                    coroutineScope.launch {
+                                                        pagerState.animateScrollToPage(tab.ordinal)
+                                                    }
+                                                },
+                                                contentLayer = contentLayer,
+                                                pagerWindowPositionState = pagerWindowPosition,
+                                                bottomBarWindowPositionState = bottomBarWindowPosition,
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .graphicsLayer {
+                                                        translationY = bottomBarOffset.toPx()
+                                                    }
+                                            )
+                                        }
+                                    } else {
+                                        // Sub-screen overlay
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {}
+                                                .then(
+                                                    if (isTopMost) {
+                                                        Modifier.pointerInput(screenWidthPx) {
+                                                            val touchSlop = viewConfiguration.touchSlop
+                                                            awaitPointerEventScope {
+                                                                while (true) {
+                                                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                                                    var dragX = 0f
+                                                                    var dragY = 0f
+                                                                    var hasLocked = false
+                                                                    val dragId = down.id
+                                                                    
+                                                                    while (true) {
+                                                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                                                        val dragEvent = event.changes.firstOrNull { it.id == dragId }
+                                                                        if (dragEvent == null || !dragEvent.pressed) {
+                                                                            break
+                                                                        }
+                                                                        
+                                                                        val position = dragEvent.position
+                                                                        val prevPosition = dragEvent.previousPosition
+                                                                        val deltaX = position.x - prevPosition.x
+                                                                        val deltaY = position.y - prevPosition.y
+                                                                        
+                                                                        if (!hasLocked) {
+                                                                            dragX += deltaX
+                                                                            dragY += kotlin.math.abs(deltaY)
+                                                                            if (dragX > touchSlop && dragX > dragY * 1.5f) {
+                                                                                hasLocked = true
+                                                                                entry.isDragging = true
+                                                                                entry.dragOffset = dragX
+                                                                                dragEvent.consume()
+                                                                            } else if (kotlin.math.abs(dragX) > touchSlop || dragY > touchSlop) {
+                                                                                break
+                                                                            }
+                                                                        } else {
+                                                                            dragEvent.consume()
+                                                                            entry.dragOffset = (entry.dragOffset + deltaX).coerceAtLeast(0f)
+                                                                        }
+                                                                    }
+                                                                    
+                                                                    if (hasLocked) {
+                                                                        coroutineScope.launch {
+                                                                            val releaseOffset = entry.dragOffset
+                                                                            entry.animatableOffset.snapTo(releaseOffset)
+                                                                            entry.isDragging = false
+                                                                            if (releaseOffset > screenWidthPx * 0.4f) {
+                                                                                entry.animatableOffset.animateTo(
+                                                                                    screenWidthPx,
+                                                                                    tween(durationMillis = 300)
+                                                                                )
+                                                                                navController.popBackStack()
+                                                                            } else {
+                                                                                entry.animatableOffset.animateTo(0f, spring())
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    } else Modifier
                                                 )
+                                        ) {
+                                            CompositionLocalProvider(LocalViewModelStoreOwner provides entry) {
+                                                when (val screen = entry.screen) {
+                                                    is Screen.Detail -> {
+                                                        val scopedViewModel = remember(entry) {
+                                                            ViewModelProvider(entry)[DetailViewModel::class.java]
+                                                        }
+                                                        DetailScreen(
+                                                            anilistId = screen.animeId,
+                                                            navController = navController,
+                                                            viewModel = scopedViewModel,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.LogViewer -> {
+                                                        LogViewerScreen(
+                                                            viewModel = profileViewModel,
+                                                            navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    else -> {}
+                                                }
                                             }
-                                            else -> {}
                                         }
                                     }
                                 }
@@ -284,7 +412,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun FloatingBottomNavigation(
-    selectedTab: TabScreen,
+    selectedTab: () -> TabScreen,
     onTabSelected: (TabScreen) -> Unit,
     contentLayer: GraphicsLayer,
     pagerWindowPositionState: State<Offset>,
@@ -326,7 +454,7 @@ fun FloatingBottomNavigation(
                     val barPos = bottomBarWindowPositionState.value
                     val baseDeltaX = barPos.x - pagerPos.x
                     val baseDeltaY = barPos.y - pagerPos.y
-
+ 
                     translate(left = -baseDeltaX, top = -baseDeltaY) {
                         drawLayer(contentLayer)
                     }
@@ -348,10 +476,10 @@ fun FloatingBottomNavigation(
                 TabScreen.Seasons to (Icons.Default.Search to "Seasons"),
                 TabScreen.Profile to (Icons.Default.Person to "Profile")
             )
-
+ 
             tabs.forEach { (tab, pair) ->
                 val (icon, label) = pair
-                val isSelected = selectedTab == tab
+                val isSelected = selectedTab() == tab
                 val color = if (isSelected) NeonCoral else TextSecondary
                 
                 Column(

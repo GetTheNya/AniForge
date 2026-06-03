@@ -217,7 +217,8 @@ fun ProfileScreen(
 fun LogViewerScreen(
     viewModel: ProfileViewModel,
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit = { navController.popBackStack() }
 ) {
     val logs by viewModel.logs.collectAsState()
     val clipboardManager = LocalClipboardManager.current
@@ -245,7 +246,7 @@ fun LogViewerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { navController.popBackStack() },
+                onClick = onBack,
                 modifier = Modifier
                     .padding(end = 12.dp)
                     .clip(RoundedCornerShape(12.dp))

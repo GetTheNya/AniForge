@@ -33,7 +33,8 @@ fun DetailScreen(
     anilistId: Long,
     navController: NavController,
     viewModel: DetailViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit = { navController.popBackStack() }
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -89,7 +90,7 @@ fun DetailScreen(
 
         // Top Back Button
         IconButton(
-            onClick = { navController.popBackStack() },
+            onClick = onBack,
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(16.dp)
