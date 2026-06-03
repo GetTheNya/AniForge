@@ -32,7 +32,8 @@ import moe.GetTheNya.AniForge.ui.theme.TextSecondary
 fun AnimeBentoCard(
     anime: Anime,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    preferUk: Boolean = true
 ) {
     Box(
         modifier = modifier
@@ -43,12 +44,19 @@ fun AnimeBentoCard(
             .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
             .clickable(onClick = onClick)
     ) {
-        // Background cover artwork
+        // Background cover artwork (Coil exact resizing & GPU hardware optimization)
         AsyncImage(
-            model = anime.coverLarge ?: anime.coverMedium,
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(anime.coverLarge ?: anime.coverMedium)
+                .precision(coil.size.Precision.EXACT)
+                .allowHardware(true)
+                .crossfade(true)
+                .build(),
             contentDescription = anime.titleRomaji,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
         )
 
         // Gradient overlay for text readability
@@ -136,7 +144,7 @@ fun AnimeBentoCard(
 
             // Main Title
             Text(
-                text = anime.getDisplayTitle(preferUk = true),
+                text = anime.getDisplayTitle(preferUk = preferUk),
                 color = TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,

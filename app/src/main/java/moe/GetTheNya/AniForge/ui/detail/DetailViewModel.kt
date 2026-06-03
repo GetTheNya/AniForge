@@ -1,5 +1,6 @@
 package moe.GetTheNya.AniForge.ui.detail
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -134,13 +135,17 @@ class DetailViewModel @Inject constructor(
     }
 }
 
+@Immutable
 sealed interface DetailUiState {
+    @Immutable
     data object Loading : DetailUiState
+    @Immutable
     data class Success(
         val anime: Anime,
         val screenshots: List<String>,
         val relations: List<Anime>,
         val tracking: UserTrackingEntity?
     ) : DetailUiState
+    @Immutable
     data class Error(val message: String) : DetailUiState
 }

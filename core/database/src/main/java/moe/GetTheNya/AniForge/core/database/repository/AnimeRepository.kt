@@ -1,13 +1,12 @@
 package moe.GetTheNya.AniForge.core.database.repository
 
 import androidx.sqlite.db.SimpleSQLiteQuery
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
-import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -15,34 +14,51 @@ import javax.inject.Singleton
 class AnimeRepository @Inject constructor(
     private val databaseProvider: CatalogDatabaseProvider
 ) {
-    // Dedicated single-threaded thread pool for executing search calculations
-    private val searchDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
     /**
      * Executes a dynamic FTS5 search and multi-layered filter query on a dedicated background thread.
      */
-    suspend fun queryAnime(filter: SearchFilterQuery): List<Anime> = withContext(searchDispatcher) {
+    suspend fun queryAnime(filter: SearchFilterQuery): List<Anime> = withContext(Dispatchers.IO) {
         val db = databaseProvider.getDatabase()
         val rawQuery = buildSqlFilterQuery(filter)
-        db.animeDao().getFilteredAnime(rawQuery).map { it.toDomain() }
+        val list = ArrayList<Anime>()
+        try {
+            db.query(rawQuery).use { cursor ->
+                while (cursor.moveToNext()) {
+                    list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
     }
 
     /**
      * Helper to fetch an anime by its AniList ID.
      */
-    suspend fun getAnimeById(id: Long): Anime? = withContext(searchDispatcher) {
+    suspend fun getAnimeById(id: Long): Anime? = withContext(Dispatchers.IO) {
         val db = databaseProvider.getDatabase()
-        db.animeDao().getAnimeById(id)?.toDomain()
+        var anime: Anime? = null
+        try {
+            db.query("SELECT * FROM anime WHERE anilist_id = ?", arrayOf(id.toString())).use { cursor ->
+                if (cursor.moveToNext()) {
+                    anime = cursorToAnime(cursor)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        anime
     }
 
     /**
      * Fetches screenshot URLs for the given anime ID.
      */
-    suspend fun getScreenshots(anilistId: Long): List<String> = withContext(searchDispatcher) {
+    suspend fun getScreenshots(anilistId: Long): List<String> = withContext(Dispatchers.IO) {
         val db = databaseProvider.getDatabase()
         val list = ArrayList<String>()
         try {
-            db.openHelper.readableDatabase.query(
+            db.query(
                 "SELECT image_url FROM screenshots WHERE anilist_id = ?",
                 arrayOf(anilistId.toString())
             ).use { cursor ->
@@ -62,11 +78,11 @@ class AnimeRepository @Inject constructor(
     /**
      * Fetches related anime details sorted by release date.
      */
-    suspend fun getRelations(anilistId: Long): List<Anime> = withContext(searchDispatcher) {
+    suspend fun getRelations(anilistId: Long): List<Anime> = withContext(Dispatchers.IO) {
         val db = databaseProvider.getDatabase()
         val list = ArrayList<Anime>()
         try {
-            db.openHelper.readableDatabase.query(
+            db.query(
                 "SELECT target.* FROM anime target " +
                 "JOIN relations ON target.anilist_id = relations.target_anilist_id " +
                 "WHERE relations.source_anilist_id = ? " +

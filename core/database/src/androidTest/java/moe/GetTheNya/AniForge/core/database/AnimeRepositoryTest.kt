@@ -1,7 +1,9 @@
 package moe.GetTheNya.AniForge.core.database
 
 import android.content.Context
-import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -23,7 +25,8 @@ class AnimeRepositoryTest {
     private lateinit var settingsProvider: SettingsProvider
     private lateinit var databaseProvider: CatalogDatabaseProvider
     private lateinit var repository: AnimeRepository
-    private lateinit var db: CatalogDatabase
+    private lateinit var openHelper: SupportSQLiteOpenHelper
+    private lateinit var db: SupportSQLiteDatabase
 
     @Before
     fun setUp() {
@@ -37,64 +40,132 @@ class AnimeRepositoryTest {
         if (testFile.exists()) testFile.delete()
 
         // Build database instance
-        db = Room.databaseBuilder(context, CatalogDatabase::class.java, "catalog_test.db").build()
+        openHelper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("catalog_test.db")
+                .callback(object : SupportSQLiteOpenHelper.Callback(1) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        db.execSQL(
+                            "CREATE TABLE IF NOT EXISTS anime (" +
+                            "anilist_id INTEGER PRIMARY KEY, " +
+                            "mal_id INTEGER, " +
+                            "title_uk TEXT, " +
+                            "title_romaji TEXT, " +
+                            "title_en TEXT, " +
+                            "description_uk TEXT, " +
+                            "description_en TEXT, " +
+                            "format TEXT, " +
+                            "status TEXT, " +
+                            "episodes INTEGER, " +
+                            "duration INTEGER, " +
+                            "season_year INTEGER, " +
+                            "season TEXT, " +
+                            "is_adult INTEGER, " +
+                            "score_mal REAL, " +
+                            "cover_extra_large TEXT, " +
+                            "cover_large TEXT, " +
+                            "cover_medium TEXT, " +
+                            "cover_color TEXT, " +
+                            "banner_image TEXT, " +
+                            "has_uk_translation INTEGER, " +
+                            "updated_at INTEGER" +
+                            ");"
+                        )
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+                })
+                .build()
+        )
+        db = openHelper.writableDatabase
 
         // Populate tables
         runBlocking {
-            // Setup tables structure
-            db.animeDao().getAnimeById(1L)
+            // 1. Create relational lookup tables (SQLite holds them)
+            db.execSQL("CREATE TABLE IF NOT EXISTS anime_genres (anilist_id INTEGER, genre_slug TEXT);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS anime_studios (anilist_id INTEGER, studio_id INTEGER);")
             
-            val dbWrite = db.openHelper.writableDatabase
+            // Diagnostics: Print SQLite version and compile options
+            try {
+                db.query(androidx.sqlite.db.SimpleSQLiteQuery("SELECT sqlite_version()")).use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        android.util.Log.d("SQL_DIAG", "SQLite Version: " + cursor.getString(0))
+                    }
+                }
+                db.query(androidx.sqlite.db.SimpleSQLiteQuery("PRAGMA compile_options")).use { cursor ->
+                    val options = mutableListOf<String>()
+                    while (cursor.moveToNext()) {
+                        options.add(cursor.getString(0))
+                    }
+                    android.util.Log.d("SQL_DIAG", "Compile Options: " + options.joinToString(", "))
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SQL_DIAG", "Failed to query SQLite version/options", e)
+            }
 
-            // 1. Create relational lookup tables (Room doesn't manage their entities, but SQLite holds them)
-            dbWrite.execSQL("CREATE TABLE IF NOT EXISTS anime_genres (anilist_id INTEGER, genre_slug TEXT);")
-            dbWrite.execSQL("CREATE TABLE IF NOT EXISTS anime_studios (anilist_id INTEGER, studio_id INTEGER);")
+            try {
+                db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts5(title_uk, title_romaji, synonyms_flat, tokenize='unicode61 remove_diacritics 2');")
+                android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table with tokenize options")
+            } catch (e: Exception) {
+                android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table with tokenize options: " + e.message)
+                try {
+                    db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts5(title_uk, title_romaji, synonyms_flat);")
+                    android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table without tokenize options")
+                } catch (e2: Exception) {
+                    android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table without tokenize options: " + e2.message)
+                    try {
+                        db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts4(title_uk, title_romaji, synonyms_flat);")
+                        android.util.Log.d("SQL_DIAG", "Successfully created FTS4 table instead of FTS5")
+                    } catch (e3: Exception) {
+                        android.util.Log.e("SQL_DIAG", "Failed to create FTS4 table: " + e3.message)
+                    }
+                }
+            }
 
             // 2. Insert Anime Records
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
                 "VALUES (1, 'Shingeki no Kyojin', 9.1, 2013, 0, 1, 1000);"
             )
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
                 "VALUES (2, 'Boku no Hero Academia', 8.2, 2016, 0, 1, 1001);"
             )
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
                 "VALUES (3, 'Sword Art Online', 7.2, 2012, 0, 1, 1002);"
             )
 
             // 3. Insert FTS Search Records
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
                 "VALUES (1, 'Атака титанів', 'Shingeki no Kyojin', 'Attack on Titan SnK');"
             )
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
                 "VALUES (2, 'Моя геройська академія', 'Boku no Hero Academia', 'My Hero Academia MHA');"
             )
-            dbWrite.execSQL(
+            db.execSQL(
                 "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
                 "VALUES (3, 'Майстри меча онлайн', 'Sword Art Online', 'SAO');"
             )
 
             // 4. Insert Genre Records
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (1, 'action');")
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (1, 'drama');")
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (2, 'action');")
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (2, 'comedy');")
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (3, 'action');")
-            dbWrite.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (3, 'fantasy');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (1, 'action');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (1, 'drama');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (2, 'action');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (2, 'comedy');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (3, 'action');")
+            db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (3, 'fantasy');")
 
             // 5. Insert Studio Records
-            dbWrite.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (1, 10);") // Wit Studio
-            dbWrite.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (2, 20);") // Bones
-            dbWrite.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (3, 30);") // A-1 Pictures
+            db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (1, 10);") // Wit Studio
+            db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (2, 20);") // Bones
+            db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (3, 30);") // A-1 Pictures
         }
 
         // Mock databaseProvider to return our pre-populated DB
         databaseProvider = object : CatalogDatabaseProvider(context, settingsProvider) {
-            override suspend fun getDatabase(): CatalogDatabase = db
+            override suspend fun getDatabase(): SupportSQLiteDatabase = db
         }
 
         repository = AnimeRepository(databaseProvider)
@@ -102,7 +173,7 @@ class AnimeRepositoryTest {
 
     @After
     fun tearDown() {
-        db.close()
+        openHelper.close()
         val testFile = context.getDatabasePath("catalog_test.db")
         if (testFile.exists()) testFile.delete()
     }

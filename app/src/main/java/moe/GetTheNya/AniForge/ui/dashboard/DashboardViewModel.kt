@@ -1,8 +1,10 @@
 package moe.GetTheNya.AniForge.ui.dashboard
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,7 +15,7 @@ import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
 import javax.inject.Inject
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
@@ -42,7 +44,7 @@ class DashboardViewModel @Inject constructor(
                 .flatMapLatest { filter ->
                     flow {
                         emit(animeRepository.queryAnime(filter))
-                    }
+                    }.flowOn(Dispatchers.IO)
                 }
                 .combine(userTrackingDao.observeAllTracking()) { animeList, trackingList ->
                     val stats = calculateStats(trackingList)
@@ -92,16 +94,21 @@ class DashboardViewModel @Inject constructor(
     }
 }
 
+@Immutable
 sealed interface DashboardUiState {
+    @Immutable
     data object Loading : DashboardUiState
+    @Immutable
     data class Success(
         val animeList: List<Anime>,
         val featuredAnime: Anime?,
         val stats: UserStats
     ) : DashboardUiState
+    @Immutable
     data class Error(val message: String) : DashboardUiState
 }
 
+@Immutable
 data class UserStats(
     val episodesWatched: Int,
     val titlesCompleted: Int,

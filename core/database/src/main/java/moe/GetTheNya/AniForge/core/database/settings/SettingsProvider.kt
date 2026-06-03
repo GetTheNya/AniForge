@@ -2,6 +2,9 @@ package moe.GetTheNya.AniForge.core.database.settings
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,8 +17,12 @@ class SettingsProvider @Inject constructor(
     companion object {
         private const val KEY_ACTIVE_CATALOG = "active_catalog_slot"
         private const val KEY_CATALOG_VERSION = "catalog_version"
+        private const val KEY_PREFER_UKRAINIAN_TITLES = "prefer_ukrainian_titles"
         private const val DEFAULT_CATALOG = "catalog_a.db"
     }
+
+    private val _preferUkTitles = MutableStateFlow(getPreferUkTitles())
+    val preferUkTitles: StateFlow<Boolean> = _preferUkTitles.asStateFlow()
 
     /**
      * Returns the name of the currently active catalog file (e.g. "catalog_a.db").
@@ -47,5 +54,14 @@ class SettingsProvider @Inject constructor(
             .putString(KEY_ACTIVE_CATALOG, fileName)
             .putLong(KEY_CATALOG_VERSION, version)
             .apply()
+    }
+
+    fun getPreferUkTitles(): Boolean {
+        return prefs.getBoolean(KEY_PREFER_UKRAINIAN_TITLES, true)
+    }
+
+    fun setPreferUkTitles(value: Boolean) {
+        prefs.edit().putBoolean(KEY_PREFER_UKRAINIAN_TITLES, value).apply()
+        _preferUkTitles.value = value
     }
 }

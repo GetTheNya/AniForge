@@ -37,6 +37,7 @@ import moe.GetTheNya.AniForge.ui.theme.*
 fun DashboardScreen(
     onAnimeClick: (Long) -> Unit,
     viewModel: DashboardViewModel,
+    preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,10 +77,7 @@ fun DashboardScreen(
             is DashboardUiState.Success -> {
                 DashboardContent(
                     animeList = state.animeList,
-                    featuredAnime = state.featuredAnime,
-                    stats = state.stats,
-                    selectedGenres = searchFilter.genres,
-                    onGenreToggle = viewModel::toggleGenreFilter,
+                    preferUk = preferUk,
                     onAnimeClick = onAnimeClick
                 )
             }
@@ -118,66 +116,20 @@ fun SearchBar(
 @Composable
 fun DashboardContent(
     animeList: List<Anime>,
-    featuredAnime: Anime?,
-    stats: UserStats,
-    selectedGenres: List<String>,
-    onGenreToggle: (String) -> Unit,
+    preferUk: Boolean,
     onAnimeClick: (Long) -> Unit
 ) {
-    val genresList = listOf("Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi", "Mystery", "Psychological", "Supernatural")
-
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        // 1. Stats Bento Panel (Span full width)
-        item(span = { GridItemSpan(2) }) {
-            BentoStatsCard(stats)
-        }
-
-        // 2. Featured Card (Span full width)
-        if (featuredAnime != null && selectedGenres.isEmpty()) {
-            item(span = { GridItemSpan(2) }) {
-                FeaturedBentoCard(anime = featuredAnime, onClick = { onAnimeClick(featuredAnime.anilistId) })
-            }
-        }
-
-        // 3. Genre Selector Row (Span full width)
-        item(span = { GridItemSpan(2) }) {
-            Column {
-                Text(
-                    text = "Categories",
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    genresList.forEach { genre ->
-                        val slug = genre.lowercase()
-                        val isSelected = selectedGenres.contains(slug)
-                        GenreChip(
-                            name = genre,
-                            selected = isSelected,
-                            onClick = { onGenreToggle(slug) }
-                        )
-                    }
-                }
-            }
-        }
-
         // Header for Catalog listing
         item(span = { GridItemSpan(2) }) {
             Text(
-                text = if (selectedGenres.isNotEmpty()) "Filtered Catalog" else "Discover Catalog",
+                text = "Discover Catalog",
                 color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -185,7 +137,7 @@ fun DashboardContent(
             )
         }
 
-        // 4. Grid Catalog items
+        // Grid Catalog items
         items(
             items = animeList,
             key = { anime -> anime.anilistId },
@@ -193,6 +145,7 @@ fun DashboardContent(
         ) { anime ->
             AnimeBentoCard(
                 anime = anime,
+                preferUk = preferUk,
                 onClick = { onAnimeClick(anime.anilistId) }
             )
         }
@@ -244,10 +197,17 @@ fun FeaturedBentoCard(
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
-            model = anime.bannerImage ?: anime.coverLarge,
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(anime.bannerImage ?: anime.coverLarge)
+                .precision(coil.size.Precision.EXACT)
+                .allowHardware(true)
+                .crossfade(true)
+                .build(),
             contentDescription = anime.titleRomaji,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
         )
         Box(
             modifier = Modifier

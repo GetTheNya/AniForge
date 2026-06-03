@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
 import moe.GetTheNya.AniForge.core.model.sync.CatalogDownloader
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import moe.GetTheNya.AniForge.core.database.util.AppLogger
 import moe.GetTheNya.AniForge.core.database.util.GzipDecompressor
 import java.io.File
 import javax.inject.Inject
@@ -27,49 +28,75 @@ class DatabaseManager @Inject constructor(
      */
     suspend fun updateCatalogIfAvailable(): Boolean = withContext(Dispatchers.IO) {
         val currentVersion = settingsProvider.getCatalogVersion()
-        val latestVersion = catalogDownloader.fetchLatestVersion() ?: return@withContext false
-
-        if (latestVersion <= currentVersion) {
-            // Already up-to-date or remote version is older
-            return@withContext false
-        }
-
-        val standbyFileName = settingsProvider.getStandbyCatalogFileName()
-        val standbyFile = context.getDatabasePath(standbyFileName)
+        AppLogger.i("DatabaseManager", "Checking for catalog database update. Current local version: $currentVersion")
         
-        // Ensure parent database folder exists
-        standbyFile.parentFile?.mkdirs()
-
-        val tempGzipFile = File(context.cacheDir, "catalog_download_${latestVersion}.db.gz")
-
+        var tempGzipFile: File? = null
+        var standbyFile: File? = null
+        
         try {
+            val latestVersion = catalogDownloader.fetchLatestVersion()
+            if (latestVersion == null) {
+                AppLogger.w("DatabaseManager", "Failed to fetch latest catalog version from remote CDN.")
+                return@withContext false
+            }
+
+            if (latestVersion <= currentVersion) {
+                AppLogger.i("DatabaseManager", "Catalog is already up to date. Version: $currentVersion")
+                return@withContext false
+            }
+
+            val standbyFileName = settingsProvider.getStandbyCatalogFileName()
+            val file = context.getDatabasePath(standbyFileName)
+            standbyFile = file
+            
+            AppLogger.i("DatabaseManager", "New catalog version available: $latestVersion. Preparing download to standby slot: $standbyFileName")
+
+            // Ensure parent database folder exists
+            file.parentFile?.mkdirs()
+
+            val tempFile = File(context.cacheDir, "catalog_download_${latestVersion}.db.gz")
+            tempGzipFile = tempFile
+
             // 1. Download database gzip archive
-            val downloadSuccess = catalogDownloader.downloadCatalog(latestVersion, tempGzipFile)
-            if (!downloadSuccess || !tempGzipFile.exists()) {
-                tempGzipFile.delete()
+            AppLogger.i("DatabaseManager", "Downloading catalog archive for version: $latestVersion...")
+            val downloadSuccess = catalogDownloader.downloadCatalog(latestVersion, tempFile)
+            if (!downloadSuccess || !tempFile.exists()) {
+                AppLogger.e("DatabaseManager", "Failed to download catalog archive from remote CDN.")
+                tempFile.delete()
                 return@withContext false
             }
 
             // 2. Decompress directly into the standby file slot
-            if (standbyFile.exists()) {
-                standbyFile.delete()
+            if (file.exists()) {
+                file.delete()
             }
-            GzipDecompressor.decompressFile(tempGzipFile, standbyFile)
-            tempGzipFile.delete()
+            AppLogger.i("DatabaseManager", "Download complete. Decompressing gzip archive into slot: $standbyFileName")
+            GzipDecompressor.decompressFile(tempFile, file)
+            tempFile.delete()
 
             // 3. Verify SQLite Integrity
-            val isVerified = verifyDatabaseIntegrity(standbyFile)
+            AppLogger.i("DatabaseManager", "Decompression successful. Verifying SQLite database integrity...")
+            val isVerified = verifyDatabaseIntegrity(file)
             if (!isVerified) {
-                standbyFile.delete()
+                AppLogger.e("DatabaseManager", "Database integrity verification failed for slot: $standbyFileName")
+                file.delete()
                 return@withContext false
             }
 
             // 4. Perform the dynamic Room connection hotswap
-            return@withContext databaseProvider.hotSwapToStandby(latestVersion)
+            AppLogger.i("DatabaseManager", "Integrity check passed. Hot swapping to slot: $standbyFileName")
+            val swapSuccess = databaseProvider.hotSwapToStandby(latestVersion)
+            if (swapSuccess) {
+                AppLogger.i("DatabaseManager", "Database hot-swap completed successfully! Active catalog slot: $standbyFileName (v$latestVersion)")
+            } else {
+                AppLogger.e("DatabaseManager", "Database connection swap failed.")
+            }
+            return@withContext swapSuccess
         } catch (e: Exception) {
+            AppLogger.e("DatabaseManager", "Error occurred during catalog database update", e)
             // Clean up any remaining temporary files
-            if (tempGzipFile.exists()) tempGzipFile.delete()
-            if (standbyFile.exists()) standbyFile.delete()
+            if (tempGzipFile != null && tempGzipFile.exists()) tempGzipFile.delete()
+            if (standbyFile != null && standbyFile.exists()) standbyFile.delete()
             false
         }
     }

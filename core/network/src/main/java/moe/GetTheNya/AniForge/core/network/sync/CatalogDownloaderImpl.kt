@@ -14,18 +14,15 @@ class CatalogDownloaderImpl @Inject constructor(
 ) : CatalogDownloader {
 
     override suspend fun fetchLatestVersion(): Long? = withContext(Dispatchers.IO) {
-        try {
-            val response = apiService.getVersion()
-            response.version
-        } catch (e: Exception) {
-            null
-        }
+        val response = apiService.getVersion()
+        response.version
     }
 
     override suspend fun downloadCatalog(version: Long, destinationFile: File): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = apiService.downloadCatalog(version)
             if (!response.isSuccessful) {
+                android.util.Log.e("CatalogDownloader", "downloadCatalog response unsuccessful: ${response.code()}")
                 return@withContext false
             }
 
@@ -48,6 +45,7 @@ class CatalogDownloaderImpl @Inject constructor(
                 false
             }
         } catch (e: Exception) {
+            android.util.Log.e("CatalogDownloader", "downloadCatalog failed", e)
             false
         }
     }

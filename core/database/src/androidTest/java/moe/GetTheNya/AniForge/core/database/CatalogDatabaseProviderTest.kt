@@ -1,12 +1,12 @@
 package moe.GetTheNya.AniForge.core.database
 
 import android.content.Context
-import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteOpenHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import moe.GetTheNya.AniForge.core.database.entity.AnimeEntity
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import org.junit.After
 import org.junit.Assert.*
@@ -40,27 +40,42 @@ class CatalogDatabaseProviderTest {
         deleteDbFiles()
 
         // Create catalog_a database and insert dummy record
-        val dbA = Room.databaseBuilder(context, CatalogDatabase::class.java, "catalog_a.db").build()
-        runBlocking {
-            dbA.animeDao().getAnimeById(1L) // creates the file
-            // Let's insert a custom record directly to verify content
-            dbA.openHelper.writableDatabase.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, is_adult, has_uk_translation, updated_at) " +
-                "VALUES (101, 'Anime Slot A', 0, 1, ${System.currentTimeMillis()});"
-            )
-        }
-        dbA.close()
+        val openHelperA = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("catalog_a.db")
+                .callback(object : SupportSQLiteOpenHelper.Callback(1) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        db.execSQL("CREATE TABLE IF NOT EXISTS anime (anilist_id INTEGER PRIMARY KEY, title_romaji TEXT, is_adult INTEGER, has_uk_translation INTEGER, updated_at INTEGER);")
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+                })
+                .build()
+        )
+        val dbA = openHelperA.writableDatabase
+        dbA.execSQL(
+            "INSERT INTO anime (anilist_id, title_romaji, is_adult, has_uk_translation, updated_at) " +
+            "VALUES (101, 'Anime Slot A', 0, 1, ${System.currentTimeMillis()});"
+        )
+        openHelperA.close()
 
         // Create catalog_b database and insert dummy record
-        val dbB = Room.databaseBuilder(context, CatalogDatabase::class.java, "catalog_b.db").build()
-        runBlocking {
-            dbB.animeDao().getAnimeById(1L) // creates the file
-            dbB.openHelper.writableDatabase.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, is_adult, has_uk_translation, updated_at) " +
-                "VALUES (202, 'Anime Slot B', 0, 1, ${System.currentTimeMillis()});"
-            )
-        }
-        dbB.close()
+        val openHelperB = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name("catalog_b.db")
+                .callback(object : SupportSQLiteOpenHelper.Callback(1) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        db.execSQL("CREATE TABLE IF NOT EXISTS anime (anilist_id INTEGER PRIMARY KEY, title_romaji TEXT, is_adult INTEGER, has_uk_translation INTEGER, updated_at INTEGER);")
+                    }
+                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+                })
+                .build()
+        )
+        val dbB = openHelperB.writableDatabase
+        dbB.execSQL(
+            "INSERT INTO anime (anilist_id, title_romaji, is_adult, has_uk_translation, updated_at) " +
+            "VALUES (202, 'Anime Slot B', 0, 1, ${System.currentTimeMillis()});"
+        )
+        openHelperB.close()
 
         databaseProvider = CatalogDatabaseProvider(context, settingsProvider)
     }
@@ -93,9 +108,14 @@ class CatalogDatabaseProviderTest {
         assertEquals("catalog_a.db", settingsProvider.getActiveCatalogFileName())
         
         val db1 = databaseProvider.getDatabase()
-        val anime1 = db1.animeDao().getAnimeById(101L)
-        assertNotNull(anime1)
-        assertEquals("Anime Slot A", anime1?.titleRomaji)
+        var title1: String? = null
+        db1.query("SELECT title_romaji FROM anime WHERE anilist_id = 101").use { cursor ->
+            if (cursor.moveToNext()) {
+                title1 = cursor.getString(0)
+            }
+        }
+        assertNotNull(title1)
+        assertEquals("Anime Slot A", title1)
 
         // 2. Perform Hot Swap to Standby (Slot B)
         val swapSuccess = databaseProvider.hotSwapToStandby(2L)
@@ -109,12 +129,22 @@ class CatalogDatabaseProviderTest {
         val db2 = databaseProvider.getDatabase()
         
         // Assert we get the record from database B
-        val anime2 = db2.animeDao().getAnimeById(202L)
-        assertNotNull(anime2)
-        assertEquals("Anime Slot B", anime2?.titleRomaji)
+        var title2: String? = null
+        db2.query("SELECT title_romaji FROM anime WHERE anilist_id = 202").use { cursor ->
+            if (cursor.moveToNext()) {
+                title2 = cursor.getString(0)
+            }
+        }
+        assertNotNull(title2)
+        assertEquals("Anime Slot B", title2)
 
         // Assert record from database A is not visible in database B connection
-        val anime1AfterSwap = db2.animeDao().getAnimeById(101L)
-        assertNull(anime1AfterSwap)
+        var title1AfterSwap: String? = null
+        db2.query("SELECT title_romaji FROM anime WHERE anilist_id = 101").use { cursor ->
+            if (cursor.moveToNext()) {
+                title1AfterSwap = cursor.getString(0)
+            }
+        }
+        assertNull(title1AfterSwap)
     }
 }

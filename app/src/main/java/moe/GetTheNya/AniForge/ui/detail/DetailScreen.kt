@@ -127,10 +127,17 @@ fun DetailContent(
                 .height(300.dp)
         ) {
             AsyncImage(
-                model = anime.bannerImage ?: anime.coverLarge,
+                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(anime.bannerImage ?: anime.coverLarge)
+                    .precision(coil.size.Precision.EXACT)
+                    .allowHardware(true)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
             )
             Box(
                 modifier = Modifier
@@ -224,9 +231,17 @@ fun DetailContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(screenshots) { imageUrl ->
+                        items(
+                            items = screenshots,
+                            key = { it }
+                        ) { imageUrl ->
                             AsyncImage(
-                                model = imageUrl,
+                                model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                                    .data(imageUrl)
+                                    .precision(coil.size.Precision.EXACT)
+                                    .allowHardware(true)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = "Screenshot",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
