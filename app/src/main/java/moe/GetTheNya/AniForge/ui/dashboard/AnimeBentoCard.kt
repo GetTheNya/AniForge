@@ -35,6 +35,7 @@ fun AnimeBentoCard(
     modifier: Modifier = Modifier,
     preferUk: Boolean = true
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -88,7 +89,7 @@ fun AnimeBentoCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Star,
-                    contentDescription = "Score",
+                    contentDescription = strings.misc.score,
                     tint = NeonCoral,
                     modifier = Modifier.size(14.dp)
                 )
@@ -128,7 +129,7 @@ fun AnimeBentoCard(
                 }
                 if (anime.hasUkTranslation) {
                     Text(
-                        text = "UA 🇺🇦",
+                        text = "🇺🇦",
                         color = Color(0xFF00F5D4),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,

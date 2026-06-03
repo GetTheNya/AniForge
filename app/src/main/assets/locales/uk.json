@@ -1,0 +1,80 @@
+{
+  "lang": "Українська",
+  "misc": {
+    "error": "Помилка",
+    "retry": "Повторити",
+    "back": "Назад",
+    "exitToast": "Натисніть ще раз для виходу",
+    "score": "Оцінка",
+    "search": "Пошук",
+    "featured": "У ФОКУСІ",
+    "ready": "ГОТОВО",
+    "episodes": "Епізоди",
+    "completed": "Завершено",
+    "watching": "Дивлюсь",
+    "planning": "У планах",
+    "paused": "На паузі",
+    "save": "Зберегти",
+    "clear": "Очистити",
+    "settings": "Налаштування",
+    "update": "Оновити"
+  },
+  "homeScreen": {
+    "name": "Головна",
+    "welcomeBack": "З поверненням",
+    "appName": "AniForge",
+    "trackingProgress": "Прогрес перегляду",
+    "spotlight": "У центрі уваги",
+    "catalogCoreStatus": "Статус ядра каталогу",
+    "offlineCatalog": "Офлайн каталог",
+    "hotswappingEnabled": "A/B динамічна гаряча заміна активна",
+    "activeSlot": "Активний слот",
+    "catalogStamp": "Штамп каталогу"
+  },
+  "animeScreen": {
+    "name": "Аніме",
+    "underConstruction": "В розробці",
+    "description": "Ми розробляємо таблиці бази даних для персональних списків аніме, користувацьких груп та локальної історії пошуку. Незабаром тут з'явиться прогрес перегляду!"
+  },
+  "dashboardScreen": {
+    "name": "Сезони",
+    "searchPlaceholder": "Пошук у каталозі...",
+    "discoverCatalog": "Дослідити каталог",
+    "unknownError": "Невідома помилка"
+  },
+  "detailScreen": {
+    "synopsis": "Синопсис",
+    "noDescription": "Опис відсутній.",
+    "gallery": "Галерея",
+    "screenshot": "Скріншот",
+    "relatedTitles": "Пов'язані релізи",
+    "myProgress": "Мій прогрес",
+    "episodesWatched": "Переглянуто епізодів",
+    "personalNotes": "Особисті нотатки",
+    "addCustomNotes": "Додати власні нотатки...",
+    "errorNotFound": "Аніме не знайдено в каталозі",
+    "errorFailedToLoad": "Не вдалося завантажити деталі"
+  },
+  "profileScreen": {
+    "name": "Профіль",
+    "userProfile": "Профіль користувача",
+    "preferences": "Налаштування",
+    "databaseSync": "Синхронізація бази даних",
+    "databaseSyncDesc": "Перевірити та оновити каталог",
+    "diagnosticsAndLogs": "Діагностика та логи",
+    "systemLogs": "Системні логи",
+    "bufferedDiagnostics": "%d буферизованих повідомлень діагностики",
+    "viewLogs": "Перегляд",
+    "systemLogsTitle": "Системні логи",
+    "diagnosticsEngineStatus": "Діагностика та статус двигуна",
+    "engineLogsCount": "Логи двигуна (%d)",
+    "copyLogs": "Копіювати логи",
+    "noLogsYet": "Системні логи ще не створено."
+  },
+  "settingsScreen": {
+    "title": "Налаштування",
+    "language": "Мова додатку",
+    "preferUkTitle": "Перевага українським назвам",
+    "preferUkDesc": "Використовувати перекладені назви, якщо вони є"
+  }
+}

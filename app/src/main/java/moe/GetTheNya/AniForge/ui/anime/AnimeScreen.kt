@@ -22,6 +22,8 @@ import moe.GetTheNya.AniForge.ui.theme.*
 fun AnimeScreen(
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -51,7 +53,7 @@ fun AnimeScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Star,
-                    contentDescription = "Under Construction",
+                    contentDescription = strings.animeScreen.underConstruction,
                     tint = ElectricViolet,
                     modifier = Modifier.size(32.dp)
                 )
@@ -60,7 +62,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Anime Lists",
+                text = strings.animeScreen.name,
                 color = TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
@@ -69,7 +71,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Under Construction",
+                text = strings.animeScreen.underConstruction,
                 color = ElectricViolet,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -79,7 +81,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "We are currently designing database tables for personal anime lists, custom groups, and local search history. Watch progress indicators will show up here soon!",
+                text = strings.animeScreen.description,
                 color = TextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,

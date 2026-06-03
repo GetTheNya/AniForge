@@ -1,0 +1,109 @@
+package moe.GetTheNya.AniForge.ui.localization
+
+import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.serialization.Serializable
+
+val LocalLocaleStrings = staticCompositionLocalOf { LocaleStrings() }
+
+@Serializable
+data class LocaleStrings(
+    val lang: String = "[lang]",
+    val misc: MiscStrings = MiscStrings(),
+    val homeScreen: HomeScreenStrings = HomeScreenStrings(),
+    val animeScreen: AnimeScreenStrings = AnimeScreenStrings(),
+    val dashboardScreen: DashboardScreenStrings = DashboardScreenStrings(),
+    val detailScreen: DetailScreenStrings = DetailScreenStrings(),
+    val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
+    val settingsScreen: SettingsScreenStrings = SettingsScreenStrings()
+)
+
+@Serializable
+data class MiscStrings(
+    val error: String = "[misc.error]",
+    val retry: String = "[misc.retry]",
+    val back: String = "[misc.back]",
+    val exitToast: String = "[misc.exitToast]",
+    val score: String = "[misc.score]",
+    val search: String = "[misc.search]",
+    val featured: String = "[misc.featured]",
+    val ready: String = "[misc.ready]",
+    val episodes: String = "[misc.episodes]",
+    val completed: String = "[misc.completed]",
+    val watching: String = "[misc.watching]",
+    val planning: String = "[misc.planning]",
+    val paused: String = "[misc.paused]",
+    val save: String = "[misc.save]",
+    val clear: String = "[misc.clear]",
+    val settings: String = "[misc.settings]",
+    val update: String = "[misc.update]"
+)
+
+@Serializable
+data class HomeScreenStrings(
+    val name: String = "[homeScreen.name]",
+    val welcomeBack: String = "[homeScreen.welcomeBack]",
+    val appName: String = "[homeScreen.appName]",
+    val trackingProgress: String = "[homeScreen.trackingProgress]",
+    val spotlight: String = "[homeScreen.spotlight]",
+    val catalogCoreStatus: String = "[homeScreen.catalogCoreStatus]",
+    val offlineCatalog: String = "[homeScreen.offlineCatalog]",
+    val hotswappingEnabled: String = "[homeScreen.hotswappingEnabled]",
+    val activeSlot: String = "[homeScreen.activeSlot]",
+    val catalogStamp: String = "[homeScreen.catalogStamp]"
+)
+
+@Serializable
+data class AnimeScreenStrings(
+    val name: String = "[animeScreen.name]",
+    val underConstruction: String = "[animeScreen.underConstruction]",
+    val description: String = "[animeScreen.description]"
+)
+
+@Serializable
+data class DashboardScreenStrings(
+    val name: String = "[dashboardScreen.name]",
+    val searchPlaceholder: String = "[dashboardScreen.searchPlaceholder]",
+    val discoverCatalog: String = "[dashboardScreen.discoverCatalog]",
+    val unknownError: String = "[dashboardScreen.unknownError]"
+)
+
+@Serializable
+data class DetailScreenStrings(
+    val synopsis: String = "[detailScreen.synopsis]",
+    val noDescription: String = "[detailScreen.noDescription]",
+    val gallery: String = "[detailScreen.gallery]",
+    val screenshot: String = "[detailScreen.screenshot]",
+    val relatedTitles: String = "[detailScreen.relatedTitles]",
+    val myProgress: String = "[detailScreen.myProgress]",
+    val episodesWatched: String = "[detailScreen.episodesWatched]",
+    val personalNotes: String = "[detailScreen.personalNotes]",
+    val addCustomNotes: String = "[detailScreen.addCustomNotes]",
+    val errorNotFound: String = "[detailScreen.errorNotFound]",
+    val errorFailedToLoad: String = "[detailScreen.errorFailedToLoad]"
+)
+
+@Serializable
+data class ProfileScreenStrings(
+    val name: String = "[profileScreen.name]",
+    val userProfile: String = "[profileScreen.userProfile]",
+    val preferences: String = "[profileScreen.preferences]",
+    val databaseSync: String = "[profileScreen.databaseSync]",
+    val databaseSyncDesc: String = "[profileScreen.databaseSyncDesc]",
+    val diagnosticsAndLogs: String = "[profileScreen.diagnosticsAndLogs]",
+    val systemLogs: String = "[profileScreen.systemLogs]",
+    val bufferedDiagnostics: String = "[profileScreen.bufferedDiagnostics]",
+    val viewLogs: String = "[profileScreen.viewLogs]",
+    val systemLogsTitle: String = "[profileScreen.systemLogsTitle]",
+    val diagnosticsEngineStatus: String = "[profileScreen.diagnosticsEngineStatus]",
+    val engineLogsCount: String = "[profileScreen.engineLogsCount]",
+    val copyLogs: String = "[profileScreen.copyLogs]",
+    val noLogsYet: String = "[profileScreen.noLogsYet]"
+)
+
+@Serializable
+data class SettingsScreenStrings(
+    val title: String = "[settingsScreen.title]",
+    val language: String = "[settingsScreen.language]",
+    val preferUkTitle: String = "[settingsScreen.preferUkTitle]",
+    val preferUkDesc: String = "[settingsScreen.preferUkDesc]"
+)

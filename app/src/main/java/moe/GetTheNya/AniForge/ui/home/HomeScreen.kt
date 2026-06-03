@@ -36,6 +36,7 @@ fun HomeScreen(
     onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.homeUiState.collectAsState()
 
     Column(
@@ -53,13 +54,13 @@ fun HomeScreen(
         ) {
             Column {
                 Text(
-                    text = "Welcome Back",
+                    text = strings.homeScreen.welcomeBack,
                     color = TextSecondary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "AniForge",
+                    text = strings.homeScreen.appName,
                     color = TextPrimary,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
@@ -83,7 +84,11 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "Error: ${state.message}", color = NeonCoral)
+                        val errorMessage = when (state.message) {
+                            "Unknown error" -> strings.dashboardScreen.unknownError
+                            else -> state.message
+                        }
+                        Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
                     }
                 }
                 is HomeUiState.Success -> {
@@ -104,6 +109,7 @@ fun HomeContent(
     onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val scrollState = rememberScrollState()
 
     Column(
@@ -115,7 +121,7 @@ fun HomeContent(
         // Section Title: Quick Stats
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "Tracking Progress",
+                text = strings.homeScreen.trackingProgress,
                 color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -127,7 +133,7 @@ fun HomeContent(
         if (state.featuredAnime != null) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Spotlight",
+                    text = strings.homeScreen.spotlight,
                     color = TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
@@ -146,7 +152,7 @@ fun HomeContent(
             modifier = Modifier.padding(bottom = 96.dp) // extra padding so content isn't covered by floating bar
         ) {
             Text(
-                text = "Catalog Core Status",
+                text = strings.homeScreen.catalogCoreStatus,
                 color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -165,6 +171,7 @@ fun HomeFeaturedCard(
     preferUk: Boolean,
     onClick: () -> Unit
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,7 +219,7 @@ fun HomeFeaturedCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "FEATURED  •  ${anime.scoreMal ?: 8.5}",
+                    text = "${strings.misc.featured}  •  ${anime.scoreMal ?: 8.5}",
                     color = NeonCoral,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -243,6 +250,7 @@ fun EngineStatusCard(
     version: Long,
     slot: String
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -259,13 +267,13 @@ fun EngineStatusCard(
         ) {
             Column {
                 Text(
-                    text = "Offline Catalog",
+                    text = strings.homeScreen.offlineCatalog,
                     color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "A/B Dynamic Hotswapping Enabled",
+                    text = strings.homeScreen.hotswappingEnabled,
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
@@ -277,7 +285,7 @@ fun EngineStatusCard(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "READY",
+                    text = strings.misc.ready,
                     color = CyberTeal,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
@@ -293,7 +301,7 @@ fun EngineStatusCard(
         ) {
             Column {
                 Text(
-                    text = "Active Slot",
+                    text = strings.homeScreen.activeSlot,
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
@@ -306,7 +314,7 @@ fun EngineStatusCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "Catalog Stamp",
+                    text = strings.homeScreen.catalogStamp,
                     color = TextSecondary,
                     fontSize = 11.sp
                 )

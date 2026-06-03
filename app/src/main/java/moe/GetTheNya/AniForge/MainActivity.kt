@@ -102,6 +102,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsProvider: SettingsProvider
 
+    @Inject
+    lateinit var localizationService: moe.GetTheNya.AniForge.ui.localization.LocalizationService
+
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
@@ -114,6 +117,7 @@ class MainActivity : ComponentActivity() {
             val pagerState = rememberPagerState(initialPage = 0) { TabScreen.entries.size }
             val coroutineScope = rememberCoroutineScope()
             val context = androidx.compose.ui.platform.LocalContext.current
+            val localeStrings by localizationService.activeLocaleStrings.collectAsState()
 
             // Check for catalog database updates asynchronously on application startup
             LaunchedEffect(Unit) {
@@ -151,7 +155,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastBackPressTime > 2000) {
-                        Toast.makeText(context, "Press again to exit", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, localeStrings.misc.exitToast, Toast.LENGTH_SHORT).show()
                         lastBackPressTime = currentTime
                     } else {
                         finish()
@@ -159,9 +163,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            AniForgeTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
+            CompositionLocalProvider(
+                moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings provides localeStrings
+            ) {
+                AniForgeTheme {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -397,7 +404,18 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                     is Screen.LogViewer -> {
                                                         LogViewerScreen(
-                                                            viewModel = profileViewModel,
+                                                             viewModel = profileViewModel,
+                                                             navController = navController,
+                                                             modifier = Modifier.padding(innerPadding),
+                                                             onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.Settings -> {
+                                                        val scopedViewModel = remember(entry) {
+                                                            ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.settings.SettingsViewModel::class.java]
+                                                        }
+                                                        moe.GetTheNya.AniForge.ui.settings.SettingsScreen(
+                                                            viewModel = scopedViewModel,
                                                             navController = navController,
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
@@ -414,6 +432,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
         }
     }
 }
@@ -535,11 +554,12 @@ fun FloatingBottomNavigation(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
             val tabs = listOf(
-                TabScreen.Home to (Icons.Default.Home to "Home"),
-                TabScreen.Anime to (Icons.Default.PlayArrow to "Anime"),
-                TabScreen.Seasons to (Icons.Default.Search to "Seasons"),
-                TabScreen.Profile to (Icons.Default.Person to "Profile")
+                TabScreen.Home to (Icons.Default.Home to strings.homeScreen.name),
+                TabScreen.Anime to (Icons.Default.PlayArrow to strings.animeScreen.name),
+                TabScreen.Seasons to (Icons.Default.Search to strings.dashboardScreen.name),
+                TabScreen.Profile to (Icons.Default.Person to strings.profileScreen.name)
             )
  
             tabs.forEachIndexed { index, (tab, pair) ->

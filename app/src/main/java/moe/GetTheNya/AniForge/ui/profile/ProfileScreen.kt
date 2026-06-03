@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,7 @@ fun ProfileScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val preferUk by viewModel.preferUkTitles.collectAsState()
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val logs by viewModel.logs.collectAsState()
     val isUpdating by viewModel.isUpdating.collectAsState()
 
@@ -49,14 +50,34 @@ fun ProfileScreen(
             .padding(horizontal = 24.dp)
     ) {
         // Sticky Top Header
-        Text(
-            text = "User Profile",
-            color = TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 16.dp),
-            letterSpacing = (-0.5).sp
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = strings.profileScreen.userProfile,
+                color = TextPrimary,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
+            )
+            IconButton(
+                onClick = { navController.navigate(Screen.Settings) },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = strings.misc.settings,
+                    tint = TextPrimary
+                )
+            }
+        }
 
         // Settings Section
         Column(
@@ -69,13 +90,13 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Preferences",
+                text = strings.profileScreen.preferences,
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
-
-            // 1. Ukrainian Title Toggle
+ 
+            // 1. Database Sync Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -83,46 +104,13 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(
-                        text = "Prefer Ukrainian Titles",
+                        text = strings.profileScreen.databaseSync,
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Use translated titles when available",
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-                Switch(
-                    checked = preferUk,
-                    onCheckedChange = viewModel::setPreferUkTitles,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = BackgroundDark,
-                        checkedTrackColor = NeonCoral,
-                        uncheckedThumbColor = TextSecondary,
-                        uncheckedTrackColor = Color(0x33FFFFFF)
-                    )
-                )
-            }
-
-            Divider(color = CardBorder, thickness = 1.dp)
-
-            // 2. Database Sync Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Database Sync",
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Check and hot-swap to latest catalog",
+                        text = strings.profileScreen.databaseSyncDesc,
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
@@ -146,7 +134,7 @@ fun ProfileScreen(
                         )
                     } else {
                         Text(
-                            text = "Update",
+                            text = strings.misc.update,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -168,12 +156,12 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Diagnostics & Logs",
+                text = strings.profileScreen.diagnosticsAndLogs,
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
-
+ 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -181,13 +169,13 @@ fun ProfileScreen(
             ) {
                 Column {
                     Text(
-                        text = "System logs",
+                        text = strings.profileScreen.systemLogs,
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "${logs.size} buffered diagnostics statements",
+                        text = String.format(strings.profileScreen.bufferedDiagnostics, logs.size),
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
@@ -201,7 +189,7 @@ fun ProfileScreen(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "View Logs",
+                        text = strings.profileScreen.viewLogs,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -220,6 +208,7 @@ fun LogViewerScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val logs by viewModel.logs.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val logListState = rememberLazyListState()
@@ -255,20 +244,20 @@ fun LogViewerScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = strings.misc.back,
                     tint = TextPrimary
                 )
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "System Logs",
+                    text = strings.profileScreen.systemLogsTitle,
                     color = TextPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Diagnostics & Engine status",
+                    text = strings.profileScreen.diagnosticsEngineStatus,
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
@@ -293,7 +282,7 @@ fun LogViewerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Engine Logs (${logs.size})",
+                    text = String.format(strings.profileScreen.engineLogsCount, logs.size),
                     color = TextSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -310,13 +299,13 @@ fun LogViewerScreen(
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = CyberTeal)
                     ) {
-                        Text("Copy Logs", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(strings.profileScreen.copyLogs, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     TextButton(
                         onClick = viewModel::clearLogs,
                         colors = ButtonDefaults.textButtonColors(contentColor = NeonCoral)
                     ) {
-                        Text("Clear", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(strings.misc.clear, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -332,7 +321,7 @@ fun LogViewerScreen(
             ) {
                 if (logs.isEmpty()) {
                     Text(
-                        text = "No system logs generated yet.",
+                        text = strings.profileScreen.noLogsYet,
                         color = TextSecondary,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,

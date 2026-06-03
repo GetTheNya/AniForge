@@ -36,4 +36,12 @@ object DatabaseModule {
     ): UserTrackingDao {
         return userDatabase.userTrackingDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideUserSettingDao(
+        userDatabase: UserDatabase
+    ): moe.GetTheNya.AniForge.core.database.dao.UserSettingDao {
+        return userDatabase.userSettingDao()
+    }
 }

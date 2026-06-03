@@ -22,6 +22,7 @@ sealed interface Screen {
     data object Tabs : Screen
     data class Detail(val animeId: Long) : Screen
     data object LogViewer : Screen
+    data object Settings : Screen
 }
 
 class BackStackEntry(

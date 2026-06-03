@@ -1,0 +1,80 @@
+{
+  "lang": "English",
+  "misc": {
+    "error": "Error",
+    "retry": "Retry",
+    "back": "Back",
+    "exitToast": "Press again to exit",
+    "score": "Score",
+    "search": "Search",
+    "featured": "FEATURED",
+    "ready": "READY",
+    "episodes": "Episodes",
+    "completed": "Completed",
+    "watching": "Watching",
+    "planning": "Planning",
+    "paused": "Paused",
+    "save": "Save",
+    "clear": "Clear",
+    "settings": "Settings",
+    "update": "Update"
+  },
+  "homeScreen": {
+    "name": "Home",
+    "welcomeBack": "Welcome Back",
+    "appName": "AniForge",
+    "trackingProgress": "Tracking Progress",
+    "spotlight": "Spotlight",
+    "catalogCoreStatus": "Catalog Core Status",
+    "offlineCatalog": "Offline Catalog",
+    "hotswappingEnabled": "A/B Dynamic Hotswapping Enabled",
+    "activeSlot": "Active Slot",
+    "catalogStamp": "Catalog Stamp"
+  },
+  "animeScreen": {
+    "name": "Anime",
+    "underConstruction": "Under Construction",
+    "description": "We are currently designing database tables for personal anime lists, custom groups, and local search history. Watch progress indicators will show up here soon!"
+  },
+  "dashboardScreen": {
+    "name": "Seasons",
+    "searchPlaceholder": "Search catalog...",
+    "discoverCatalog": "Discover Catalog",
+    "unknownError": "Unknown error"
+  },
+  "detailScreen": {
+    "synopsis": "Synopsis",
+    "noDescription": "No description available.",
+    "gallery": "Gallery",
+    "screenshot": "Screenshot",
+    "relatedTitles": "Related Titles",
+    "myProgress": "My Progress",
+    "episodesWatched": "Episodes Watched",
+    "personalNotes": "Personal Notes",
+    "addCustomNotes": "Add custom notes...",
+    "errorNotFound": "Anime not found in catalog",
+    "errorFailedToLoad": "Failed to load details"
+  },
+  "profileScreen": {
+    "name": "Profile",
+    "userProfile": "User Profile",
+    "preferences": "Preferences",
+    "databaseSync": "Database Sync",
+    "databaseSyncDesc": "Check and hot-swap to latest catalog",
+    "diagnosticsAndLogs": "Diagnostics & Logs",
+    "systemLogs": "System logs",
+    "bufferedDiagnostics": "%d buffered diagnostics statements",
+    "viewLogs": "View Logs",
+    "systemLogsTitle": "System Logs",
+    "diagnosticsEngineStatus": "Diagnostics & Engine status",
+    "engineLogsCount": "Engine Logs (%d)",
+    "copyLogs": "Copy Logs",
+    "noLogsYet": "No system logs generated yet."
+  },
+  "settingsScreen": {
+    "title": "Settings",
+    "language": "App Language",
+    "preferUkTitle": "Prefer Ukrainian Titles",
+    "preferUkDesc": "Use translated titles when available"
+  }
+}

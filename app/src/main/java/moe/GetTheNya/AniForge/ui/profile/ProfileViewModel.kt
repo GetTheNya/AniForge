@@ -19,15 +19,10 @@ class ProfileViewModel @Inject constructor(
     private val databaseManager: DatabaseManager
 ) : ViewModel() {
 
-    val preferUkTitles: StateFlow<Boolean> = settingsProvider.preferUkTitles
     val logs: StateFlow<List<LogEntry>> = AppLogger.logs
 
     private val _isUpdating = MutableStateFlow(false)
     val isUpdating: StateFlow<Boolean> = _isUpdating.asStateFlow()
-
-    fun setPreferUkTitles(value: Boolean) {
-        settingsProvider.setPreferUkTitles(value)
-    }
 
     fun triggerDatabaseUpdate() {
         if (_isUpdating.value) return

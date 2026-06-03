@@ -36,6 +36,7 @@ fun DetailScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.uiState.collectAsState()
 
     // Trigger load on startup
@@ -63,10 +64,15 @@ fun DetailScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(text = "Error: ${state.message}", color = NeonCoral, fontSize = 16.sp)
+                    val errorMessage = when (state.message) {
+                        "Anime not found in catalog" -> strings.detailScreen.errorNotFound
+                        "Failed to load details" -> strings.detailScreen.errorFailedToLoad
+                        else -> state.message
+                    }
+                    Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral, fontSize = 16.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.loadAnimeDetail(anilistId) }, colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)) {
-                        Text("Retry")
+                        Text(strings.misc.retry)
                     }
                 }
             }
@@ -99,7 +105,7 @@ fun DetailScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = strings.misc.back,
                 tint = TextPrimary
             )
         }
@@ -119,6 +125,7 @@ fun DetailContent(
     onAnimeClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val scrollState = rememberScrollState()
 
     Column(
@@ -207,14 +214,14 @@ fun DetailContent(
             // Synopsis
             Column {
                 Text(
-                    text = "Synopsis",
+                    text = strings.detailScreen.synopsis,
                     color = TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = anime.descriptionUk ?: anime.descriptionEn ?: "No description available.",
+                    text = anime.descriptionUk ?: anime.descriptionEn ?: strings.detailScreen.noDescription,
                     color = TextSecondary,
                     fontSize = 14.sp,
                     lineHeight = 22.sp
@@ -225,7 +232,7 @@ fun DetailContent(
             if (screenshots.isNotEmpty()) {
                 Column {
                     Text(
-                        text = "Gallery",
+                        text = strings.detailScreen.gallery,
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -246,7 +253,7 @@ fun DetailContent(
                                     .allowHardware(true)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = "Screenshot",
+                                contentDescription = strings.detailScreen.screenshot,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .width(220.dp)
@@ -263,7 +270,7 @@ fun DetailContent(
             if (relations.isNotEmpty()) {
                 Column {
                     Text(
-                        text = "Related Titles",
+                        text = strings.detailScreen.relatedTitles,
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -299,7 +306,13 @@ fun TrackingWidget(
     onDecrement: () -> Unit,
     onSaveNotes: (String) -> Unit
 ) {
-    val statuses = listOf("CURRENT" to "Watching", "COMPLETED" to "Completed", "PLANNING" to "Planning", "PAUSED" to "Paused")
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+    val statuses = listOf(
+        "CURRENT" to strings.misc.watching,
+        "COMPLETED" to strings.misc.completed,
+        "PLANNING" to strings.misc.planning,
+        "PAUSED" to strings.misc.paused
+    )
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
 
     Column(
@@ -311,7 +324,7 @@ fun TrackingWidget(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(text = "My Progress", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(text = strings.detailScreen.myProgress, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 
         // Status Chips
         Row(
@@ -345,7 +358,7 @@ fun TrackingWidget(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "Episodes Watched", color = TextSecondary, fontSize = 14.sp)
+            Text(text = strings.detailScreen.episodesWatched, color = TextSecondary, fontSize = 14.sp)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -381,7 +394,7 @@ fun TrackingWidget(
         Column(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(text = "Personal Notes", color = TextSecondary, fontSize = 13.sp)
+            Text(text = strings.detailScreen.personalNotes, color = TextSecondary, fontSize = 13.sp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -389,7 +402,7 @@ fun TrackingWidget(
                 TextField(
                     value = noteText,
                     onValueChange = { noteText = it },
-                    placeholder = { Text("Add custom notes...", color = TextSecondary, fontSize = 13.sp) },
+                    placeholder = { Text(strings.detailScreen.addCustomNotes, color = TextSecondary, fontSize = 13.sp) },
                     colors = TextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
@@ -409,7 +422,7 @@ fun TrackingWidget(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = CyberTeal)
                 ) {
-                    Text("Save", color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(strings.misc.save, color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }

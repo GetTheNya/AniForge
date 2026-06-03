@@ -40,6 +40,7 @@ fun DashboardScreen(
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.uiState.collectAsState()
     val searchFilter by viewModel.searchFilter.collectAsState()
 
@@ -71,7 +72,11 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "Error: ${state.message}", color = NeonCoral)
+                    val errorMessage = when (state.message) {
+                        "Unknown error" -> strings.dashboardScreen.unknownError
+                        else -> state.message
+                    }
+                    Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
                 }
             }
             is DashboardUiState.Success -> {
@@ -91,11 +96,12 @@ fun SearchBar(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Search catalog...", color = TextSecondary) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
+        placeholder = { Text(strings.dashboardScreen.searchPlaceholder, color = TextSecondary) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = strings.misc.search, tint = TextSecondary) },
         colors = TextFieldDefaults.colors(
             focusedTextColor = TextPrimary,
             unfocusedTextColor = TextPrimary,
@@ -119,6 +125,7 @@ fun DashboardContent(
     preferUk: Boolean,
     onAnimeClick: (Long) -> Unit
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
@@ -129,7 +136,7 @@ fun DashboardContent(
         // Header for Catalog listing
         item(span = { GridItemSpan(2) }) {
             Text(
-                text = "Discover Catalog",
+                text = strings.dashboardScreen.discoverCatalog,
                 color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -154,6 +161,7 @@ fun DashboardContent(
 
 @Composable
 fun BentoStatsCard(stats: UserStats) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -167,17 +175,17 @@ fun BentoStatsCard(stats: UserStats) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "${stats.episodesWatched}", color = NeonCoral, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(text = "Episodes", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(text = strings.misc.episodes, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
         Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "${stats.titlesCompleted}", color = CyberTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(text = "Completed", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(text = strings.misc.completed, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
         Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "${stats.titlesWatching}", color = ElectricViolet, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(text = "Watching", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(text = strings.misc.watching, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -187,6 +195,7 @@ fun FeaturedBentoCard(
     anime: Anime,
     onClick: () -> Unit
 ) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -234,7 +243,7 @@ fun FeaturedBentoCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "FEATURED  •  ${anime.scoreMal ?: 8.5}",
+                    text = "${strings.misc.featured}  •  ${anime.scoreMal ?: 8.5}",
                     color = NeonCoral,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
