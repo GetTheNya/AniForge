@@ -4,10 +4,8 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.model.Anime
@@ -25,44 +23,35 @@ class DashboardViewModel @Inject constructor(
     private val _searchFilter = MutableStateFlow(SearchFilterQuery())
     val searchFilter = _searchFilter.asStateFlow()
 
-    private val _uiState = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
-    val uiState = _uiState.asStateFlow()
-
-    init {
-        observeCatalogAndStats()
-    }
-
-    private fun observeCatalogAndStats() {
-        viewModelScope.launch {
-            // Combine FTS queries (debounced) with stats observations
-            _searchFilter
-                .debounce { query ->
-                    // Apply 250ms debounce only if typing a text search query to avoid stutter
-                    if (query.textQuery.isEmpty()) 0L else 250L
-                }
-                .distinctUntilChanged()
-                .flatMapLatest { filter ->
-                    flow {
-                        emit(animeRepository.queryAnime(filter))
-                    }.flowOn(Dispatchers.IO)
-                }
-                .combine(userTrackingDao.observeAllTracking()) { animeList, trackingList ->
-                    val stats = calculateStats(trackingList)
-                    val featured = animeList.firstOrNull { it.scoreMal != null && it.scoreMal!! >= 8.5 }
-                    DashboardUiState.Success(
-                        animeList = animeList,
-                        featuredAnime = featured,
-                        stats = stats
-                    )
-                }
-                .catch { e ->
-                    _uiState.value = DashboardUiState.Error(e.message ?: "Unknown error")
-                }
-                .collect { state ->
-                    _uiState.value = state
-                }
+    val uiState: StateFlow<DashboardUiState> = _searchFilter
+        .debounce { query ->
+            // Apply 250ms debounce only if typing a text search query to avoid stutter
+            if (query.textQuery.isEmpty()) 0L else 250L
         }
-    }
+        .distinctUntilChanged()
+        .flatMapLatest { filter ->
+            animeRepository.queryAnimeFlow(filter)
+        }
+        .combine(userTrackingDao.observeAllTracking()) { animeList, trackingList ->
+            val stats = calculateStats(trackingList)
+            val featured = animeList.firstOrNull {
+                val score = it.scoreMal
+                score != null && score >= 8.5
+            }
+            DashboardUiState.Success(
+                animeList = animeList,
+                featuredAnime = featured,
+                stats = stats
+            ) as DashboardUiState
+        }
+        .catch { e ->
+            emit(DashboardUiState.Error(e.message ?: "Unknown error"))
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = DashboardUiState.Loading
+        )
 
     fun updateSearchQuery(query: String) {
         _searchFilter.value = _searchFilter.value.copy(textQuery = query)

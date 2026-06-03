@@ -4,6 +4,9 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
 import moe.GetTheNya.AniForge.core.model.sync.CatalogDownloader
@@ -21,12 +24,16 @@ class DatabaseManager @Inject constructor(
     private val settingsProvider: SettingsProvider,
     private val catalogDownloader: CatalogDownloader
 ) {
+    private val _isUpdating = MutableStateFlow(false)
+    val isUpdating: StateFlow<Boolean> = _isUpdating.asStateFlow()
+
     /**
      * Checks if a catalog update is available from the remote API.
      * If an update is found, downloads, decompresses, verifies, and hot-swaps it.
      * Returns true if a swap was successfully completed, false otherwise.
      */
     suspend fun updateCatalogIfAvailable(): Boolean = withContext(Dispatchers.IO) {
+        _isUpdating.value = true
         val currentVersion = settingsProvider.getCatalogVersion()
         AppLogger.i("DatabaseManager", "Checking for catalog database update. Current local version: $currentVersion")
         
@@ -98,6 +105,8 @@ class DatabaseManager @Inject constructor(
             if (tempGzipFile != null && tempGzipFile.exists()) tempGzipFile.delete()
             if (standbyFile != null && standbyFile.exists()) standbyFile.delete()
             false
+        } finally {
+            _isUpdating.value = false
         }
     }
 

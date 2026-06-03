@@ -2,18 +2,47 @@ package moe.GetTheNya.AniForge.core.database.repository
 
 import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
+import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class CatalogMetadata(
+    val version: Long,
+    val activeSlot: String
+)
+
 @Singleton
 class AnimeRepository @Inject constructor(
-    private val databaseProvider: CatalogDatabaseProvider
+    private val databaseProvider: CatalogDatabaseProvider,
+    private val settingsProvider: SettingsProvider
 ) {
+    /**
+     * Exposes the catalog database metadata as a reactive Flow.
+     */
+    fun getCatalogMetadataFlow(): Flow<CatalogMetadata> = flow {
+        emit(CatalogMetadata(settingsProvider.getCatalogVersion(), settingsProvider.getActiveCatalogFileName()))
+        databaseProvider.swapSignal.collect {
+            emit(CatalogMetadata(settingsProvider.getCatalogVersion(), settingsProvider.getActiveCatalogFileName()))
+        }
+    }
+
+    /**
+     * Exposes the query result as a reactive Flow that emits new lists whenever the database is hot-swapped.
+     */
+    fun queryAnimeFlow(filter: SearchFilterQuery): Flow<List<Anime>> = flow {
+        emit(queryAnime(filter))
+        databaseProvider.swapSignal.collect {
+            emit(queryAnime(filter))
+        }
+    }
+
     /**
      * Executes a dynamic FTS5 search and multi-layered filter query on a dedicated background thread.
      */

@@ -4,12 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
+import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.UserStats
 import javax.inject.Inject
@@ -18,62 +17,42 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val settingsProvider: SettingsProvider,
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val databaseManager: DatabaseManager
 ) : ViewModel() {
 
-    private val _homeUiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
-    val homeUiState: StateFlow<HomeUiState> = _homeUiState.asStateFlow()
-
-    private val _featuredAnime = MutableStateFlow<Anime?>(null)
-
-    init {
-        loadFeaturedAnime()
-        observeStatsAndFeatured()
-    }
-
-    private fun loadFeaturedAnime() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val searchFilter = moe.GetTheNya.AniForge.core.model.SearchFilterQuery()
-                val animeList = animeRepository.queryAnime(searchFilter)
-                val featured = animeList.firstOrNull { 
-                    val score = it.scoreMal
-                    score != null && score >= 8.5 
-                }
-                _featuredAnime.value = featured
-            } catch (e: Exception) {
-                e.printStackTrace()
+    val homeUiState: StateFlow<HomeUiState> = combine(
+        userTrackingDao.observeAllTracking(),
+        settingsProvider.preferUkTitles,
+        animeRepository.getCatalogMetadataFlow(),
+        animeRepository.queryAnimeFlow(moe.GetTheNya.AniForge.core.model.SearchFilterQuery()),
+        databaseManager.isUpdating
+    ) { trackingList, preferUk, metadata, animeList, isUpdating ->
+        if (isUpdating) {
+            HomeUiState.Updating
+        } else {
+            val stats = calculateStats(trackingList)
+            val featured = animeList.firstOrNull {
+                val score = it.scoreMal
+                score != null && score >= 8.5
             }
+            HomeUiState.Success(
+                stats = stats,
+                featuredAnime = featured,
+                catalogVersion = metadata.version,
+                activeSlot = metadata.activeSlot,
+                preferUk = preferUk
+            )
         }
     }
-
-    private fun observeStatsAndFeatured() {
-        viewModelScope.launch {
-            userTrackingDao.observeAllTracking()
-                .combine(settingsProvider.preferUkTitles) { trackingList, preferUk ->
-                    trackingList to preferUk
-                }
-                .combine(_featuredAnime) { (trackingList, preferUk), featured ->
-                    val stats = calculateStats(trackingList)
-                    val catalogVersion = settingsProvider.getCatalogVersion()
-                    val activeSlot = settingsProvider.getActiveCatalogFileName()
-                    
-                    HomeUiState.Success(
-                        stats = stats,
-                        featuredAnime = featured,
-                        catalogVersion = catalogVersion,
-                        activeSlot = activeSlot,
-                        preferUk = preferUk
-                    )
-                }
-                .catch { e ->
-                    _homeUiState.value = HomeUiState.Error(e.message ?: "Unknown error")
-                }
-                .collect { state ->
-                    _homeUiState.value = state
-                }
-        }
+    .catch { e ->
+        emit(HomeUiState.Error(e.message ?: "Unknown error"))
     }
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = HomeUiState.Loading
+    )
 
     private fun calculateStats(trackingList: List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>): UserStats {
         val totalEpisodes = trackingList.sumOf { it.episodeProgress }
@@ -91,6 +70,8 @@ class HomeViewModel @Inject constructor(
 sealed interface HomeUiState {
     @Immutable
     data object Loading : HomeUiState
+    @Immutable
+    data object Updating : HomeUiState
     @Immutable
     data class Success(
         val stats: UserStats,

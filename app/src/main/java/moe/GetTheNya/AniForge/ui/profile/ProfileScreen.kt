@@ -27,12 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import moe.GetTheNya.AniForge.core.database.util.LogEntry
 import moe.GetTheNya.AniForge.core.database.util.LogLevel
+import moe.GetTheNya.AniForge.ui.navigation.NavController
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
 
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
-    onViewLogsClick: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val preferUk by viewModel.preferUkTitles.collectAsState()
@@ -191,7 +193,7 @@ fun ProfileScreen(
                     )
                 }
                 Button(
-                    onClick = onViewLogsClick,
+                    onClick = { navController.navigate(Screen.LogViewer) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CyberTeal,
                         contentColor = BackgroundDark
@@ -214,7 +216,7 @@ fun ProfileScreen(
 @Composable
 fun LogViewerScreen(
     viewModel: ProfileViewModel,
-    onBackClick: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val logs by viewModel.logs.collectAsState()
@@ -243,7 +245,7 @@ fun LogViewerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = onBackClick,
+                onClick = { navController.popBackStack() },
                 modifier = Modifier
                     .padding(end = 12.dp)
                     .clip(RoundedCornerShape(12.dp))

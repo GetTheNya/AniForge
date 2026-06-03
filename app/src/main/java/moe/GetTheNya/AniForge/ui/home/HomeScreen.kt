@@ -1,5 +1,6 @@
 package moe.GetTheNya.AniForge.ui.home
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,29 +68,31 @@ fun HomeScreen(
             }
         }
 
-        when (val state = uiState) {
-            is HomeUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = NeonCoral)
+        Crossfade(targetState = uiState, label = "homeCrossfade") { state ->
+            when (state) {
+                is HomeUiState.Loading, HomeUiState.Updating -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = NeonCoral)
+                    }
                 }
-            }
-            is HomeUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "Error: ${state.message}", color = NeonCoral)
+                is HomeUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Error: ${state.message}", color = NeonCoral)
+                    }
                 }
-            }
-            is HomeUiState.Success -> {
-                HomeContent(
-                    state = state,
-                    onAnimeClick = onAnimeClick,
-                    modifier = Modifier.fillMaxSize()
-                )
+                is HomeUiState.Success -> {
+                    HomeContent(
+                        state = state,
+                        onAnimeClick = onAnimeClick,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }

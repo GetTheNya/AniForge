@@ -23,14 +23,15 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
+import moe.GetTheNya.AniForge.ui.navigation.NavController
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     anilistId: Long,
-    onBackClick: () -> Unit,
-    onAnimeClick: (Long) -> Unit,
+    navController: NavController,
     viewModel: DetailViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -78,7 +79,9 @@ fun DetailScreen(
                     onIncrementProgress = viewModel::incrementEpisodeProgress,
                     onDecrementProgress = viewModel::decrementEpisodeProgress,
                     onSaveNotes = viewModel::saveNotes,
-                    onAnimeClick = onAnimeClick,
+                    onAnimeClick = { newId ->
+                        navController.navigate(Screen.Detail(newId))
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -86,7 +89,7 @@ fun DetailScreen(
 
         // Top Back Button
         IconButton(
-            onClick = onBackClick,
+            onClick = { navController.popBackStack() },
             modifier = Modifier
                 .statusBarsPadding()
                 .padding(16.dp)

@@ -2,7 +2,9 @@ package moe.GetTheNya.AniForge
 
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -60,7 +62,12 @@ import moe.GetTheNya.AniForge.ui.detail.DetailScreen
 import moe.GetTheNya.AniForge.ui.detail.DetailViewModel
 import moe.GetTheNya.AniForge.ui.home.HomeScreen
 import moe.GetTheNya.AniForge.ui.home.HomeViewModel
+import moe.GetTheNya.AniForge.ui.navigation.rememberNavController
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.profile.LogViewerScreen
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import moe.GetTheNya.AniForge.ui.profile.ProfileScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileViewModel
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -83,7 +90,6 @@ class MainActivity : ComponentActivity() {
     lateinit var settingsProvider: SettingsProvider
 
     private val dashboardViewModel: DashboardViewModel by viewModels()
-    private val detailViewModel: DetailViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
 
@@ -91,12 +97,34 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var currentDetailId by remember { mutableStateOf<Long?>(null) }
-            var showLogViewer by remember { mutableStateOf(false) }
+            val navController = rememberNavController()
+            val pagerState = rememberPagerState(initialPage = 0) { TabScreen.entries.size }
+            val coroutineScope = rememberCoroutineScope()
+            val context = androidx.compose.ui.platform.LocalContext.current
 
             // Check for catalog database updates asynchronously on application startup
             LaunchedEffect(Unit) {
                 databaseManager.updateCatalogIfAvailable()
+            }
+
+            // Zero-Overhead Double-Tap Exit BackHandler
+            var lastBackPressTime by remember { mutableLongStateOf(0L) }
+            BackHandler(enabled = true) {
+                if (navController.backStack.size > 1) {
+                    navController.popBackStack()
+                } else if (pagerState.currentPage != 0) {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(0)
+                    }
+                } else {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastBackPressTime > 2000) {
+                        Toast.makeText(context, "Press again to exit", Toast.LENGTH_SHORT).show()
+                        lastBackPressTime = currentTime
+                    } else {
+                        finish()
+                    }
+                }
             }
 
             AniForgeTheme {
@@ -104,130 +132,147 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets(0, 0, 0, 0)
                 ) { innerPadding ->
-                    if (showLogViewer) {
-                        LogViewerScreen(
-                            viewModel = profileViewModel,
-                            onBackClick = { showLogViewer = false },
-                            modifier = Modifier.padding(innerPadding)
-                        )
-                    } else {
-                        val detailId = currentDetailId
-                        if (detailId != null) {
-                            DetailScreen(
-                                anilistId = detailId,
-                                viewModel = detailViewModel,
-                                onBackClick = {
-                                    currentDetailId = null
-                                },
-                                onAnimeClick = { newId ->
-                                    currentDetailId = newId
-                                },
-                                modifier = Modifier.padding(innerPadding)
-                            )
-                        } else {
-                            val pagerState = rememberPagerState(initialPage = 2) { TabScreen.entries.size }
-                            val coroutineScope = rememberCoroutineScope()
-                            val density = LocalDensity.current
-                            val preferUk by settingsProvider.preferUkTitles.collectAsState()
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Main tabs layout (always kept alive in background)
+                        val density = LocalDensity.current
+                        val preferUk by settingsProvider.preferUkTitles.collectAsState()
 
-                            // Scroll-to-hide gesture logic using NestedScroll
-                            var isBottomBarVisible by remember { mutableStateOf(true) }
-                            
-                            val nestedScrollConnection = remember {
-                                object : NestedScrollConnection {
-                                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                                        val delta = available.y
-                                        if (delta < -15f) {
-                                            isBottomBarVisible = false
-                                        } else if (delta > 15f) {
-                                            isBottomBarVisible = true
-                                        }
-                                        return Offset.Zero
+                        // Scroll-to-hide gesture logic using NestedScroll
+                        var isBottomBarVisible by remember { mutableStateOf(true) }
+                        
+                        val nestedScrollConnection = remember {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    val delta = available.y
+                                    if (delta < -15f) {
+                                        isBottomBarVisible = false
+                                    } else if (delta > 15f) {
+                                        isBottomBarVisible = true
                                     }
+                                    return Offset.Zero
                                 }
                             }
+                        }
 
-                            // Reset bottom bar visibility when switching tabs
-                            LaunchedEffect(pagerState.currentPage) {
-                                isBottomBarVisible = true
-                            }
+                        // Reset bottom bar visibility when switching tabs
+                        LaunchedEffect(pagerState.currentPage) {
+                            isBottomBarVisible = true
+                        }
 
-                            val contentLayer = rememberGraphicsLayer()
-                            val pagerWindowPosition = remember { mutableStateOf(Offset.Zero) }
-                            val bottomBarWindowPosition = remember { mutableStateOf(Offset.Zero) }
+                        val contentLayer = rememberGraphicsLayer()
+                        val pagerWindowPosition = remember { mutableStateOf(Offset.Zero) }
+                        val bottomBarWindowPosition = remember { mutableStateOf(Offset.Zero) }
 
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .nestedScroll(nestedScrollConnection)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .nestedScroll(nestedScrollConnection)
+                                    .onGloballyPositioned { coordinates ->
+                                        pagerWindowPosition.value = coordinates.positionInWindow()
+                                    }
+                                    .drawWithContent {
+                                        contentLayer.record {
+                                            this@drawWithContent.drawContent()
+                                        }
+                                        drawLayer(contentLayer)
+                                    }
                             ) {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    when (page) {
+                                        0 -> HomeScreen(
+                                            viewModel = homeViewModel,
+                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                                        )
+                                        1 -> AnimeScreen()
+                                        2 -> DashboardScreen(
+                                            viewModel = dashboardViewModel,
+                                            preferUk = preferUk,
+                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                                        )
+                                        3 -> ProfileScreen(
+                                            viewModel = profileViewModel,
+                                            navController = navController
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Floating Bottom Navigation Bar
+                            val selectedTab = when (pagerState.currentPage) {
+                                0 -> TabScreen.Home
+                                1 -> TabScreen.Anime
+                                2 -> TabScreen.Seasons
+                                3 -> TabScreen.Profile
+                                else -> TabScreen.Seasons
+                            }
+
+                            val bottomBarOffset by animateDpAsState(
+                                targetValue = if (isBottomBarVisible) 0.dp else 120.dp,
+                                animationSpec = tween(durationMillis = 300),
+                                label = "bottomBarOffset"
+                            )
+
+                            FloatingBottomNavigation(
+                                selectedTab = selectedTab,
+                                onTabSelected = { tab ->
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(tab.ordinal)
+                                    }
+                                },
+                                contentLayer = contentLayer,
+                                pagerWindowPositionState = pagerWindowPosition,
+                                bottomBarWindowPositionState = bottomBarWindowPosition,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .offset {
+                                        IntOffset(0, bottomBarOffset.roundToPx())
+                                    }
+                            )
+                        }
+
+                        // Overlay active sub-screens on top of the tabs layout
+                        val subScreenEntries = navController.backStack.filter { it.screen != Screen.Tabs }
+                        subScreenEntries.forEach { entry ->
+                            key(entry.id) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .onGloballyPositioned { coordinates ->
-                                            pagerWindowPosition.value = coordinates.positionInWindow()
-                                        }
-                                        .drawWithContent {
-                                            contentLayer.record {
-                                                this@drawWithContent.drawContent()
-                                            }
-                                            drawLayer(contentLayer)
-                                        }
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {}
                                 ) {
-                                    HorizontalPager(
-                                        state = pagerState,
-                                        modifier = Modifier.fillMaxSize()
-                                    ) { page ->
-                                        when (page) {
-                                            0 -> HomeScreen(
-                                                viewModel = homeViewModel,
-                                                onAnimeClick = { id -> currentDetailId = id }
-                                            )
-                                            1 -> AnimeScreen()
-                                            2 -> DashboardScreen(
-                                                viewModel = dashboardViewModel,
-                                                preferUk = preferUk,
-                                                onAnimeClick = { id -> currentDetailId = id }
-                                            )
-                                            3 -> ProfileScreen(
-                                                viewModel = profileViewModel,
-                                                onViewLogsClick = { showLogViewer = true }
-                                            )
+                                    CompositionLocalProvider(LocalViewModelStoreOwner provides entry) {
+                                        when (val screen = entry.screen) {
+                                            is Screen.Detail -> {
+                                                val scopedViewModel = remember(entry) {
+                                                    ViewModelProvider(entry)[DetailViewModel::class.java]
+                                                }
+                                                DetailScreen(
+                                                    anilistId = screen.animeId,
+                                                    navController = navController,
+                                                    viewModel = scopedViewModel,
+                                                    modifier = Modifier.padding(innerPadding)
+                                                )
+                                            }
+                                            is Screen.LogViewer -> {
+                                                LogViewerScreen(
+                                                    viewModel = profileViewModel,
+                                                    navController = navController,
+                                                    modifier = Modifier.padding(innerPadding)
+                                                )
+                                            }
+                                            else -> {}
                                         }
                                     }
                                 }
-
-                                // Floating Bottom Navigation Bar
-                                val selectedTab = when (pagerState.currentPage) {
-                                    0 -> TabScreen.Home
-                                    1 -> TabScreen.Anime
-                                    2 -> TabScreen.Seasons
-                                    3 -> TabScreen.Profile
-                                    else -> TabScreen.Seasons
-                                }
-
-                                val bottomBarOffset by animateDpAsState(
-                                    targetValue = if (isBottomBarVisible) 0.dp else 120.dp,
-                                    animationSpec = tween(durationMillis = 300),
-                                    label = "bottomBarOffset"
-                                )
-
-                                FloatingBottomNavigation(
-                                    selectedTab = selectedTab,
-                                    onTabSelected = { tab ->
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(tab.ordinal)
-                                        }
-                                    },
-                                    contentLayer = contentLayer,
-                                    pagerWindowPositionState = pagerWindowPosition,
-                                    bottomBarWindowPositionState = bottomBarWindowPosition,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .offset {
-                                            IntOffset(0, bottomBarOffset.roundToPx())
-                                        }
-                                )
                             }
                         }
                     }
