@@ -58,6 +58,18 @@ class NavController(
     )
 
     fun navigate(screen: Screen) {
+        val isDuplicateActive = backStack.any { it.screen == screen }
+
+        val isMultiTouchSpam = backStack.lastOrNull()?.screen != Screen.Tabs
+
+        val isAnyTransitionRunning = backStack.any { entry ->
+            entry.screen != Screen.Tabs && (entry.animatableOffset.isRunning || entry.isDragging)
+        }
+
+        if (isDuplicateActive || isMultiTouchSpam || isAnyTransitionRunning) {
+            return
+        }
+
         backStack.add(BackStackEntry(screen = screen, activity = activity))
     }
 

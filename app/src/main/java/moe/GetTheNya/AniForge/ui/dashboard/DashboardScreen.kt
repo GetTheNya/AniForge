@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.theme.*
+import moe.GetTheNya.AniForge.ui.utils.disableSplitTouch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +132,7 @@ fun DashboardContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().disableSplitTouch()
     ) {
         // Header for Catalog listing
         item(span = { GridItemSpan(2) }) {
@@ -177,12 +178,12 @@ fun BentoStatsCard(stats: UserStats) {
             Text(text = "${stats.episodesWatched}", color = NeonCoral, fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Text(text = strings.misc.episodes, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
-        Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
+        HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "${stats.titlesCompleted}", color = CyberTeal, fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Text(text = strings.misc.completed, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
-        Divider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
+        HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp), color = CardBorder)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(text = "${stats.titlesWatching}", color = ElectricViolet, fontSize = 26.sp, fontWeight = FontWeight.Bold)
             Text(text = strings.misc.watching, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
