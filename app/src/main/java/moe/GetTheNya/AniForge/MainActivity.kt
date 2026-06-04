@@ -89,6 +89,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.DashboardScreen
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardViewModel
 import moe.GetTheNya.AniForge.ui.detail.DetailScreen
 import moe.GetTheNya.AniForge.ui.detail.DetailViewModel
+import moe.GetTheNya.AniForge.ui.detail.ImageViewerScreen
 import moe.GetTheNya.AniForge.ui.home.HomeScreen
 import moe.GetTheNya.AniForge.ui.home.HomeViewModel
 import moe.GetTheNya.AniForge.ui.navigation.BackStackEntry
@@ -386,7 +387,7 @@ class MainActivity : ComponentActivity() {
                                                     indication = null
                                                 ) {}
                                                 .then(
-                                                    if (isTopMost) {
+                                                    if (isTopMost && entry.screen !is Screen.ImageViewer) {
                                                         Modifier.pointerInput(screenWidthPx) {
                                                             val touchSlop = viewConfiguration.touchSlop
                                                             awaitPointerEventScope {
@@ -482,6 +483,13 @@ class MainActivity : ComponentActivity() {
                                                             viewModel = scopedViewModel,
                                                             navController = navController,
                                                             modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.ImageViewer -> {
+                                                        ImageViewerScreen(
+                                                            urls = screen.urls,
+                                                            initialIndex = screen.initialIndex,
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }

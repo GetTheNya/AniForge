@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -89,6 +90,9 @@ fun DetailScreen(
                     onAnimeClick = { newId ->
                         navController.navigate(Screen.Detail(newId))
                     },
+                    onImageClick = { urls, index ->
+                        navController.navigate(Screen.ImageViewer(urls, index))
+                    },
                     preferUk = preferUk,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -124,6 +128,7 @@ fun DetailContent(
     onDecrementProgress: () -> Unit,
     onSaveNotes: (String) -> Unit,
     onAnimeClick: (Long) -> Unit,
+    onImageClick: (List<String>, Int) -> Unit,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -169,9 +174,10 @@ fun DetailContent(
                 verticalAlignment = Alignment.Bottom
             ) {
                 // Dedicated vertical poster image next to title section
+                val posterUrl = anime.coverLarge ?: anime.coverMedium
                 AsyncImage(
                     model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                        .data(anime.coverLarge ?: anime.coverMedium)
+                        .data(posterUrl)
                         .precision(coil.size.Precision.EXACT)
                         .allowHardware(true)
                         .crossfade(true)
@@ -183,6 +189,11 @@ fun DetailContent(
                         .height(130.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                        .clickable {
+                            if (posterUrl != null) {
+                                onImageClick(listOf(posterUrl), 0)
+                            }
+                        }
                 )
                 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -271,10 +282,10 @@ fun DetailContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(
+                        itemsIndexed(
                             items = screenshots,
-                            key = { it }
-                        ) { imageUrl ->
+                            key = { _, item -> item }
+                        ) { index, imageUrl ->
                             AsyncImage(
                                 model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                     .data(imageUrl)
@@ -289,6 +300,9 @@ fun DetailContent(
                                     .height(130.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        onImageClick(screenshots, index)
+                                    }
                             )
                         }
                     }
