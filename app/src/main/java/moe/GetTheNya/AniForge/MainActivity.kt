@@ -443,6 +443,7 @@ class MainActivity : ComponentActivity() {
                                                             anilistId = screen.animeId,
                                                             navController = navController,
                                                             viewModel = scopedViewModel,
+                                                            preferUk = preferUk,
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )

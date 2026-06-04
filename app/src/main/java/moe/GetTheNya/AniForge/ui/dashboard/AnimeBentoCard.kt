@@ -127,7 +127,7 @@ fun AnimeBentoCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
-                if (anime.hasUkTranslation) {
+                if (anime.hasUkTranslation && preferUk) {
                     Text(
                         text = "🇺🇦",
                         color = Color(0xFF00F5D4),

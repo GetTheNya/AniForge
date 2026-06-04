@@ -33,6 +33,7 @@ fun DetailScreen(
     navController: NavController,
     viewModel: DetailViewModel,
     modifier: Modifier = Modifier,
+    preferUk: Boolean = true,
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -88,6 +89,7 @@ fun DetailScreen(
                     onAnimeClick = { newId ->
                         navController.navigate(Screen.Detail(newId))
                     },
+                    preferUk = preferUk,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -122,6 +124,7 @@ fun DetailContent(
     onDecrementProgress: () -> Unit,
     onSaveNotes: (String) -> Unit,
     onAnimeClick: (Long) -> Unit,
+    preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -211,7 +214,7 @@ fun DetailContent(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = anime.getDisplayTitle(preferUk = true),
+                        text = anime.getDisplayTitle(preferUk = preferUk),
                         color = TextPrimary,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
@@ -312,6 +315,7 @@ fun DetailContent(
                         ) { rel ->
                             AnimeBentoCard(
                                 anime = rel,
+                                preferUk = preferUk,
                                 onClick = { onAnimeClick(rel.anilistId) },
                                 modifier = Modifier.width(160.dp)
                             )
