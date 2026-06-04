@@ -23,6 +23,7 @@ sealed interface Screen {
     data class Detail(val animeId: Long) : Screen
     data object LogViewer : Screen
     data object Settings : Screen
+    data object DevSettings : Screen
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
 }
 
@@ -61,7 +62,11 @@ class NavController(
     fun navigate(screen: Screen) {
         val isDuplicateActive = backStack.any { it.screen == screen }
 
-        val isMultiTouchSpam = backStack.lastOrNull()?.screen != Screen.Tabs && screen !is Screen.ImageViewer
+        val lastEntry = backStack.lastOrNull()
+        val isMultiTouchSpam = lastEntry != null &&
+                lastEntry.screen != Screen.Tabs &&
+                screen !is Screen.ImageViewer &&
+                (!lastEntry.isEntranceStarted || lastEntry.animatableOffset.isRunning)
 
         val isAnyTransitionRunning = backStack.any { entry ->
             entry.screen != Screen.Tabs && (entry.animatableOffset.isRunning || entry.isDragging)

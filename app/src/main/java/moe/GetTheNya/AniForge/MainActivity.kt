@@ -1,6 +1,12 @@
 package moe.GetTheNya.AniForge
 
 import android.os.Bundle
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import moe.GetTheNya.AniForge.ui.settings.DevSettingsScreen
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -112,6 +118,15 @@ enum class TabScreen {
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var sensorListener: SensorEventListener? = null
+    private var onShake: (() -> Unit)? = null
+
+    private var shakeCount = 0
+    private var firstShakeTime = 0L
+    private var lastShakeTime = 0L
+
     @Inject
     lateinit var databaseManager: DatabaseManager
 
@@ -127,6 +142,44 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        
+        sensorListener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+                val x = event.values[0]
+                val y = event.values[1]
+                val z = event.values[2]
+                
+                val gForce = kotlin.math.sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH
+                if (gForce > 2.5f) {
+                    val now = System.currentTimeMillis()
+                    // Ignore micro-vibrations in the same physical stroke
+                    if (now - lastShakeTime < 100) return
+
+                    // If the window expired, treat this as a brand new shake sequence
+                    if (now - firstShakeTime > 1200) {
+                        shakeCount = 1
+                        firstShakeTime = now
+                    } else {
+                        shakeCount++
+                    }
+                    lastShakeTime = now
+
+                    // Require 4 distinct back-and-forth strokes to confirm a deliberate shake
+                    if (shakeCount >= 4) {
+                        shakeCount = 0
+                        firstShakeTime = 0L
+                        onShake?.invoke()
+                    }
+                }
+            }
+            
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
@@ -134,6 +187,15 @@ class MainActivity : ComponentActivity() {
             val coroutineScope = rememberCoroutineScope()
             val context = androidx.compose.ui.platform.LocalContext.current
             val localeStrings by localizationService.activeLocaleStrings.collectAsState()
+
+            LaunchedEffect(navController) {
+                onShake = {
+                    val topScreen = navController.backStack.lastOrNull()?.screen
+                    if (topScreen != Screen.DevSettings) {
+                        navController.navigate(Screen.DevSettings)
+                    }
+                }
+            }
 
             // Check for catalog database updates asynchronously on application startup
             LaunchedEffect(Unit) {
@@ -486,6 +548,13 @@ class MainActivity : ComponentActivity() {
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }
+                                                    is Screen.DevSettings -> {
+                                                        DevSettingsScreen(
+                                                            navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
                                                     is Screen.ImageViewer -> {
                                                         ImageViewerScreen(
                                                             urls = screen.urls,
@@ -505,6 +574,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        sensorListener?.let { listener ->
+            accelerometer?.let { accel ->
+                sensorManager?.registerListener(listener, accel, SensorManager.SENSOR_DELAY_UI)
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorListener?.let { listener ->
+            sensorManager?.unregisterListener(listener)
         }
     }
 }

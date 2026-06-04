@@ -39,7 +39,6 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    val logs by viewModel.logs.collectAsState()
 
     Column(
         modifier = modifier
@@ -75,58 +74,6 @@ fun ProfileScreen(
                     contentDescription = strings.misc.settings,
                     tint = TextPrimary
                 )
-            }
-        }
-
-        // Diagnostics Card
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(SurfaceDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = strings.profileScreen.diagnosticsAndLogs,
-                color = TextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
- 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = strings.profileScreen.systemLogs,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = String.format(strings.profileScreen.bufferedDiagnostics, logs.size),
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-                Button(
-                    onClick = { navController.navigate(Screen.LogViewer) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CyberTeal,
-                        contentColor = BackgroundDark
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = strings.profileScreen.viewLogs,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
 

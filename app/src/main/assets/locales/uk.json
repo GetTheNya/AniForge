@@ -81,5 +81,9 @@
     "databaseStatus": "Статус бази даних",
     "forceUpdate": "Примусове оновлення",
     "forceUpdateDesc": "Перевірити та оновити каталог"
+  },
+  "devSettings": {
+    "devSettingsHeader": "Налаштування розробника",
+    "viewLogs": "Переглянути логи"
   }
 }

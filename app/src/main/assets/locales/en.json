@@ -81,5 +81,9 @@
     "databaseStatus": "Database Status",
     "forceUpdate": "Force Update",
     "forceUpdateDesc": "Check and update catalog"
+  },
+  "devSettings": {
+    "devSettingsHeader": "Developer Settings",
+    "viewLogs": "View System Logs"
   }
 }

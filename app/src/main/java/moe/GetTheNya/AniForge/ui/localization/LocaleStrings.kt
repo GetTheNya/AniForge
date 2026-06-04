@@ -14,7 +14,8 @@ data class LocaleStrings(
     val dashboardScreen: DashboardScreenStrings = DashboardScreenStrings(),
     val detailScreen: DetailScreenStrings = DetailScreenStrings(),
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
-    val settingsScreen: SettingsScreenStrings = SettingsScreenStrings()
+    val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
+    val devSettings: DevSettingsStrings = DevSettingsStrings()
 )
 
 @Serializable
@@ -111,4 +112,10 @@ data class SettingsScreenStrings(
     val databaseStatus: String = "[settingsScreen.databaseStatus]",
     val forceUpdate: String = "[settingsScreen.forceUpdate]",
     val forceUpdateDesc: String = "[settingsScreen.forceUpdateDesc]"
+)
+
+@Serializable
+data class DevSettingsStrings(
+    val devSettingsHeader: String = "[devSettings.devSettingsHeader]",
+    val viewLogs: String = "[devSettings.viewLogs]"
 )
