@@ -38,10 +38,12 @@ class DashboardViewModel @Inject constructor(
                 val score = it.scoreMal
                 score != null && score >= 8.5
             }
+            val trackingMap = trackingList.associate { it.anilistId to it.watchStatus }
             DashboardUiState.Success(
                 animeList = animeList,
                 featuredAnime = featured,
-                stats = stats
+                stats = stats,
+                trackingMap = trackingMap
             ) as DashboardUiState
         }
         .catch { e ->
@@ -91,7 +93,8 @@ sealed interface DashboardUiState {
     data class Success(
         val animeList: List<Anime>,
         val featuredAnime: Anime?,
-        val stats: UserStats
+        val stats: UserStats,
+        val trackingMap: Map<Long, String> = emptyMap()
     ) : DashboardUiState
     @Immutable
     data class Error(val message: String) : DashboardUiState

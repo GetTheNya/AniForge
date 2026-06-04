@@ -27,13 +27,15 @@ import moe.GetTheNya.AniForge.ui.theme.NeonCoral
 import moe.GetTheNya.AniForge.ui.theme.SurfaceCardDark
 import moe.GetTheNya.AniForge.ui.theme.TextPrimary
 import moe.GetTheNya.AniForge.ui.theme.TextSecondary
+import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 
 @Composable
 fun AnimeBentoCard(
     anime: Anime,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    preferUk: Boolean = true
+    preferUk: Boolean = true,
+    status: String? = null
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Box(
@@ -75,6 +77,26 @@ fun AnimeBentoCard(
                     )
                 )
         )
+ 
+        // Status Badge (top start/left)
+        if (status != null && status != "NONE") {
+            val config = statusConfigs.find { it.id == status }
+            if (config != null) {
+                Text(
+                    text = config.getLabel(strings).uppercase(),
+                    color = config.color,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xE60C0C0E)) // premium, semi-transparent background color (dark glassmorphism)
+                        .border(1.dp, config.color.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
 
         // Score tag (top right)
         if (anime.scoreMal != null) {

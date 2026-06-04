@@ -83,6 +83,7 @@ fun DashboardScreen(
             is DashboardUiState.Success -> {
                 DashboardContent(
                     animeList = state.animeList,
+                    trackingMap = state.trackingMap,
                     preferUk = preferUk,
                     onAnimeClick = onAnimeClick
                 )
@@ -123,6 +124,7 @@ fun SearchBar(
 @Composable
 fun DashboardContent(
     animeList: List<Anime>,
+    trackingMap: Map<Long, String>,
     preferUk: Boolean,
     onAnimeClick: (Long) -> Unit
 ) {
@@ -153,6 +155,7 @@ fun DashboardContent(
         ) { anime ->
             AnimeBentoCard(
                 anime = anime,
+                status = trackingMap[anime.anilistId],
                 preferUk = preferUk,
                 onClick = { onAnimeClick(anime.anilistId) }
             )

@@ -39,16 +39,21 @@ class DetailViewModel @Inject constructor(
                 val screenshots = animeRepository.getScreenshots(anilistId)
                 val relations = animeRepository.getRelations(anilistId)
 
-                // Combine with live user tracking flow
-                userTrackingDao.observeTrackingForAnime(anilistId)
-                    .collect { tracking ->
-                        _uiState.value = DetailUiState.Success(
-                            anime = anime,
-                            screenshots = screenshots,
-                            relations = relations,
-                            tracking = tracking
-                        )
-                    }
+                combine(
+                    userTrackingDao.observeTrackingForAnime(anilistId),
+                    userTrackingDao.observeAllTracking()
+                ) { tracking, allTracking ->
+                    val trackingMap = allTracking.associate { it.anilistId to it.watchStatus }
+                    DetailUiState.Success(
+                        anime = anime,
+                        screenshots = screenshots,
+                        relations = relations,
+                        tracking = tracking,
+                        trackingMap = trackingMap
+                    )
+                }.collect { successState ->
+                    _uiState.value = successState
+                }
             } catch (e: Exception) {
                 _uiState.value = DetailUiState.Error(e.message ?: "Failed to load details")
             }
@@ -173,7 +178,8 @@ sealed interface DetailUiState {
         val anime: Anime,
         val screenshots: List<String>,
         val relations: List<Anime>,
-        val tracking: UserTrackingEntity?
+        val tracking: UserTrackingEntity?,
+        val trackingMap: Map<Long, String> = emptyMap()
     ) : DetailUiState
     @Immutable
     data class Error(val message: String) : DetailUiState

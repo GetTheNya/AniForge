@@ -25,6 +25,7 @@ import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
+import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import moe.GetTheNya.AniForge.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,6 +84,7 @@ fun DetailScreen(
                     screenshots = state.screenshots,
                     relations = state.relations,
                     tracking = state.tracking,
+                    trackingMap = state.trackingMap,
                     onStatusChange = viewModel::updateWatchStatus,
                     onIncrementProgress = viewModel::incrementEpisodeProgress,
                     onDecrementProgress = viewModel::decrementEpisodeProgress,
@@ -123,6 +125,7 @@ fun DetailContent(
     screenshots: List<String>,
     relations: List<Anime>,
     tracking: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity?,
+    trackingMap: Map<Long, String>,
     onStatusChange: (String) -> Unit,
     onIncrementProgress: () -> Unit,
     onDecrementProgress: () -> Unit,
@@ -329,6 +332,7 @@ fun DetailContent(
                         ) { rel ->
                             AnimeBentoCard(
                                 anime = rel,
+                                status = trackingMap[rel.anilistId],
                                 preferUk = preferUk,
                                 onClick = { onAnimeClick(rel.anilistId) },
                                 modifier = Modifier.width(160.dp)
@@ -351,47 +355,8 @@ fun TrackingWidget(
     onSaveNotes: (String) -> Unit
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    val statusButtons = remember(strings) {
-        listOf(
-            StatusButtonItem(
-                statusId = "PLANNING",
-                color = Color(0xFF9067C6),
-                activeIcon = Icons.Default.Bookmark,
-                inactiveIcon = Icons.Default.BookmarkBorder,
-                contentDescription = strings.misc.planning
-            ),
-            StatusButtonItem(
-                statusId = "CURRENT",
-                color = Color(0xFF3B82F6),
-                activeIcon = Icons.Default.PlayArrow,
-                inactiveIcon = Icons.Default.PlayArrow,
-                contentDescription = strings.misc.watching
-            ),
-            StatusButtonItem(
-                statusId = "COMPLETED",
-                color = Color(0xFF10B981),
-                activeIcon = Icons.Default.CheckCircle,
-                inactiveIcon = Icons.Default.CheckCircle,
-                contentDescription = strings.misc.completed
-            ),
-            StatusButtonItem(
-                statusId = "PAUSED",
-                color = Color(0xFFF59E0B),
-                activeIcon = Icons.Default.Pause,
-                inactiveIcon = Icons.Default.Pause,
-                contentDescription = strings.misc.paused
-            ),
-            StatusButtonItem(
-                statusId = "DROPPED",
-                color = Color(0xFFEF4444),
-                activeIcon = Icons.Default.Cancel,
-                inactiveIcon = Icons.Default.Cancel,
-                contentDescription = strings.misc.dropped
-            )
-        )
-    }
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
-
+ 
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -402,15 +367,15 @@ fun TrackingWidget(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(text = strings.detailScreen.myProgress, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-
+ 
         // Status Chips row replaced by premium compact horizontal row of icon-based selectors
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            statusButtons.forEach { item ->
-                val isSelected = tracking?.watchStatus == item.statusId
+            statusConfigs.forEach { item ->
+                val isSelected = tracking?.watchStatus == item.id
                 val buttonColor = item.color
                 Box(
                     modifier = Modifier
@@ -423,12 +388,12 @@ fun TrackingWidget(
                             color = if (isSelected) buttonColor else CardBorder,
                             shape = RoundedCornerShape(12.dp)
                         )
-                        .clickable { onStatusChange(item.statusId) },
+                        .clickable { onStatusChange(item.id) },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
-                        contentDescription = item.contentDescription,
+                        contentDescription = item.getLabel(strings),
                         tint = if (isSelected) buttonColor else Color.White.copy(alpha = 0.5f),
                         modifier = Modifier.size(24.dp)
                     )
@@ -513,10 +478,3 @@ fun TrackingWidget(
     }
 }
 
-private data class StatusButtonItem(
-    val statusId: String,
-    val color: Color,
-    val activeIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    val inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    val contentDescription: String
-)
