@@ -6,6 +6,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.os.VibrationEffect
+import android.os.Build
 import moe.GetTheNya.AniForge.ui.settings.DevSettingsScreen
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -192,6 +196,24 @@ class MainActivity : ComponentActivity() {
                 onShake = {
                     val topScreen = navController.backStack.lastOrNull()?.screen
                     if (topScreen != Screen.DevSettings) {
+                        try {
+                            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                vibratorManager.defaultVibrator
+                            } else {
+                                @Suppress("DEPRECATION")
+                                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                            }
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createOneShot(150L, VibrationEffect.DEFAULT_AMPLITUDE))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                vibrator.vibrate(150L)
+                            }
+                        } catch (e: Exception) {
+                            // Suppress vibration exceptions in case device has no hardware support or permissions
+                        }
                         navController.navigate(Screen.DevSettings)
                     }
                 }
