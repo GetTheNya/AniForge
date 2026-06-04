@@ -398,9 +398,12 @@ class MainActivity : ComponentActivity() {
                                                                     val dragId = down.id
                                                                     
                                                                     while (true) {
-                                                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                                                        val event = awaitPointerEvent(PointerEventPass.Main)
                                                                         val dragEvent = event.changes.firstOrNull { it.id == dragId }
                                                                         if (dragEvent == null || !dragEvent.pressed) {
+                                                                            break
+                                                                        }
+                                                                        if (!hasLocked && dragEvent.isConsumed) {
                                                                             break
                                                                         }
                                                                         
@@ -412,7 +415,7 @@ class MainActivity : ComponentActivity() {
                                                                         if (!hasLocked) {
                                                                             dragX += deltaX
                                                                             dragY += kotlin.math.abs(deltaY)
-                                                                            if (dragX > touchSlop && dragX > dragY * 1.5f) {
+                                                                            if (dragX > touchSlop && dragX > dragY * 1.5f && !dragEvent.isConsumed) {
                                                                                 hasLocked = true
                                                                                 entry.isDragging = true
                                                                                 entry.dragOffset = dragX
