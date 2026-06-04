@@ -91,3 +91,20 @@ class LocalizationService @Inject constructor(
         }
     }
 }
+
+fun Map<String, String>.getPlural(count: Int): String {
+    val isUkrainian = this.containsKey("few")
+    val formatString = if (isUkrainian) {
+        val mod10 = count % 10
+        val mod100 = count % 100
+        when {
+            mod10 == 1 && mod100 != 11 -> this["one"]
+            mod10 in 2..4 && mod100 !in 12..14 -> this["few"]
+            else -> this["many"]
+        }
+    } else {
+        if (count == 1) this["one"] else this["many"]
+    } ?: this["many"] ?: "" // Fallback safely to "many" key if bounds slip
+    
+    return String.format(formatString, count)
+}

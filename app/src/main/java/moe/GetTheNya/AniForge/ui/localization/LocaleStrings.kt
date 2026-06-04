@@ -8,6 +8,7 @@ val LocalLocaleStrings = staticCompositionLocalOf { LocaleStrings() }
 @Serializable
 data class LocaleStrings(
     val lang: String = "[lang]",
+    val languageCode: String = "en",
     val misc: MiscStrings = MiscStrings(),
     val homeScreen: HomeScreenStrings = HomeScreenStrings(),
     val animeScreen: AnimeScreenStrings = AnimeScreenStrings(),
@@ -46,12 +47,7 @@ data class HomeScreenStrings(
     val welcomeBack: String = "[homeScreen.welcomeBack]",
     val appName: String = "[homeScreen.appName]",
     val trackingProgress: String = "[homeScreen.trackingProgress]",
-    val spotlight: String = "[homeScreen.spotlight]",
-    val catalogCoreStatus: String = "[homeScreen.catalogCoreStatus]",
-    val offlineCatalog: String = "[homeScreen.offlineCatalog]",
-    val hotswappingEnabled: String = "[homeScreen.hotswappingEnabled]",
-    val activeSlot: String = "[homeScreen.activeSlot]",
-    val catalogStamp: String = "[homeScreen.catalogStamp]"
+    val spotlight: String = "[homeScreen.spotlight]"
 )
 
 @Serializable
@@ -88,18 +84,7 @@ data class DetailScreenStrings(
 data class ProfileScreenStrings(
     val name: String = "[profileScreen.name]",
     val userProfile: String = "[profileScreen.userProfile]",
-    val preferences: String = "[profileScreen.preferences]",
-    val databaseSync: String = "[profileScreen.databaseSync]",
-    val databaseSyncDesc: String = "[profileScreen.databaseSyncDesc]",
-    val diagnosticsAndLogs: String = "[profileScreen.diagnosticsAndLogs]",
-    val systemLogs: String = "[profileScreen.systemLogs]",
-    val bufferedDiagnostics: String = "[profileScreen.bufferedDiagnostics]",
-    val viewLogs: String = "[profileScreen.viewLogs]",
-    val systemLogsTitle: String = "[profileScreen.systemLogsTitle]",
-    val diagnosticsEngineStatus: String = "[profileScreen.diagnosticsEngineStatus]",
-    val engineLogsCount: String = "[profileScreen.engineLogsCount]",
-    val copyLogs: String = "[profileScreen.copyLogs]",
-    val noLogsYet: String = "[profileScreen.noLogsYet]"
+    val titlesCount: Map<String, String> = emptyMap()
 )
 
 @Serializable
@@ -111,11 +96,21 @@ data class SettingsScreenStrings(
     val databaseHeader: String = "[settingsScreen.databaseHeader]",
     val databaseStatus: String = "[settingsScreen.databaseStatus]",
     val forceUpdate: String = "[settingsScreen.forceUpdate]",
-    val forceUpdateDesc: String = "[settingsScreen.forceUpdateDesc]"
+    val forceUpdateDesc: String = "[settingsScreen.forceUpdateDesc]",
+    val hotswappingEnabled: String = "[settingsScreen.hotswappingEnabled]",
+    val activeSlot: String = "[settingsScreen.activeSlot]",
+    val catalogStamp: String = "[settingsScreen.catalogStamp]"
 )
 
 @Serializable
 data class DevSettingsStrings(
     val devSettingsHeader: String = "[devSettings.devSettingsHeader]",
-    val viewLogs: String = "[devSettings.viewLogs]"
+    val viewLogs: String = "[devSettings.viewLogs]",
+    val viewLogsButton: String = "[devSettings.viewLogsButton]",
+    val systemLogs: String = "[devSettings.systemLogs]",
+    val systemLogsTitle: String = "[devSettings.systemLogsTitle]",
+    val diagnosticsEngineStatus: String = "[devSettings.diagnosticsEngineStatus]",
+    val engineLogsCount: String = "[devSettings.engineLogsCount]",
+    val copyLogs: String = "[devSettings.copyLogs]",
+    val noLogsYet: String = "[devSettings.noLogsYet]"
 )

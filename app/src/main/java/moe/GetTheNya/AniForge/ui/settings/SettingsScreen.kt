@@ -5,8 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +61,7 @@ fun SettingsScreen(
                     .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = strings.misc.back,
                     tint = TextPrimary
                 )
@@ -146,7 +147,7 @@ fun SettingsScreen(
                 }
             }
 
-            Divider(color = CardBorder, thickness = 1.dp)
+            HorizontalDivider(Modifier, thickness = 1.dp, color = CardBorder)
 
             // 2. Ukrainian Titles Switch
             Row(
@@ -206,7 +207,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = strings.homeScreen.hotswappingEnabled,
+                        text = strings.settingsScreen.hotswappingEnabled,
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
@@ -236,7 +237,7 @@ fun SettingsScreen(
             ) {
                 Column {
                     Text(
-                        text = strings.homeScreen.activeSlot,
+                        text = strings.settingsScreen.activeSlot,
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
@@ -249,7 +250,7 @@ fun SettingsScreen(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = strings.homeScreen.catalogStamp,
+                        text = strings.settingsScreen.catalogStamp,
                         color = TextSecondary,
                         fontSize = 11.sp
                     )

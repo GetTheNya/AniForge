@@ -1,5 +1,6 @@
 {
   "lang": "English",
+  "languageCode": "en",
   "misc": {
     "error": "Error",
     "retry": "Retry",
@@ -25,12 +26,7 @@
     "welcomeBack": "Welcome Back",
     "appName": "AniForge",
     "trackingProgress": "Tracking Progress",
-    "spotlight": "Spotlight",
-    "catalogCoreStatus": "Catalog Core Status",
-    "offlineCatalog": "Offline Catalog",
-    "hotswappingEnabled": "A/B Dynamic Hotswapping Enabled",
-    "activeSlot": "Active Slot",
-    "catalogStamp": "Catalog Stamp"
+    "spotlight": "Spotlight"
   },
   "animeScreen": {
     "name": "Anime",
@@ -59,18 +55,10 @@
   "profileScreen": {
     "name": "Profile",
     "userProfile": "User Profile",
-    "preferences": "Preferences",
-    "databaseSync": "Database Sync",
-    "databaseSyncDesc": "Check and hot-swap to latest catalog",
-    "diagnosticsAndLogs": "Diagnostics & Logs",
-    "systemLogs": "System logs",
-    "bufferedDiagnostics": "%d buffered diagnostics statements",
-    "viewLogs": "View Logs",
-    "systemLogsTitle": "System Logs",
-    "diagnosticsEngineStatus": "Diagnostics & Engine status",
-    "engineLogsCount": "Engine Logs (%d)",
-    "copyLogs": "Copy Logs",
-    "noLogsYet": "No system logs generated yet."
+    "titlesCount": {
+      "one": "%d title",
+      "many": "%d titles"
+    }
   },
   "settingsScreen": {
     "title": "Settings",
@@ -80,10 +68,20 @@
     "databaseHeader": "Database Management",
     "databaseStatus": "Database Status",
     "forceUpdate": "Force Update",
-    "forceUpdateDesc": "Check and update catalog"
+    "forceUpdateDesc": "Check and update catalog",
+    "hotswappingEnabled": "A/B Dynamic Hotswapping Enabled",
+    "activeSlot": "Active Slot",
+    "catalogStamp": "Catalog Stamp"
   },
   "devSettings": {
     "devSettingsHeader": "Developer Settings",
-    "viewLogs": "View System Logs"
+    "viewLogs": "View System Logs",
+    "viewLogsButton": "View Logs",
+    "systemLogs": "System logs",
+    "systemLogsTitle": "System Logs",
+    "diagnosticsEngineStatus": "Diagnostics & Engine status",
+    "engineLogsCount": "Engine Logs (%d)",
+    "copyLogs": "Copy Logs",
+    "noLogsYet": "No system logs generated yet."
   }
 }

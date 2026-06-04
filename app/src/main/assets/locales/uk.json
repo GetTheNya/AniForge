@@ -1,5 +1,6 @@
 {
   "lang": "Українська",
+  "languageCode": "uk",
   "misc": {
     "error": "Помилка",
     "retry": "Повторити",
@@ -25,12 +26,7 @@
     "welcomeBack": "З поверненням",
     "appName": "AniForge",
     "trackingProgress": "Прогрес перегляду",
-    "spotlight": "У центрі уваги",
-    "catalogCoreStatus": "Статус ядра каталогу",
-    "offlineCatalog": "Офлайн каталог",
-    "hotswappingEnabled": "A/B динамічна гаряча заміна активна",
-    "activeSlot": "Активний слот",
-    "catalogStamp": "Штамп каталогу"
+    "spotlight": "У центрі уваги"
   },
   "animeScreen": {
     "name": "Аніме",
@@ -59,18 +55,11 @@
   "profileScreen": {
     "name": "Профіль",
     "userProfile": "Профіль користувача",
-    "preferences": "Налаштування",
-    "databaseSync": "Синхронізація бази даних",
-    "databaseSyncDesc": "Перевірити та оновити каталог",
-    "diagnosticsAndLogs": "Діагностика та логи",
-    "systemLogs": "Системні логи",
-    "bufferedDiagnostics": "%d буферизованих повідомлень діагностики",
-    "viewLogs": "Перегляд",
-    "systemLogsTitle": "Системні логи",
-    "diagnosticsEngineStatus": "Діагностика та статус двигуна",
-    "engineLogsCount": "Логи двигуна (%d)",
-    "copyLogs": "Копіювати логи",
-    "noLogsYet": "Системні логи ще не створено."
+    "titlesCount": {
+      "one": "%d тайтл",
+      "few": "%d тайтли",
+      "many": "%d тайтлів"
+    }
   },
   "settingsScreen": {
     "title": "Налаштування",
@@ -80,10 +69,20 @@
     "databaseHeader": "База даних",
     "databaseStatus": "Статус бази даних",
     "forceUpdate": "Примусове оновлення",
-    "forceUpdateDesc": "Перевірити та оновити каталог"
+    "forceUpdateDesc": "Перевірити та оновити каталог",
+    "hotswappingEnabled": "A/B динамічна гаряча заміна активна",
+    "activeSlot": "Активний слот",
+    "catalogStamp": "Штамп каталогу"
   },
   "devSettings": {
     "devSettingsHeader": "Налаштування розробника",
-    "viewLogs": "Переглянути логи"
+    "viewLogs": "Переглянути логи",
+    "viewLogsButton": "Перегляд",
+    "systemLogs": "Системні логи",
+    "systemLogsTitle": "Системні логи",
+    "diagnosticsEngineStatus": "Діагностика та статус двигуна",
+    "engineLogsCount": "Логи двигуна (%d)",
+    "copyLogs": "Копіювати логи",
+    "noLogsYet": "Системні логи ще не створено."
   }
 }
