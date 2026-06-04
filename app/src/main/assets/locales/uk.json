@@ -88,6 +88,7 @@
   "trackedListScreen": {
     "searchPlaceholder": "Пошук за назвою...",
     "randomEmpty": "У цьому списку немає тайтлів!",
-    "emptyState": "У цьому списку немає тайтлів"
+    "emptyState": "У цьому списку немає тайтлів",
+    "rouletteExhausted": "Рандомні аніме в цьому списку закінчились!"
   }
 }

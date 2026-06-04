@@ -120,5 +120,6 @@ data class DevSettingsStrings(
 data class TrackedListScreenStrings(
     val searchPlaceholder: String = "[trackedListScreen.searchPlaceholder]",
     val randomEmpty: String = "[trackedListScreen.randomEmpty]",
-    val emptyState: String = "[trackedListScreen.emptyState]"
+    val emptyState: String = "[trackedListScreen.emptyState]",
+    val rouletteExhausted: String = "[trackedListScreen.rouletteExhausted]"
 )

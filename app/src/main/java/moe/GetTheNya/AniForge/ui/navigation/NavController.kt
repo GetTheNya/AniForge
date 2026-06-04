@@ -20,7 +20,12 @@ import java.util.UUID
 
 sealed interface Screen {
     data object Tabs : Screen
-    data class Detail(val animeId: Long) : Screen
+    data class Detail(
+        val anilistId: Long,
+        val sourceStatusId: String? = null,
+        val rouletteCount: Int = 0,
+        val visitedIds: String = ""
+    ) : Screen
     data object LogViewer : Screen
     data object Settings : Screen
     data object DevSettings : Screen
@@ -45,7 +50,24 @@ class BackStackEntry(
         get() = activity.defaultViewModelProviderFactory
 
     override val defaultViewModelCreationExtras: CreationExtras
-        get() = activity.defaultViewModelCreationExtras
+        get() {
+            val extras = androidx.lifecycle.viewmodel.MutableCreationExtras(activity.defaultViewModelCreationExtras)
+            val bundle = android.os.Bundle()
+            when (val s = screen) {
+                is Screen.Detail -> {
+                    bundle.putLong("anilistId", s.anilistId)
+                    s.sourceStatusId?.let { bundle.putString("sourceStatusId", it) }
+                    bundle.putInt("rouletteCount", s.rouletteCount)
+                    bundle.putString("visitedIds", s.visitedIds)
+                }
+                is Screen.TrackedList -> {
+                    bundle.putString("initialStatusId", s.initialStatusId)
+                }
+                else -> {}
+            }
+            extras[androidx.lifecycle.DEFAULT_ARGS_KEY] = bundle
+            return extras
+        }
 
     fun clear() {
         store.clear()
@@ -56,6 +78,8 @@ class NavController(
     initialScreen: Screen = Screen.Tabs,
     private val activity: ComponentActivity
 ) {
+    var rouletteExitMaxCount by mutableStateOf<Int?>(null)
+
     val backStack: SnapshotStateList<BackStackEntry> = mutableStateListOf(
         BackStackEntry(screen = initialScreen, activity = activity)
     )
@@ -87,6 +111,17 @@ class NavController(
             return true
         }
         return false
+    }
+
+    fun finalizeRouletteExit() {
+        val updatedStack = backStack.toMutableList()
+        while (updatedStack.size > 1 && updatedStack.last().screen is Screen.Detail) {
+            val removed = updatedStack.removeAt(updatedStack.lastIndex)
+            removed.clear()
+        }
+        backStack.clear()
+        backStack.addAll(updatedStack)
+        rouletteExitMaxCount = null // Reset state
     }
 }
 

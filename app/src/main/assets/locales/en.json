@@ -87,6 +87,7 @@
   "trackedListScreen": {
     "searchPlaceholder": "Search by title...",
     "randomEmpty": "No anime to pick from!",
-    "emptyState": "No titles found in this list"
+    "emptyState": "No titles found in this list",
+    "rouletteExhausted": "You've rolled through all anime in this list!"
   }
 }

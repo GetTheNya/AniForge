@@ -363,40 +363,62 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer {
-                                            val lastIndex = navController.backStack.lastIndex
-                                            if (isTopMost) {
-                                                val offsetVal = if (entry.isDragging) {
-                                                    entry.dragOffset
-                                                } else if (entry.screen != Screen.Tabs && !entry.isEntranceStarted) {
-                                                    screenWidthPx
-                                                } else {
-                                                    entry.animatableOffset.value
+                                            val exitMax = navController.rouletteExitMaxCount
+                                            if (exitMax != null) {
+                                                var firstDetailIndex = -1
+                                                for (i in navController.backStack.indices) {
+                                                    if (navController.backStack[i].screen is Screen.Detail) {
+                                                        firstDetailIndex = i
+                                                        break
+                                                    }
                                                 }
-                                                scaleX = 1.0f
-                                                scaleY = 1.0f
-                                                alpha = 1.0f
-                                                translationX = offsetVal
-                                            } else if (index == lastIndex - 1) {
-                                                val topEntry = navController.backStack[lastIndex]
-                                                val topOffset = if (topEntry.isDragging) {
-                                                    topEntry.dragOffset
-                                                } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
-                                                    screenWidthPx
+                                                if (firstDetailIndex != -1 && index >= firstDetailIndex - 1) {
+                                                    scaleX = 1.0f
+                                                    scaleY = 1.0f
+                                                    alpha = 1.0f
+                                                    translationX = 0f
                                                 } else {
-                                                    topEntry.animatableOffset.value
+                                                    scaleX = 0.95f
+                                                    scaleY = 0.95f
+                                                    alpha = 0.0f
+                                                    translationX = 0f
                                                 }
-                                                val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
-                                                val s = 0.95f + 0.05f * progress
-                                                val a = 0.6f + 0.4f * progress
-                                                scaleX = s
-                                                scaleY = s
-                                                alpha = a
-                                                translationX = 0f
                                             } else {
-                                                scaleX = 0.95f
-                                                scaleY = 0.95f
-                                                alpha = 0.0f
-                                                translationX = 0f
+                                                val lastIndex = navController.backStack.lastIndex
+                                                if (isTopMost) {
+                                                    val offsetVal = if (entry.isDragging) {
+                                                        entry.dragOffset
+                                                    } else if (entry.screen != Screen.Tabs && !entry.isEntranceStarted) {
+                                                        screenWidthPx
+                                                    } else {
+                                                        entry.animatableOffset.value
+                                                    }
+                                                    scaleX = 1.0f
+                                                    scaleY = 1.0f
+                                                    alpha = 1.0f
+                                                    translationX = offsetVal
+                                                } else if (index == lastIndex - 1) {
+                                                    val topEntry = navController.backStack[lastIndex]
+                                                    val topOffset = if (topEntry.isDragging) {
+                                                        topEntry.dragOffset
+                                                    } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
+                                                        screenWidthPx
+                                                    } else {
+                                                        topEntry.animatableOffset.value
+                                                    }
+                                                    val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
+                                                    val s = 0.95f + 0.05f * progress
+                                                    val a = 0.6f + 0.4f * progress
+                                                    scaleX = s
+                                                    scaleY = s
+                                                    alpha = a
+                                                    translationX = 0f
+                                                } else {
+                                                    scaleX = 0.95f
+                                                    scaleY = 0.95f
+                                                    alpha = 0.0f
+                                                    translationX = 0f
+                                                }
                                             }
                                         }
                                 ) {
@@ -545,7 +567,10 @@ class MainActivity : ComponentActivity() {
                                                             ViewModelProvider(entry)[DetailViewModel::class.java]
                                                         }
                                                         DetailScreen(
-                                                            anilistId = screen.animeId,
+                                                            anilistId = screen.anilistId,
+                                                            sourceStatusId = screen.sourceStatusId,
+                                                            rouletteCount = screen.rouletteCount,
+                                                            visitedIds = screen.visitedIds,
                                                             navController = navController,
                                                             viewModel = scopedViewModel,
                                                             preferUk = preferUk,

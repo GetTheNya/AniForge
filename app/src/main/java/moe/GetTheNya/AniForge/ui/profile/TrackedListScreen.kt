@@ -153,10 +153,17 @@ fun TrackedListScreen(
 
             IconButton(
                 onClick = {
-                    val currentStatusId = statusConfigs[pagerState.currentPage].id
-                    val randomAnime = viewModel.getRandomAnime(currentStatusId)
-                    if (randomAnime != null) {
-                        navController.navigate(Screen.Detail(randomAnime.anilistId))
+                    val activeTabId = statusConfigs[pagerState.currentPage].id
+                    val randomAnimeId = viewModel.getRandomAnimeIdForCurrentTab()
+                    if (randomAnimeId != null) {
+                        navController.navigate(
+                            Screen.Detail(
+                                anilistId = randomAnimeId,
+                                sourceStatusId = activeTabId,
+                                rouletteCount = 1,
+                                visitedIds = randomAnimeId.toString()
+                            )
+                        )
                     } else {
                         Toast.makeText(context, strings.trackedListScreen.randomEmpty, Toast.LENGTH_SHORT).show()
                     }
@@ -312,7 +319,7 @@ fun TrackedListScreen(
                             anime = anime,
                             status = trackingMap[anime.anilistId],
                             preferUk = preferUk,
-                            onClick = { navController.navigate(Screen.Detail(anime.anilistId)) },
+                            onClick = { navController.navigate(Screen.Detail(anime.anilistId, sourceStatusId = null)) },
                             onStatusChange = { newStatus -> viewModel.updateWatchStatus(anime.anilistId, newStatus) },
                             isMenuVisible = activeMenuAnimeId == anime.anilistId,
                             onMenuShow = { activeMenuAnimeId = anime.anilistId },

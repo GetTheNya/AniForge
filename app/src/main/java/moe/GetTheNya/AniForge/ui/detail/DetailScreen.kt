@@ -13,6 +13,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +40,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
+import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -42,6 +48,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun DetailScreen(
     anilistId: Long,
+    sourceStatusId: String? = null,
+    rouletteCount: Int = 0,
+    visitedIds: String = "",
     navController: NavController,
     viewModel: DetailViewModel,
     modifier: Modifier = Modifier,
@@ -53,78 +62,184 @@ fun DetailScreen(
 
     // Trigger load on startup
     LaunchedEffect(anilistId) {
-        viewModel.loadAnimeDetail(anilistId)
+        viewModel.loadAnimeDetail(anilistId, sourceStatusId, rouletteCount, visitedIds)
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(BackgroundDark)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is DetailUiEvent.Navigate -> navController.navigate(event.screen)
+                is DetailUiEvent.ShowToast -> {
+                    val text = if (event.messageKey == "rouletteExhausted") {
+                        strings.trackedListScreen.rouletteExhausted
+                    } else {
+                        event.messageKey
+                    }
+                    android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    var isCollapsing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isCollapsing) {
+        if (isCollapsing && navController.rouletteExitMaxCount == null) {
+            kotlinx.coroutines.delay(300L)
+            navController.popBackStack()
+        }
+    }
+
+    val exitMax = navController.rouletteExitMaxCount
+    LaunchedEffect(exitMax) {
+        if (exitMax != null) {
+            val distance = exitMax - rouletteCount
+            val stepDelay = 350f / exitMax
+            val finalDelay = (distance * stepDelay).toLong()
+            
+            kotlinx.coroutines.delay(finalDelay)
+            isCollapsing = true
+            
+            if (rouletteCount == exitMax) {
+                kotlinx.coroutines.delay(350L + 300L)
+                navController.finalizeRouletteExit()
+            }
+        }
+    }
+
+    AnimatedVisibility(
+        visible = !isCollapsing,
+        enter = EnterTransition.None,
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(durationMillis = 300)
+        ) + fadeOut(animationSpec = tween(durationMillis = 300))
     ) {
-        when (val state = uiState) {
-            is DetailUiState.Loading -> {
-                CircularProgressIndicator(
-                    color = NeonCoral,
-                    modifier = Modifier.align(Alignment.Center)
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(BackgroundDark)
+        ) {
+            when (val state = uiState) {
+                is DetailUiState.Loading -> {
+                    CircularProgressIndicator(
+                        color = NeonCoral,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is DetailUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        val errorMessage = when (state.message) {
+                            "Anime not found in catalog" -> strings.detailScreen.errorNotFound
+                            "Failed to load details" -> strings.detailScreen.errorFailedToLoad
+                            else -> state.message
+                        }
+                        Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.loadAnimeDetail(anilistId, sourceStatusId, rouletteCount, visitedIds) }, colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)) {
+                            Text(strings.misc.retry)
+                        }
+                    }
+                }
+                is DetailUiState.Success -> {
+                    DetailContent(
+                        anime = state.anime,
+                        screenshots = state.screenshots,
+                        relations = state.relations,
+                        tracking = state.tracking,
+                        trackingMap = state.trackingMap,
+                        onStatusChange = viewModel::updateWatchStatus,
+                        onIncrementProgress = viewModel::incrementEpisodeProgress,
+                        onDecrementProgress = viewModel::decrementEpisodeProgress,
+                        onSaveNotes = viewModel::saveNotes,
+                        onAnimeClick = { newId ->
+                            navController.navigate(Screen.Detail(newId))
+                        },
+                        onImageClick = { urls, index ->
+                            navController.navigate(Screen.ImageViewer(urls, index))
+                        },
+                        preferUk = preferUk,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Top Back Button
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x990C0C0E))
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = strings.misc.back,
+                    tint = TextPrimary
                 )
             }
-            is DetailUiState.Error -> {
+
+            if (sourceStatusId != null && uiState is DetailUiState.Success) {
+                val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: MaterialTheme.colorScheme.primary
+                var lastClickTime by remember { mutableLongStateOf(0L) }
+                
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
+                        .align(Alignment.BottomEnd)
+                        .padding(24.dp)
+                        .navigationBarsPadding(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val errorMessage = when (state.message) {
-                        "Anime not found in catalog" -> strings.detailScreen.errorNotFound
-                        "Failed to load details" -> strings.detailScreen.errorFailedToLoad
-                        else -> state.message
+                    if (rouletteCount >= 2) {
+                        IconButton(
+                            onClick = {
+                                navController.rouletteExitMaxCount = rouletteCount
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color(0x4DFF4C4C))
+                                .border(1.dp, Color(0xFFFF4C4C), RoundedCornerShape(20.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Exit Roulette",
+                                tint = Color(0xFFFF4C4C),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
-                    Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadAnimeDetail(anilistId) }, colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)) {
-                        Text(strings.misc.retry)
+
+                    FloatingActionButton(
+                        onClick = {
+                            val currentTime = System.currentTimeMillis()
+                            if (currentTime - lastClickTime > 500) {
+                                lastClickTime = currentTime
+                                viewModel.MapsToNextRandomAnime()
+                            }
+                        },
+                        containerColor = listColor,
+                        contentColor = BackgroundDark,
+                        modifier = Modifier.size(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Casino,
+                            contentDescription = "Random Anime",
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
-            is DetailUiState.Success -> {
-                DetailContent(
-                    anime = state.anime,
-                    screenshots = state.screenshots,
-                    relations = state.relations,
-                    tracking = state.tracking,
-                    trackingMap = state.trackingMap,
-                    onStatusChange = viewModel::updateWatchStatus,
-                    onIncrementProgress = viewModel::incrementEpisodeProgress,
-                    onDecrementProgress = viewModel::decrementEpisodeProgress,
-                    onSaveNotes = viewModel::saveNotes,
-                    onAnimeClick = { newId ->
-                        navController.navigate(Screen.Detail(newId))
-                    },
-                    onImageClick = { urls, index ->
-                        navController.navigate(Screen.ImageViewer(urls, index))
-                    },
-                    preferUk = preferUk,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
-        // Top Back Button
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(16.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x990C0C0E))
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = strings.misc.back,
-                tint = TextPrimary
-            )
         }
     }
 }

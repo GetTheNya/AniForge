@@ -110,10 +110,8 @@ class TrackedListViewModel @Inject constructor(
         searchQuery.value = query
     }
 
-    fun getRandomAnime(currentStatusId: String): Anime? {
-        val currentList = filteredAnime.value
-        if (currentList.isEmpty()) return null
-        return currentList.randomOrNull()
+    fun getRandomAnimeIdForCurrentTab(): Long? {
+        return filteredAnime.value.randomOrNull()?.anilistId
     }
 
     fun updateWatchStatus(anilistId: Long, status: String) {

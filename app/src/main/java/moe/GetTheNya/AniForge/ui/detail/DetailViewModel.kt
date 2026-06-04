@@ -10,22 +10,84 @@ import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
+import androidx.lifecycle.SavedStateHandle
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.core.model.Anime
 import javax.inject.Inject
+
+sealed interface DetailUiEvent {
+    data class Navigate(val screen: Screen) : DetailUiEvent
+    data class ShowToast(val messageKey: String) : DetailUiEvent
+}
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
-    private val userTrackingDao: UserTrackingDao
+    private val userTrackingDao: UserTrackingDao,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    var sourceStatusId: String? = savedStateHandle.get<String>("sourceStatusId")
+    var rouletteCount: Int = savedStateHandle.get<Int>("rouletteCount") ?: 0
+    var visitedIds: String = savedStateHandle.get<String>("visitedIds") ?: ""
+
+    private val _uiEvent = MutableSharedFlow<DetailUiEvent>()
+    val uiEvent = _uiEvent.asSharedFlow()
 
     private val _uiState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     private var currentAnimeId: Long = 0L
 
-    fun loadAnimeDetail(anilistId: Long) {
+    fun MapsToNextRandomAnime() {
+        val statusId = sourceStatusId ?: return
+        val visitedSet = if (visitedIds.isBlank()) {
+            emptySet<Long>()
+        } else {
+            visitedIds.split(",").mapNotNull { it.toLongOrNull() }.toSet()
+        }
+
+        viewModelScope.launch {
+            try {
+                val ids = userTrackingDao.getAnimeIdsByStatus(statusId)
+                val remainingIds = ids.filter { it != currentAnimeId && !visitedSet.contains(it) }
+                val nextRandomId = remainingIds.randomOrNull()
+
+                if (nextRandomId != null) {
+                    val newVisitedIds = if (visitedIds.isBlank()) {
+                        "$currentAnimeId,$nextRandomId"
+                    } else {
+                        "$visitedIds,$nextRandomId"
+                    }
+                    _uiEvent.emit(
+                        DetailUiEvent.Navigate(
+                            Screen.Detail(
+                                anilistId = nextRandomId,
+                                sourceStatusId = statusId,
+                                rouletteCount = rouletteCount + 1,
+                                visitedIds = newVisitedIds
+                            )
+                        )
+                    )
+                } else {
+                    _uiEvent.emit(DetailUiEvent.ShowToast("rouletteExhausted"))
+                }
+            } catch (e: Exception) {
+                // handle safely
+            }
+        }
+    }
+
+    fun loadAnimeDetail(
+        anilistId: Long,
+        sourceStatusId: String? = null,
+        rouletteCount: Int = 0,
+        visitedIds: String = ""
+    ) {
         currentAnimeId = anilistId
+        this.sourceStatusId = sourceStatusId
+        this.rouletteCount = rouletteCount
+        this.visitedIds = visitedIds
         viewModelScope.launch {
             _uiState.value = DetailUiState.Loading
             try {

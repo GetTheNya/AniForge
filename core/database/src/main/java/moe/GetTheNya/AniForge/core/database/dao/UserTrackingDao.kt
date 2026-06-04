@@ -27,4 +27,7 @@ interface UserTrackingDao {
     
     @Query("DELETE FROM user_tracking WHERE anilist_id = :anilistId")
     suspend fun deleteByAnimeId(anilistId: Long)
+
+    @Query("SELECT anilist_id FROM user_tracking WHERE watch_status = :statusId")
+    suspend fun getAnimeIdsByStatus(statusId: String): List<Long>
 }
