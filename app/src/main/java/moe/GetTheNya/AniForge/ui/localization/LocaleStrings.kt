@@ -32,6 +32,7 @@ data class MiscStrings(
     val watching: String = "[misc.watching]",
     val planning: String = "[misc.planning]",
     val paused: String = "[misc.paused]",
+    val dropped: String = "[misc.dropped]",
     val save: String = "[misc.save]",
     val clear: String = "[misc.clear]",
     val settings: String = "[misc.settings]",

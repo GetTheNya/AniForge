@@ -58,20 +58,33 @@ class DetailViewModel @Inject constructor(
     fun updateWatchStatus(status: String) {
         val state = _uiState.value as? DetailUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val currentTracking = state.tracking ?: UserTrackingEntity(
-                anilistId = currentAnimeId,
-                watchStatus = status,
-                episodeProgress = 0,
-                score = null,
-                notes = null,
-                lastModified = System.currentTimeMillis()
-            )
+            val currentTracking = state.tracking
+            if (currentTracking != null && currentTracking.watchStatus == status) {
+                // Tapping a button that is already active must completely remove the anime from all tracking lists (delete database link).
+                userTrackingDao.delete(currentTracking)
+            } else {
+                // New Selection
+                val maxEpisodes = state.anime.episodes ?: 0
+                val progress = if (status == "COMPLETED") {
+                    maxEpisodes
+                } else {
+                    currentTracking?.episodeProgress ?: 0
+                }
 
-            val updated = currentTracking.copy(
-                watchStatus = status,
-                lastModified = System.currentTimeMillis()
-            )
-            userTrackingDao.insertOrUpdate(updated)
+                val updated = currentTracking?.copy(
+                    watchStatus = status,
+                    episodeProgress = progress,
+                    lastModified = System.currentTimeMillis()
+                ) ?: UserTrackingEntity(
+                    anilistId = currentAnimeId,
+                    watchStatus = status,
+                    episodeProgress = progress,
+                    score = null,
+                    notes = null,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(updated)
+            }
         }
     }
 
@@ -79,21 +92,28 @@ class DetailViewModel @Inject constructor(
         val state = _uiState.value as? DetailUiState.Success ?: return
         val maxEpisodes = state.anime.episodes ?: Int.MAX_VALUE
         viewModelScope.launch(Dispatchers.IO) {
-            val currentTracking = state.tracking ?: UserTrackingEntity(
-                anilistId = currentAnimeId,
-                watchStatus = "CURRENT",
-                episodeProgress = 0,
-                score = null,
-                notes = null,
-                lastModified = System.currentTimeMillis()
-            )
+            val currentTracking = state.tracking
+            val currentProgress = currentTracking?.episodeProgress ?: 0
+            if (currentProgress < maxEpisodes) {
+                val newProgress = currentProgress + 1
+                val newStatus = if (newProgress == maxEpisodes) {
+                    "COMPLETED"
+                } else if (currentTracking == null || currentTracking.watchStatus == "PLANNING") {
+                    "CURRENT"
+                } else {
+                    currentTracking.watchStatus
+                }
 
-            if (currentTracking.episodeProgress < maxEpisodes) {
-                val newProgress = currentTracking.episodeProgress + 1
-                val newStatus = if (newProgress == maxEpisodes) "COMPLETED" else currentTracking.watchStatus
-                val updated = currentTracking.copy(
+                val updated = currentTracking?.copy(
                     episodeProgress = newProgress,
                     watchStatus = newStatus,
+                    lastModified = System.currentTimeMillis()
+                ) ?: UserTrackingEntity(
+                    anilistId = currentAnimeId,
+                    watchStatus = newStatus,
+                    episodeProgress = newProgress,
+                    score = null,
+                    notes = null,
                     lastModified = System.currentTimeMillis()
                 )
                 userTrackingDao.insertOrUpdate(updated)
@@ -103,11 +123,20 @@ class DetailViewModel @Inject constructor(
 
     fun decrementEpisodeProgress() {
         val state = _uiState.value as? DetailUiState.Success ?: return
+        val maxEpisodes = state.anime.episodes ?: Int.MAX_VALUE
         viewModelScope.launch(Dispatchers.IO) {
             val currentTracking = state.tracking ?: return@launch
             if (currentTracking.episodeProgress > 0) {
+                val newProgress = currentTracking.episodeProgress - 1
+                val newStatus = if (currentTracking.watchStatus == "COMPLETED" && newProgress < maxEpisodes) {
+                    "CURRENT"
+                } else {
+                    currentTracking.watchStatus
+                }
+
                 val updated = currentTracking.copy(
-                    episodeProgress = currentTracking.episodeProgress - 1,
+                    episodeProgress = newProgress,
+                    watchStatus = newStatus,
                     lastModified = System.currentTimeMillis()
                 )
                 userTrackingDao.insertOrUpdate(updated)

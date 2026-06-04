@@ -6,8 +6,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -334,12 +333,45 @@ fun TrackingWidget(
     onSaveNotes: (String) -> Unit
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    val statuses = listOf(
-        "CURRENT" to strings.misc.watching,
-        "COMPLETED" to strings.misc.completed,
-        "PLANNING" to strings.misc.planning,
-        "PAUSED" to strings.misc.paused
-    )
+    val statusButtons = remember(strings) {
+        listOf(
+            StatusButtonItem(
+                statusId = "PLANNING",
+                color = Color(0xFF9067C6),
+                activeIcon = Icons.Default.Bookmark,
+                inactiveIcon = Icons.Default.BookmarkBorder,
+                contentDescription = strings.misc.planning
+            ),
+            StatusButtonItem(
+                statusId = "CURRENT",
+                color = Color(0xFF3B82F6),
+                activeIcon = Icons.Default.PlayArrow,
+                inactiveIcon = Icons.Default.PlayArrow,
+                contentDescription = strings.misc.watching
+            ),
+            StatusButtonItem(
+                statusId = "COMPLETED",
+                color = Color(0xFF10B981),
+                activeIcon = Icons.Default.CheckCircle,
+                inactiveIcon = Icons.Default.CheckCircle,
+                contentDescription = strings.misc.completed
+            ),
+            StatusButtonItem(
+                statusId = "PAUSED",
+                color = Color(0xFFF59E0B),
+                activeIcon = Icons.Default.Pause,
+                inactiveIcon = Icons.Default.Pause,
+                contentDescription = strings.misc.paused
+            ),
+            StatusButtonItem(
+                statusId = "DROPPED",
+                color = Color(0xFFEF4444),
+                activeIcon = Icons.Default.Cancel,
+                inactiveIcon = Icons.Default.Cancel,
+                contentDescription = strings.misc.dropped
+            )
+        )
+    }
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
 
     Column(
@@ -353,27 +385,34 @@ fun TrackingWidget(
     ) {
         Text(text = strings.detailScreen.myProgress, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 
-        // Status Chips
+        // Status Chips row replaced by premium compact horizontal row of icon-based selectors
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            statuses.forEach { (statusId, label) ->
-                val isSelected = tracking?.watchStatus == statusId
+            statusButtons.forEach { item ->
+                val isSelected = tracking?.watchStatus == item.statusId
+                val buttonColor = item.color
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) NeonCoral else Color(0x33FFFFFF))
-                        .clickable { onStatusChange(statusId) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) buttonColor.copy(alpha = 0.15f) else Color.Transparent)
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) buttonColor else CardBorder,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { onStatusChange(item.statusId) },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        color = if (isSelected) BackgroundDark else TextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
+                        contentDescription = item.contentDescription,
+                        tint = if (isSelected) buttonColor else Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -455,3 +494,11 @@ fun TrackingWidget(
         }
     }
 }
+
+private data class StatusButtonItem(
+    val statusId: String,
+    val color: Color,
+    val activeIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    val inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    val contentDescription: String
+)
