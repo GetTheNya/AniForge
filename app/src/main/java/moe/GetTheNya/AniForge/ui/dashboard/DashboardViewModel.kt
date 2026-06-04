@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.model.Anime
@@ -71,6 +72,37 @@ class DashboardViewModel @Inject constructor(
 
     fun updateSortOrder(sortOption: SortOption) {
         _searchFilter.value = _searchFilter.value.copy(sortBy = sortOption)
+    }
+
+    fun updateWatchStatus(anilistId: Long, status: String) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
+            if (currentTracking != null && currentTracking.watchStatus == status) {
+                userTrackingDao.delete(currentTracking)
+            } else {
+                val anime = animeRepository.getAnimeById(anilistId)
+                val maxEpisodes = anime?.episodes ?: 0
+                val progress = if (status == "COMPLETED") {
+                    maxEpisodes
+                } else {
+                    currentTracking?.episodeProgress ?: 0
+                }
+
+                val updated = currentTracking?.copy(
+                    watchStatus = status,
+                    episodeProgress = progress,
+                    lastModified = System.currentTimeMillis()
+                ) ?: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity(
+                    anilistId = anilistId,
+                    watchStatus = status,
+                    episodeProgress = progress,
+                    score = null,
+                    notes = null,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(updated)
+            }
+        }
     }
 
     private fun calculateStats(trackingList: List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>): UserStats {

@@ -15,9 +15,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,7 +92,8 @@ fun DashboardScreen(
                     animeList = state.animeList,
                     trackingMap = state.trackingMap,
                     preferUk = preferUk,
-                    onAnimeClick = onAnimeClick
+                    onAnimeClick = onAnimeClick,
+                    onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) }
                 )
             }
         }
@@ -126,39 +134,64 @@ fun DashboardContent(
     animeList: List<Anime>,
     trackingMap: Map<Long, String>,
     preferUk: Boolean,
-    onAnimeClick: (Long) -> Unit
+    onAnimeClick: (Long) -> Unit,
+    onStatusChange: (Long, String) -> Unit
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize().disableSplitTouch()
-    ) {
-        // Header for Catalog listing
-        item(span = { GridItemSpan(2) }) {
-            Text(
-                text = strings.dashboardScreen.discoverCatalog,
-                color = TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
+    var activeMenuAnimeId by remember { mutableStateOf<Long?>(null) }
+    val gridState = rememberLazyGridState()
 
-        // Grid Catalog items
-        items(
-            items = animeList,
-            key = { anime -> anime.anilistId },
-            contentType = { "anime_card" }
-        ) { anime ->
-            AnimeBentoCard(
-                anime = anime,
-                status = trackingMap[anime.anilistId],
-                preferUk = preferUk,
-                onClick = { onAnimeClick(anime.anilistId) }
-            )
+    if (gridState.isScrollInProgress) {
+        LaunchedEffect(gridState.isScrollInProgress) {
+            activeMenuAnimeId = null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { activeMenuAnimeId = null }
+                )
+            }
+    ) {
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().disableSplitTouch()
+        ) {
+            // Header for Catalog listing
+            item(span = { GridItemSpan(2) }) {
+                Text(
+                    text = strings.dashboardScreen.discoverCatalog,
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            // Grid Catalog items
+            items(
+                items = animeList,
+                key = { anime -> anime.anilistId },
+                contentType = { "anime_card" }
+            ) { anime ->
+                AnimeBentoCard(
+                    anime = anime,
+                    status = trackingMap[anime.anilistId],
+                    preferUk = preferUk,
+                    onClick = { onAnimeClick(anime.anilistId) },
+                    onStatusChange = { newStatus -> onStatusChange(anime.anilistId, newStatus) },
+                    isMenuVisible = activeMenuAnimeId == anime.anilistId,
+                    onMenuShow = { activeMenuAnimeId = anime.anilistId },
+                    onMenuDismiss = { activeMenuAnimeId = null }
+                )
+            }
         }
     }
 }
