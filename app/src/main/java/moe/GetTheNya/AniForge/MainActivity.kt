@@ -201,6 +201,27 @@ class MainActivity : ComponentActivity() {
                         val contentLayer = rememberGraphicsLayer()
                         val pagerWindowPosition = remember { mutableStateOf(Offset.Zero) }
                         val bottomBarWindowPosition = remember { mutableStateOf(Offset.Zero) }
+                        val tabsScaleState = remember {
+                            derivedStateOf {
+                                val lastIndex = navController.backStack.lastIndex
+                                if (lastIndex == 0) {
+                                    1.0f
+                                } else if (lastIndex == 1) {
+                                    val topEntry = navController.backStack[1]
+                                    val topOffset = if (topEntry.isDragging) {
+                                        topEntry.dragOffset
+                                    } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
+                                        screenWidthPx
+                                    } else {
+                                        topEntry.animatableOffset.value
+                                    }
+                                    val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
+                                    0.95f + 0.05f * progress
+                                } else {
+                                    0.95f
+                                }
+                            }
+                        }
 
                         // Optimized selection state to avoid root recomposition
                         val selectedTabState = remember {
@@ -331,6 +352,7 @@ class MainActivity : ComponentActivity() {
                                                 contentLayer = contentLayer,
                                                 pagerWindowPositionState = pagerWindowPosition,
                                                 bottomBarWindowPositionState = bottomBarWindowPosition,
+                                                currentScale = { tabsScaleState.value },
                                                 scrollPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
@@ -467,6 +489,7 @@ fun FloatingBottomNavigation(
     contentLayer: GraphicsLayer,
     pagerWindowPositionState: State<Offset>,
     bottomBarWindowPositionState: MutableState<Offset>,
+    currentScale: () -> Float,
     scrollPosition: () -> Float,
     modifier: Modifier = Modifier
 ) {
@@ -513,10 +536,12 @@ fun FloatingBottomNavigation(
                 .drawBehind {
                     val pagerPos = pagerWindowPositionState.value
                     val barPos = bottomBarWindowPositionState.value
-                    val baseDeltaX = barPos.x - pagerPos.x
-                    val baseDeltaY = barPos.y - pagerPos.y
- 
-                    translate(left = -baseDeltaX, top = -baseDeltaY) {
+                    val s = currentScale().coerceAtLeast(0.01f)
+
+                    val unscaledDeltaX = (barPos.x - pagerPos.x) / s
+                    val unscaledDeltaY = (barPos.y - pagerPos.y) / s
+
+                    translate(left = -unscaledDeltaX, top = -unscaledDeltaY) {
                         drawLayer(contentLayer)
                     }
                     drawRect(Color.Black.copy(alpha = 0.50f))
