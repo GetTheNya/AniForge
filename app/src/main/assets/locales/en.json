@@ -83,5 +83,10 @@
     "engineLogsCount": "Engine Logs (%d)",
     "copyLogs": "Copy Logs",
     "noLogsYet": "No system logs generated yet."
+  },
+  "trackedListScreen": {
+    "searchPlaceholder": "Search by title...",
+    "randomEmpty": "No anime to pick from!",
+    "emptyState": "No titles found in this list"
   }
 }

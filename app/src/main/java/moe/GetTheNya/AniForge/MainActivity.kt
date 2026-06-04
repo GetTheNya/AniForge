@@ -108,6 +108,8 @@ import moe.GetTheNya.AniForge.ui.navigation.rememberNavController
 import moe.GetTheNya.AniForge.ui.profile.LogViewerScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileViewModel
+import moe.GetTheNya.AniForge.ui.profile.TrackedListScreen
+import moe.GetTheNya.AniForge.ui.profile.TrackedListViewModel
 import moe.GetTheNya.AniForge.ui.theme.AniForgeTheme
 import moe.GetTheNya.AniForge.ui.theme.CardBorder
 import javax.inject.Inject
@@ -581,6 +583,18 @@ class MainActivity : ComponentActivity() {
                                                         ImageViewerScreen(
                                                             urls = screen.urls,
                                                             initialIndex = screen.initialIndex,
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.TrackedList -> {
+                                                        val scopedViewModel = remember(entry) {
+                                                            ViewModelProvider(entry)[TrackedListViewModel::class.java]
+                                                        }
+                                                        TrackedListScreen(
+                                                            initialStatusId = screen.initialStatusId,
+                                                            viewModel = scopedViewModel,
+                                                            navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }

@@ -25,6 +25,7 @@ sealed interface Screen {
     data object Settings : Screen
     data object DevSettings : Screen
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
+    data class TrackedList(val initialStatusId: String) : Screen
 }
 
 class BackStackEntry(

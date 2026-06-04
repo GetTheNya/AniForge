@@ -34,6 +34,11 @@ class AnimeRepository @Inject constructor(
     }
 
     /**
+     * Exposes the database swap signal.
+     */
+    val swapSignal: Flow<Unit> get() = databaseProvider.swapSignal
+
+    /**
      * Exposes the query result as a reactive Flow that emits new lists whenever the database is hot-swapped.
      */
     fun queryAnimeFlow(filter: SearchFilterQuery): Flow<List<Anime>> = flow {
@@ -78,6 +83,27 @@ class AnimeRepository @Inject constructor(
             e.printStackTrace()
         }
         anime
+    }
+
+    /**
+     * Helper to fetch list of anime by their AniList IDs in a single batch query.
+     */
+    suspend fun getAnimeByIds(ids: List<Long>): List<Anime> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Anime>()
+        try {
+            val placeholders = ids.joinToString(",") { "?" }
+            val args = ids.map { it.toString() }.toTypedArray()
+            db.query("SELECT * FROM anime WHERE anilist_id IN ($placeholders)", args).use { cursor ->
+                while (cursor.moveToNext()) {
+                    list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
     }
 
     /**

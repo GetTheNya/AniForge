@@ -16,7 +16,8 @@ data class LocaleStrings(
     val detailScreen: DetailScreenStrings = DetailScreenStrings(),
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
     val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
-    val devSettings: DevSettingsStrings = DevSettingsStrings()
+    val devSettings: DevSettingsStrings = DevSettingsStrings(),
+    val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings()
 )
 
 @Serializable
@@ -113,4 +114,11 @@ data class DevSettingsStrings(
     val engineLogsCount: String = "[devSettings.engineLogsCount]",
     val copyLogs: String = "[devSettings.copyLogs]",
     val noLogsYet: String = "[devSettings.noLogsYet]"
+)
+
+@Serializable
+data class TrackedListScreenStrings(
+    val searchPlaceholder: String = "[trackedListScreen.searchPlaceholder]",
+    val randomEmpty: String = "[trackedListScreen.randomEmpty]",
+    val emptyState: String = "[trackedListScreen.emptyState]"
 )

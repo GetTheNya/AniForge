@@ -84,5 +84,10 @@
     "engineLogsCount": "Логи двигуна (%d)",
     "copyLogs": "Копіювати логи",
     "noLogsYet": "Системні логи ще не створено."
+  },
+  "trackedListScreen": {
+    "searchPlaceholder": "Пошук за назвою...",
+    "randomEmpty": "У цьому списку немає тайтлів!",
+    "emptyState": "У цьому списку немає тайтлів"
   }
 }

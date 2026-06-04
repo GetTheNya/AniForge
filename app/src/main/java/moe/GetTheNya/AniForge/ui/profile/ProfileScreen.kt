@@ -2,6 +2,7 @@ package moe.GetTheNya.AniForge.ui.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -83,7 +84,7 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Left Side: Pie/Donut Chart
                 AnimeStatsPieChart(
@@ -102,7 +103,13 @@ fun ProfileScreen(
                         val isCountZero = count == 0
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    navController.navigate(Screen.TrackedList(config.id))
+                                }
+                                .padding(vertical = 6.dp, horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val colorAlpha = if (isCountZero) 0.35f else 1.0f
