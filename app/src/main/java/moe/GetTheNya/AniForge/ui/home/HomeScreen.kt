@@ -71,7 +71,7 @@ fun HomeScreen(
 
         Crossfade(targetState = uiState, label = "homeCrossfade") { state ->
             when (state) {
-                is HomeUiState.Loading, HomeUiState.Updating -> {
+                is HomeUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -146,22 +146,7 @@ fun HomeContent(
             }
         }
 
-        // Section Title: Local Engine Health
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 96.dp) // extra padding so content isn't covered by floating bar
-        ) {
-            Text(
-                text = strings.homeScreen.catalogCoreStatus,
-                color = TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            EngineStatusCard(
-                version = state.catalogVersion,
-                slot = state.activeSlot
-            )
-        }
+        Spacer(modifier = Modifier.height(96.dp)) // extra padding so content isn't covered by floating bar
     }
 }
 
@@ -241,90 +226,6 @@ fun HomeFeaturedCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-        }
-    }
-}
-
-@Composable
-fun EngineStatusCard(
-    version: Long,
-    slot: String
-) {
-    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = strings.homeScreen.offlineCatalog,
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = strings.homeScreen.hotswappingEnabled,
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x1F00F5D4))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = strings.misc.ready,
-                    color = CyberTeal,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Divider(color = CardBorder, thickness = 1.dp)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = strings.homeScreen.activeSlot,
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = slot.uppercase(),
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = strings.homeScreen.catalogStamp,
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = "v$version",
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
         }
     }
 }

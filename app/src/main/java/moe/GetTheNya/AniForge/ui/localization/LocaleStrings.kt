@@ -106,5 +106,9 @@ data class SettingsScreenStrings(
     val title: String = "[settingsScreen.title]",
     val language: String = "[settingsScreen.language]",
     val preferUkTitle: String = "[settingsScreen.preferUkTitle]",
-    val preferUkDesc: String = "[settingsScreen.preferUkDesc]"
+    val preferUkDesc: String = "[settingsScreen.preferUkDesc]",
+    val databaseHeader: String = "[settingsScreen.databaseHeader]",
+    val databaseStatus: String = "[settingsScreen.databaseStatus]",
+    val forceUpdate: String = "[settingsScreen.forceUpdate]",
+    val forceUpdateDesc: String = "[settingsScreen.forceUpdateDesc]"
 )

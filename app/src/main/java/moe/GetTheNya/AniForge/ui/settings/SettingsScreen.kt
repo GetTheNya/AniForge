@@ -31,6 +31,8 @@ fun SettingsScreen(
     val preferUk by viewModel.preferUkTitles.collectAsState()
     val currentLangCode by viewModel.currentLanguage.collectAsState()
     val availableLangs by viewModel.availableLanguages.collectAsState()
+    val isUpdating by viewModel.isUpdating.collectAsState()
+    val metadata by viewModel.catalogMetadata.collectAsState()
     
     var dropdownExpanded by remember { mutableStateOf(false) }
     val currentLangName = availableLangs[currentLangCode] ?: currentLangCode
@@ -175,6 +177,130 @@ fun SettingsScreen(
                         uncheckedTrackColor = Color(0x33FFFFFF)
                     )
                 )
+            }
+
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 3. Database Management Card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = strings.settingsScreen.databaseHeader,
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.homeScreen.hotswappingEnabled,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x1F00F5D4))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = strings.misc.ready,
+                        color = CyberTeal,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // Active Slot and Catalog Stamp row (spaced between)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = strings.homeScreen.activeSlot,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = metadata.activeSlot.uppercase(),
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = strings.homeScreen.catalogStamp,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "v${metadata.version}",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // Force Update Button row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.settingsScreen.forceUpdateDesc,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.weight(1f).padding(end = 16.dp)
+                )
+                Button(
+                    onClick = viewModel::triggerForceDbUpdate,
+                    enabled = !isUpdating,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonCoral,
+                        contentColor = BackgroundDark,
+                        disabledContainerColor = Color(0x33FFFFFF),
+                        disabledContentColor = TextSecondary
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isUpdating) {
+                        CircularProgressIndicator(
+                            color = TextSecondary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Text(
+                            text = strings.settingsScreen.forceUpdate,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }

@@ -40,7 +40,6 @@ fun ProfileScreen(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val logs by viewModel.logs.collectAsState()
-    val isUpdating by viewModel.isUpdating.collectAsState()
 
     Column(
         modifier = modifier
@@ -78,72 +77,6 @@ fun ProfileScreen(
                 )
             }
         }
-
-        // Settings Section
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(SurfaceDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = strings.profileScreen.preferences,
-                color = TextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
- 
-            // 1. Database Sync Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = strings.profileScreen.databaseSync,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = strings.profileScreen.databaseSyncDesc,
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-                Button(
-                    onClick = viewModel::triggerDatabaseUpdate,
-                    enabled = !isUpdating,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonCoral,
-                        contentColor = BackgroundDark,
-                        disabledContainerColor = Color(0x33FFFFFF),
-                        disabledContentColor = TextSecondary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (isUpdating) {
-                        CircularProgressIndicator(
-                            color = TextSecondary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    } else {
-                        Text(
-                            text = strings.misc.update,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
 
         // Diagnostics Card
         Column(
