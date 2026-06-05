@@ -23,6 +23,36 @@ class HomeViewModel @Inject constructor(
 
     private var cachedPhrase: Pair<String, String?>? = null
 
+    val titleAnimStyle: StateFlow<TitleAnimStyle> = settingsProvider.titleAnimStyleStr
+        .map { str ->
+            try { TitleAnimStyle.valueOf(str) } catch (e: Exception) { TitleAnimStyle.DECODING }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TitleAnimStyle.DECODING
+        )
+
+    val subtitleAnimStyle: StateFlow<SubtitleAnimStyle> = settingsProvider.subtitleAnimStyleStr
+        .map { str ->
+            try { SubtitleAnimStyle.valueOf(str) } catch (e: Exception) { SubtitleAnimStyle.BLUR_FADE }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = SubtitleAnimStyle.BLUR_FADE
+        )
+
+    val contentAnimStyle: StateFlow<ContentAnimStyle> = settingsProvider.contentAnimStyleStr
+        .map { str ->
+            try { ContentAnimStyle.valueOf(str) } catch (e: Exception) { ContentAnimStyle.POWER_UP }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ContentAnimStyle.POWER_UP
+        )
+
     var isHomeAnimationPlayed: Boolean = false
 
     val randomWelcomeSubtitle: StateFlow<String?> = localizationService.activeLocaleStrings

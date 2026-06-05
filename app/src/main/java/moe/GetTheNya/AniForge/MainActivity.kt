@@ -611,7 +611,8 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                     is Screen.DevSettings -> {
-                                                        DevSettingsScreen(
+                                                         DevSettingsScreen(
+                                                            settingsProvider = settingsProvider,
                                                             navController = navController,
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }

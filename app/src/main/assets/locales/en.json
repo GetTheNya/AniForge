@@ -82,6 +82,7 @@
   },
   "devSettings": {
     "devSettingsHeader": "Developer Settings",
+    "animationSandbox": "Animation Sandbox",
     "viewLogs": "View System Logs",
     "viewLogsButton": "View Logs",
     "systemLogs": "System logs",
@@ -89,7 +90,21 @@
     "diagnosticsEngineStatus": "Diagnostics & Engine status",
     "engineLogsCount": "Engine Logs (%d)",
     "copyLogs": "Copy Logs",
-    "noLogsYet": "No system logs generated yet."
+    "noLogsYet": "No system logs generated yet.",
+    "animNone": "Disabled (Instant Snap)",
+    "devSettingsTitleAnim": "Title Animation Style",
+    "devSettingsSubtitleAnim": "Subtitle Animation Style",
+    "devSettingsContentAnim": "Bento Content Animation Style",
+    "animTitleDecoding": "Cyberpunk Decoding (Matrix)",
+    "animTitleSlideSide": "Kinetic Side Slide-In",
+    "animTitleTurnstile3d": "Subtle 3D Turnstile",
+    "animTitleGlitch": "Cyberpunk Glitch Effect",
+    "animSubtitleBlurFade": "Smooth Unblur & Alpha",
+    "animSubtitleWordByWord": "Word Dissolve",
+    "animSubtitleTypewriter": "Terminal Typewriter Effect",
+    "animContentPowerUp": "Digital Power-Up (Scale/Alpha)",
+    "animContentSlideUp": "Solid Block Slide-Up",
+    "animContentFlip3d": "3D Tile Flip Over"
   },
   "trackedListScreen": {
     "searchPlaceholder": "Search by title...",

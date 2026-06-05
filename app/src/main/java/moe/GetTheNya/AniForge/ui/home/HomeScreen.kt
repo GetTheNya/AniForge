@@ -2,12 +2,15 @@ package moe.GetTheNya.AniForge.ui.home
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -17,12 +20,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -51,6 +56,11 @@ fun HomeScreen(
     val uiState by viewModel.homeUiState.collectAsState()
     val randomSubtitle by viewModel.randomWelcomeSubtitle.collectAsState()
 
+    // Animation presets
+    val currentTitleStyle by viewModel.titleAnimStyle.collectAsState()
+    val currentSubtitleStyle by viewModel.subtitleAnimStyle.collectAsState()
+    val currentContentStyle by viewModel.contentAnimStyle.collectAsState()
+
     // Capture the session-wide played flag on first composition to prevent race condition during database load
     val isAnimationPlayed = remember { viewModel.isHomeAnimationPlayed }
 
@@ -59,12 +69,12 @@ fun HomeScreen(
         viewModel.isHomeAnimationPlayed = true
     }
 
-    // 1. Cyberpunk Text Decoding Effect
+    // A. Dynamic Title Animation Logic
     val titleText = strings.homeScreen.appName
     val cipherPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#@&?%*"
-    var decodedTitle by remember(titleText) {
+    var decodedTitle by remember(titleText, currentTitleStyle) {
         mutableStateOf(
-            if (isAnimationPlayed) {
+            if (isAnimationPlayed || currentTitleStyle != TitleAnimStyle.DECODING) {
                 titleText
             } else {
                 // Initialize with fully random characters of same length to prevent layout shift
@@ -73,8 +83,8 @@ fun HomeScreen(
         )
     }
 
-    LaunchedEffect(titleText) {
-        if (!isAnimationPlayed) {
+    LaunchedEffect(titleText, currentTitleStyle) {
+        if (!isAnimationPlayed && currentTitleStyle == TitleAnimStyle.DECODING) {
             try {
                 delay(200L)
                 val duration = 380L
@@ -101,14 +111,122 @@ fun HomeScreen(
                 // Guaranteed resolution: always resolve to the correct targetText upon completion/cancellation
                 decodedTitle = titleText
             }
+        } else {
+            decodedTitle = titleText
         }
     }
 
-    // 2. Greeting & Subtext Smooth Unblur & Alpha Fade progress
-    val headerProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
+    var titleGlitchAlpha by remember { mutableStateOf(1f) }
+    var titleGlitchTranslationX by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(titleText, currentTitleStyle) {
+        if (!isAnimationPlayed && currentTitleStyle == TitleAnimStyle.GLITCH) {
+            val duration = 300L
+            val startTime = System.currentTimeMillis()
+            while (true) {
+                val elapsed = System.currentTimeMillis() - startTime
+                if (elapsed >= duration) break
+                titleGlitchAlpha = kotlin.random.Random.nextFloat() * 0.6f + 0.4f
+                titleGlitchTranslationX = kotlin.random.Random.nextInt(-6, 7).toFloat()
+                delay(30L)
+            }
+            titleGlitchAlpha = 1f
+            titleGlitchTranslationX = 0f
+        } else {
+            titleGlitchAlpha = 1f
+            titleGlitchTranslationX = 0f
+        }
+    }
+
+    val titleProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
     LaunchedEffect(Unit) {
         if (!isAnimationPlayed) {
-            delay(300L)
+            delay(200L)
+            titleProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 400,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        }
+    }
+
+    // B. Greeting & Subtext Smooth Unblur & Alpha Fade progress
+    val cleanSubtitle = remember(randomSubtitle) {
+        randomSubtitle?.let {
+            it.replace(Regex("[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]"), "")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+        } ?: ""
+    }
+
+    var typedGreeting by remember(strings.homeScreen.welcomeBack, currentSubtitleStyle) {
+        mutableStateOf(
+            if (isAnimationPlayed || currentSubtitleStyle != SubtitleAnimStyle.TYPEWRITER) {
+                strings.homeScreen.welcomeBack.replace("!", "")
+            } else {
+                ""
+            }
+        )
+    }
+
+    var typedSubtitle by remember(cleanSubtitle, currentSubtitleStyle) {
+        mutableStateOf(
+            if (isAnimationPlayed || currentSubtitleStyle != SubtitleAnimStyle.TYPEWRITER) {
+                cleanSubtitle
+            } else {
+                ""
+            }
+        )
+    }
+
+    var cursorPosition by remember { mutableStateOf(0) }
+    var cursorBlink by remember { mutableStateOf(false) }
+
+    LaunchedEffect(cursorPosition) {
+        if (cursorPosition != 0) {
+            while (true) {
+                cursorBlink = !cursorBlink
+                delay(300L)
+            }
+        } else {
+            cursorBlink = false
+        }
+    }
+
+    LaunchedEffect(strings.homeScreen.welcomeBack, cleanSubtitle, currentSubtitleStyle) {
+        if (!isAnimationPlayed && currentSubtitleStyle == SubtitleAnimStyle.TYPEWRITER) {
+            val fullGreeting = strings.homeScreen.welcomeBack.replace("!", "")
+            typedGreeting = ""
+            typedSubtitle = ""
+            cursorPosition = 1
+            delay(200L)
+            for (i in 1..fullGreeting.length) {
+                typedGreeting = fullGreeting.substring(0, i)
+                delay(25L)
+            }
+            if (cleanSubtitle.isNotEmpty()) {
+                delay(100L)
+                cursorPosition = 2
+                for (i in 1..cleanSubtitle.length) {
+                    typedSubtitle = cleanSubtitle.substring(0, i)
+                    delay(25L)
+                }
+            }
+            delay(800L)
+            cursorPosition = 0
+        } else {
+            typedGreeting = strings.homeScreen.welcomeBack.replace("!", "")
+            typedSubtitle = cleanSubtitle
+            cursorPosition = 0
+        }
+    }
+
+    val headerProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
+    LaunchedEffect(currentSubtitleStyle) {
+        if (!isAnimationPlayed && (currentSubtitleStyle == SubtitleAnimStyle.BLUR_FADE || currentSubtitleStyle == SubtitleAnimStyle.WORD_BY_WORD)) {
+            delay(200L) // breathing room delay (synchronized with title decoding)
             headerProgress.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
@@ -119,15 +237,16 @@ fun HomeScreen(
         }
     }
 
-    // 3. Digital Power-Up for Bento widgets
+    // C. Digital Power-Up for Bento widgets
     val contentProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (!isAnimationPlayed) {
-            delay(280L)
+    LaunchedEffect(currentContentStyle) {
+        if (!isAnimationPlayed && currentContentStyle != ContentAnimStyle.NONE) {
+            delay(180L) // 180ms delay from launch
+            val duration = if (currentContentStyle == ContentAnimStyle.FLIP_3D) 450 else 400
             contentProgress.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = 400,
+                    durationMillis = duration,
                     easing = LinearOutSlowInEasing
                 )
             )
@@ -151,45 +270,159 @@ fun HomeScreen(
                 fontSize = 56.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = (-1.5).sp,
-                color = Color.White
+                color = Color.White,
+                modifier = Modifier.graphicsLayer {
+                    if (!isAnimationPlayed) {
+                        when (currentTitleStyle) {
+                            TitleAnimStyle.NONE -> {
+                                alpha = 1f
+                                translationX = 0f
+                                rotationY = 0f
+                            }
+                            TitleAnimStyle.SLIDE_SIDE -> {
+                                val progress = titleProgress.value
+                                alpha = progress
+                                translationX = -100f * (1f - progress)
+                                rotationY = 0f
+                            }
+                            TitleAnimStyle.TURNSTILE_3D -> {
+                                val progress = titleProgress.value
+                                alpha = progress
+                                rotationY = 25f * (1f - progress)
+                                translationX = 0f
+                            }
+                            TitleAnimStyle.DECODING -> {
+                                alpha = 1f
+                                translationX = 0f
+                                rotationY = 0f
+                            }
+                            TitleAnimStyle.GLITCH -> {
+                                alpha = titleGlitchAlpha
+                                translationX = titleGlitchTranslationX
+                                rotationY = 0f
+                            }
+                        }
+                    } else {
+                        alpha = 1f
+                        translationX = 0f
+                        rotationY = 0f
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(0.dp))
 
-            Column(
-                modifier = Modifier.graphicsLayer {
-                    val progress = headerProgress.value
-                    alpha = progress
-                    val blurRadius = 15f * (1f - progress)
-                    if (blurRadius > 0.1f) {
-                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                            blurRadius,
-                            blurRadius,
-                            android.graphics.Shader.TileMode.CLAMP
-                        ).asComposeRenderEffect()
-                    } else {
-                        renderEffect = null
+            when (currentSubtitleStyle) {
+                SubtitleAnimStyle.NONE -> {
+                    Column {
+                        Text(
+                            text = strings.homeScreen.welcomeBack.replace("!", ""),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Light,
+                            color = TextSecondary
+                        )
+                        if (cleanSubtitle.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = cleanSubtitle,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextSecondary.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
-            ) {
-                Text(
-                    text = strings.homeScreen.welcomeBack.replace("!", ""),
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Light,
-                    color = TextSecondary
-                )
-                val cleanSubtitle = randomSubtitle?.let {
-                    it.replace(Regex("[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]"), "")
-                        .replace(Regex("\\s+"), " ")
-                        .trim()
+                SubtitleAnimStyle.BLUR_FADE -> {
+                    Column(
+                        modifier = Modifier.graphicsLayer {
+                            val progress = headerProgress.value
+                            alpha = progress
+                            val blurRadius = 15f * (1f - progress)
+                            if (blurRadius > 0.1f) {
+                                renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                                    blurRadius,
+                                    blurRadius,
+                                    android.graphics.Shader.TileMode.CLAMP
+                                ).asComposeRenderEffect()
+                            } else {
+                                renderEffect = null
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = strings.homeScreen.welcomeBack.replace("!", ""),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Light,
+                            color = TextSecondary
+                        )
+                        if (cleanSubtitle.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = cleanSubtitle,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextSecondary.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
                 }
-                if (!cleanSubtitle.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = cleanSubtitle,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = TextSecondary.copy(alpha = 0.5f)
-                    )
+                SubtitleAnimStyle.WORD_BY_WORD -> {
+                    Column {
+                        WordByWordText(
+                            text = strings.homeScreen.welcomeBack.replace("!", ""),
+                            animProgress = { headerProgress.value },
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Light,
+                            color = TextSecondary
+                        )
+                        if (cleanSubtitle.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            WordByWordText(
+                                text = cleanSubtitle,
+                                animProgress = { headerProgress.value },
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = TextSecondary.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+                SubtitleAnimStyle.TYPEWRITER -> {
+                    val fullGreeting = strings.homeScreen.welcomeBack.replace("!", "")
+                    Column {
+                        Box(contentAlignment = Alignment.TopStart) {
+                            Text(
+                                text = fullGreeting,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Light,
+                                color = Color.Transparent,
+                                modifier = Modifier.alpha(0f)
+                            )
+                            Text(
+                                text = if (cursorPosition == 1 && cursorBlink) typedGreeting + "▎" else typedGreeting,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Light,
+                                color = TextSecondary
+                            )
+                        }
+                        if (cleanSubtitle.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Box(contentAlignment = Alignment.TopStart) {
+                                Text(
+                                    text = cleanSubtitle,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color.Transparent,
+                                    modifier = Modifier.alpha(0f)
+                                )
+                                Text(
+                                    text = if (cursorPosition == 2 && cursorBlink) typedSubtitle + "▎" else typedSubtitle,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = TextSecondary.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -225,9 +458,35 @@ fun HomeScreen(
                             .graphicsLayer {
                                 val progress = contentProgress.value
                                 alpha = progress
-                                val scale = 0.95f + 0.05f * progress
-                                scaleX = scale
-                                scaleY = scale
+                                when (currentContentStyle) {
+                                    ContentAnimStyle.NONE -> {
+                                        alpha = 1f
+                                        scaleX = 1f
+                                        scaleY = 1f
+                                        translationY = 0f
+                                        rotationX = 0f
+                                    }
+                                    ContentAnimStyle.POWER_UP -> {
+                                        val scale = 0.95f + 0.05f * progress
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationY = 0f
+                                        rotationX = 0f
+                                    }
+                                    ContentAnimStyle.SLIDE_UP -> {
+                                        scaleX = 1f
+                                        scaleY = 1f
+                                        translationY = 80.dp.toPx() * (1f - progress)
+                                        rotationX = 0f
+                                    }
+                                    ContentAnimStyle.FLIP_3D -> {
+                                        scaleX = 1f
+                                        scaleY = 1f
+                                        translationY = 0f
+                                        rotationX = 90f * (1f - progress)
+                                        cameraDistance = 12f * density
+                                    }
+                                }
                             }
                     )
                 }
@@ -358,6 +617,46 @@ fun HomeFeaturedCard(
                 fontSize = 12.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun WordByWordText(
+    text: String,
+    animProgress: () -> Float,
+    modifier: Modifier = Modifier,
+    fontSize: androidx.compose.ui.unit.TextUnit = 16.sp,
+    fontWeight: FontWeight = FontWeight.Normal,
+    color: Color = Color.Unspecified
+) {
+    val words = remember(text) { text.split(" ") }
+    val wordCount = words.size
+
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        words.forEachIndexed { index, word ->
+            val wordAlpha = remember(index, wordCount) {
+                derivedStateOf {
+                    val progress = animProgress()
+                    val start = index.toFloat() / wordCount
+                    val end = (index + 1).toFloat() / wordCount
+                    ((progress - start) / (end - start)).coerceIn(0f, 1f)
+                }
+            }
+            Text(
+                text = word,
+                fontSize = fontSize,
+                fontWeight = fontWeight,
+                color = color,
+                modifier = Modifier.graphicsLayer {
+                    alpha = wordAlpha.value
+                }
             )
         }
     }

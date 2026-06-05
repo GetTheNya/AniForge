@@ -107,6 +107,7 @@ data class SettingsScreenStrings(
 @Serializable
 data class DevSettingsStrings(
     val devSettingsHeader: String = "[devSettings.devSettingsHeader]",
+    val animationSandbox: String = "[devSettings.animationSandbox]",
     val viewLogs: String = "[devSettings.viewLogs]",
     val viewLogsButton: String = "[devSettings.viewLogsButton]",
     val systemLogs: String = "[devSettings.systemLogs]",
@@ -114,7 +115,21 @@ data class DevSettingsStrings(
     val diagnosticsEngineStatus: String = "[devSettings.diagnosticsEngineStatus]",
     val engineLogsCount: String = "[devSettings.engineLogsCount]",
     val copyLogs: String = "[devSettings.copyLogs]",
-    val noLogsYet: String = "[devSettings.noLogsYet]"
+    val noLogsYet: String = "[devSettings.noLogsYet]",
+    val animNone: String = "[devSettings.animNone]",
+    val devSettingsTitleAnim: String = "[devSettings.devSettingsTitleAnim]",
+    val devSettingsSubtitleAnim: String = "[devSettings.devSettingsSubtitleAnim]",
+    val devSettingsContentAnim: String = "[devSettings.devSettingsContentAnim]",
+    val animTitleDecoding: String = "[devSettings.animTitleDecoding]",
+    val animTitleSlideSide: String = "[devSettings.animTitleSlideSide]",
+    val animTitleTurnstile3d: String = "[devSettings.animTitleTurnstile3d]",
+    val animTitleGlitch: String = "[devSettings.animTitleGlitch]",
+    val animSubtitleBlurFade: String = "[devSettings.animSubtitleBlurFade]",
+    val animSubtitleWordByWord: String = "[devSettings.animSubtitleWordByWord]",
+    val animSubtitleTypewriter: String = "[devSettings.animSubtitleTypewriter]",
+    val animContentPowerUp: String = "[devSettings.animContentPowerUp]",
+    val animContentSlideUp: String = "[devSettings.animContentSlideUp]",
+    val animContentFlip3d: String = "[devSettings.animContentFlip3d]"
 )
 
 @Serializable
@@ -124,3 +139,21 @@ data class TrackedListScreenStrings(
     val emptyState: String = "[trackedListScreen.emptyState]",
     val rouletteExhausted: String = "[trackedListScreen.rouletteExhausted]"
 )
+
+fun DevSettingsStrings.getAnimationLabel(key: String): String {
+    return when (key) {
+        "animNone" -> animNone
+        "animTitleDecoding" -> animTitleDecoding
+        "animTitleSlideSide" -> animTitleSlideSide
+        "animTitleTurnstile3d" -> animTitleTurnstile3d
+        "animTitleGlitch" -> animTitleGlitch
+        "animSubtitleBlurFade" -> animSubtitleBlurFade
+        "animSubtitleWordByWord" -> animSubtitleWordByWord
+        "animSubtitleTypewriter" -> animSubtitleTypewriter
+        "animContentPowerUp" -> animContentPowerUp
+        "animContentSlideUp" -> animContentSlideUp
+        "animContentFlip3d" -> animContentFlip3d
+        else -> key
+    }
+}
+

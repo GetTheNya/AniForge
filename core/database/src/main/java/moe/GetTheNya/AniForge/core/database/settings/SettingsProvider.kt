@@ -35,6 +35,36 @@ class SettingsProvider @Inject constructor(
         initialValue = true
     )
 
+    val titleAnimStyleStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.TITLE_ANIM_STYLE,
+        "DECODING"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "DECODING"
+    )
+
+    val subtitleAnimStyleStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.SUBTITLE_ANIM_STYLE,
+        "BLUR_FADE"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "BLUR_FADE"
+    )
+
+    val contentAnimStyleStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.CONTENT_ANIM_STYLE,
+        "POWER_UP"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "POWER_UP"
+    )
+
     /**
      * Returns the name of the currently active catalog file (e.g. "catalog_a.db").
      */
@@ -74,6 +104,24 @@ class SettingsProvider @Inject constructor(
     fun setPreferUkTitles(value: Boolean) {
         scope.launch {
             settingsRepository.saveSetting(SettingsKeys.PREFER_UKRAINIAN, value.toString())
+        }
+    }
+
+    fun setTitleAnimStyle(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.TITLE_ANIM_STYLE, value)
+        }
+    }
+
+    fun setSubtitleAnimStyle(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.SUBTITLE_ANIM_STYLE, value)
+        }
+    }
+
+    fun setContentAnimStyle(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.CONTENT_ANIM_STYLE, value)
         }
     }
 }

@@ -83,6 +83,7 @@
   },
   "devSettings": {
     "devSettingsHeader": "Налаштування розробника",
+    "animationSandbox": "Анімаційна пісочниця",
     "viewLogs": "Переглянути логи",
     "viewLogsButton": "Перегляд",
     "systemLogs": "Системні логи",
@@ -90,7 +91,21 @@
     "diagnosticsEngineStatus": "Діагностика та статус двигуна",
     "engineLogsCount": "Логи двигуна (%d)",
     "copyLogs": "Копіювати логи",
-    "noLogsYet": "Системні логи ще не створено."
+    "noLogsYet": "Системні логи ще не створено.",
+    "animNone": "Вимкнено (Миттєво)",
+    "devSettingsTitleAnim": "Стиль анімації назви",
+    "devSettingsSubtitleAnim": "Стиль анімації підзаголовків",
+    "devSettingsContentAnim": "Стиль анімації Бенто-контенту",
+    "animTitleDecoding": "Кіберпанк декодування (Матриця)",
+    "animTitleSlideSide": "Кінетичний виліт збоку",
+    "animTitleTurnstile3d": "Тонкий 3D-розворот",
+    "animTitleGlitch": "Ефект кіберпанк-глітчу",
+    "animSubtitleBlurFade": "Плавний розблюр та альфа",
+    "animSubtitleWordByWord": "Послівне розчинення",
+    "animSubtitleTypewriter": "Ефект друкарської машинки",
+    "animContentPowerUp": "Цифрове ввімкнення (Масштаб/Альфа)",
+    "animContentSlideUp": "Монолітний зсув знизу",
+    "animContentFlip3d": "3D-переворот плиток"
   },
   "trackedListScreen": {
     "searchPlaceholder": "Пошук за назвою...",
