@@ -23,6 +23,8 @@ class HomeViewModel @Inject constructor(
 
     private var cachedPhrase: Pair<String, String?>? = null
 
+    var isHomeAnimationPlayed: Boolean = false
+
     val randomWelcomeSubtitle: StateFlow<String?> = localizationService.activeLocaleStrings
         .map { locale ->
             val langCode = locale.languageCode
