@@ -21,19 +21,9 @@ class HomeViewModel @Inject constructor(
     private val localizationService: LocalizationService
 ) : ViewModel() {
 
-    private val fallbackPhrases = listOf(
-        "What are we watching today? 🍿",
-        "Your next favorite story is waiting.",
-        "Otaku mode: ACTIVATED. 🤖",
-        "Time to clear some backlog! 😅",
-        "Ready for a new dose of emotions?",
-        "Your anime list won't watch itself!",
-        "Let's find something historical to track."
-    )
+    private var cachedPhrase: Pair<String, String?>? = null
 
-    private var cachedPhrase: Pair<String, String>? = null
-
-    val randomWelcomeSubtitle: StateFlow<String> = localizationService.activeLocaleStrings
+    val randomWelcomeSubtitle: StateFlow<String?> = localizationService.activeLocaleStrings
         .map { locale ->
             val langCode = locale.languageCode
             val currentCached = cachedPhrase
@@ -44,7 +34,7 @@ class HomeViewModel @Inject constructor(
                 val phrase = if (phrases.isNotEmpty()) {
                     phrases.random()
                 } else {
-                    fallbackPhrases.random()
+                    null
                 }
                 cachedPhrase = langCode to phrase
                 phrase
@@ -53,7 +43,7 @@ class HomeViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = "Your next favorite story is waiting."
+            initialValue = null
         )
 
     val homeUiState: StateFlow<HomeUiState> = combine(

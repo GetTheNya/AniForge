@@ -48,35 +48,36 @@ fun HomeScreen(
             .statusBarsPadding()
     ) {
         // Sticky Top Header
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(start = 4.dp, top = 8.dp)
-            ) {
+            Text(
+                text = strings.homeScreen.appName,
+                fontSize = 56.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-1.5).sp,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(0.dp))
+            Text(
+                text = strings.homeScreen.welcomeBack.replace("!", ""),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Light,
+                color = TextSecondary
+            )
+            val cleanSubtitle = randomSubtitle?.let {
+                it.replace(Regex("[\\uD83C-\\uDBFF][\\uDC00-\\uDFFF]|[\\u2600-\\u27BF]"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+            }
+            if (!cleanSubtitle.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = strings.homeScreen.appName,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = strings.homeScreen.welcomeBack,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = randomSubtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = cleanSubtitle,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
-                    fontStyle = FontStyle.Italic,
                     color = TextSecondary.copy(alpha = 0.5f)
                 )
             }
