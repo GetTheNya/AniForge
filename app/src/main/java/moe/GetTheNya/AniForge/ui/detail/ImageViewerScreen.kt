@@ -61,80 +61,104 @@ fun ImageViewerScreen(
     urls: List<String>,
     initialIndex: Int,
     onBack: () -> Unit,
+    onSwipeDismiss: () -> Unit = onBack,
+    onSwipeProgressChanged: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var activeScale by remember { mutableFloatStateOf(1f) }
+    var swipeOffsetY by remember { mutableFloatStateOf(0f) }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.92f))
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize()
     ) {
-        if (urls.size <= 1) {
-            // Single image mode
-            val url = urls.firstOrNull() ?: ""
-            ZoomableImage(
-                url = url,
-                isSelected = true,
-                onScaleChanged = { activeScale = it }
-            )
-        } else {
-            // Carousel Mode
-            val pagerState = rememberPagerState(initialPage = initialIndex) { urls.size }
+        val screenHeightPx = constraints.maxHeight.toFloat()
+        val thresholdPx = screenHeightPx * 0.25f
+        val baseAlpha = 0.6f
+        val currentAlpha = baseAlpha * (1f - (swipeOffsetY / thresholdPx).coerceIn(0f, 1f))
 
-            // Reset scale when swiping between pages
-            LaunchedEffect(pagerState.currentPage) {
-                activeScale = 1f
-            }
-
-            HorizontalPager(
-                state = pagerState,
-                userScrollEnabled = activeScale <= 1.0f,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                val isSelected = pagerState.currentPage == page
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = currentAlpha))
+        ) {
+            if (urls.size <= 1) {
+                // Single image mode
+                val url = urls.firstOrNull() ?: ""
                 ZoomableImage(
-                    url = urls[page],
-                    isSelected = isSelected,
-                    onScaleChanged = { scale ->
-                        if (isSelected) {
-                            activeScale = scale
-                        }
-                    }
+                    url = url,
+                    isSelected = true,
+                    onScaleChanged = { activeScale = it },
+                    onSwipeOffsetChanged = { offset ->
+                        swipeOffsetY = offset
+                        onSwipeProgressChanged((offset / thresholdPx).coerceIn(0f, 1f))
+                    },
+                    onSwipeDismiss = onSwipeDismiss
+                )
+            } else {
+                // Carousel Mode
+                val pagerState = rememberPagerState(initialPage = initialIndex) { urls.size }
+
+                // Reset scale when swiping between pages
+                LaunchedEffect(pagerState.currentPage) {
+                    activeScale = 1f
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = activeScale <= 1.0f,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val isSelected = pagerState.currentPage == page
+                    ZoomableImage(
+                        url = urls[page],
+                        isSelected = isSelected,
+                        onScaleChanged = { scale ->
+                            if (isSelected) {
+                                activeScale = scale
+                            }
+                        },
+                        onSwipeOffsetChanged = { offset ->
+                            if (isSelected) {
+                                swipeOffsetY = offset
+                                onSwipeProgressChanged((offset / thresholdPx).coerceIn(0f, 1f))
+                            }
+                        },
+                        onSwipeDismiss = onSwipeDismiss
+                    )
+                }
+
+                // Page count indicator
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${urls.size}",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(bottom = 24.dp)
+                        .align(Alignment.BottomCenter)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x990C0C0E))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
 
-            // Page count indicator
-            Text(
-                text = "${pagerState.currentPage + 1} / ${urls.size}",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
+            // Immersive close button overlay
+            IconButton(
+                onClick = onBack,
                 modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(bottom = 24.dp)
-                    .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(8.dp))
+                    .statusBarsPadding()
+                    .padding(16.dp)
+                    .align(Alignment.TopStart)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(0x990C0C0E))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-        }
-
-        // Immersive close button overlay
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(16.dp)
-                .align(Alignment.TopStart)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x990C0C0E))
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color.White
-            )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    tint = Color.White
+                )
+            }
         }
     }
 }
@@ -144,6 +168,8 @@ fun ZoomableImage(
     url: String,
     isSelected: Boolean,
     onScaleChanged: (Float) -> Unit,
+    onSwipeOffsetChanged: (Float) -> Unit,
+    onSwipeDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -160,6 +186,7 @@ fun ZoomableImage(
     val scaleAnimatable = remember { Animatable(1f) }
     val offsetXAnimatable = remember { Animatable(0f) }
     val offsetYAnimatable = remember { Animatable(0f) }
+    var swipeOffsetY by remember { mutableFloatStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
 
     // Graceful scale-in entrance transition
@@ -182,6 +209,8 @@ fun ZoomableImage(
             offsetXAnimatable.snapTo(0f)
             offsetYAnimatable.snapTo(0f)
             onScaleChanged(1f)
+            swipeOffsetY = 0f
+            onSwipeOffsetChanged(0f)
         }
     }
 
@@ -193,6 +222,7 @@ fun ZoomableImage(
     ) {
         val containerW = constraints.maxWidth.toFloat()
         val containerH = constraints.maxHeight.toFloat()
+        val thresholdPx = containerH * 0.25f
 
         // Helper to compute exact pan/drag boundaries based on image aspect ratio
         fun computeMaxOffset(currentScale: Float): Offset {
@@ -244,7 +274,7 @@ fun ZoomableImage(
                         scaleX = scaleAnimatable.value * entranceScale.value
                         scaleY = scaleAnimatable.value * entranceScale.value
                         translationX = offsetXAnimatable.value
-                        translationY = offsetYAnimatable.value
+                        translationY = offsetYAnimatable.value + swipeOffsetY
                         alpha = entranceAlpha.value
                     }
                     .pointerInput(containerW, containerH) {
@@ -288,33 +318,34 @@ fun ZoomableImage(
                         )
                     }
                     .pointerInput(containerW, containerH) {
-                        detectZoomAndPan(
+                        detectZoomPanAndSwipe(
+                            isEnabled = { isSelected },
                             currentScale = { scaleAnimatable.value },
                             onGesture = { centroid, pan, zoom ->
                                 val currentScale = scaleAnimatable.value
                                 val targetScale = (currentScale * zoom).coerceIn(1f, 5f)
                                 
                                 // NaN and Infinity Guard
-                                if (!targetScale.isSane()) return@detectZoomAndPan
+                                if (!targetScale.isSane()) return@detectZoomPanAndSwipe
                                 val scaleChange = if (currentScale > 0f) targetScale / currentScale else 1f
-                                if (!scaleChange.isSane()) return@detectZoomAndPan
+                                if (!scaleChange.isSane()) return@detectZoomPanAndSwipe
 
-                                if (!centroid.isSane() || !pan.isSane()) return@detectZoomAndPan
+                                if (!centroid.isSane() || !pan.isSane()) return@detectZoomPanAndSwipe
                                 val centroidPx = centroid - Offset(containerW / 2f, containerH / 2f)
 
                                 val currentOffset = Offset(offsetXAnimatable.value, offsetYAnimatable.value)
-                                if (!currentOffset.isSane()) return@detectZoomAndPan
+                                if (!currentOffset.isSane()) return@detectZoomPanAndSwipe
 
                                 val speedMultiplier = targetScale
                                 val targetOffset = (currentOffset - centroidPx) * scaleChange + centroidPx + (pan * speedMultiplier)
-                                if (!targetOffset.isSane()) return@detectZoomAndPan
+                                if (!targetOffset.isSane()) return@detectZoomPanAndSwipe
 
                                 val maxOffset = computeMaxOffset(targetScale)
                                 val boundedOffset = Offset(
                                     x = targetOffset.x.coerceIn(-maxOffset.x, maxOffset.x),
                                     y = targetOffset.y.coerceIn(-maxOffset.y, maxOffset.y)
                                 )
-                                if (!boundedOffset.isSane()) return@detectZoomAndPan
+                                if (!boundedOffset.isSane()) return@detectZoomPanAndSwipe
 
                                 coroutineScope.launch {
                                     scaleAnimatable.snapTo(targetScale)
@@ -324,7 +355,6 @@ fun ZoomableImage(
                                 }
                             },
                             onGestureEnd = {
-                                // Smooth reset on release if scale fell below 1.0f or is near baseline
                                 val currentScale = scaleAnimatable.value
                                 if (currentScale < 1.05f) {
                                     coroutineScope.launch {
@@ -340,6 +370,25 @@ fun ZoomableImage(
                                         }
                                     }
                                 }
+                            },
+                            onSwipeDrag = { delta ->
+                                swipeOffsetY = (swipeOffsetY + delta).coerceAtLeast(0f)
+                                onSwipeOffsetChanged(swipeOffsetY)
+                            },
+                            onSwipeEnd = {
+                                if (swipeOffsetY > thresholdPx) {
+                                    onSwipeDismiss()
+                                } else {
+                                    coroutineScope.launch {
+                                        Animatable(swipeOffsetY).animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
+                                        ) {
+                                            swipeOffsetY = value
+                                            onSwipeOffsetChanged(value)
+                                        }
+                                    }
+                                }
                             }
                         )
                     }
@@ -349,29 +398,47 @@ fun ZoomableImage(
 }
 
 /**
- * Custom transform gesture detector that delegates single-finger dragging to parent containers (like HorizontalPager)
- * when scale is 1.0f, but intercepts and consumes all zoom/pan gestures locally when zoomed in (scale > 1.0f).
+ * Cohesive gesture detector that coordinates scale, pan, zoom, and swipe-down dismissal gestures.
+ * Prevents pointer locks by handling everything in a single touch stream loop.
  */
-suspend fun PointerInputScope.detectZoomAndPan(
+suspend fun PointerInputScope.detectZoomPanAndSwipe(
+    isEnabled: () -> Boolean,
     currentScale: () -> Float,
     onGesture: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
-    onGestureEnd: () -> Unit
+    onGestureEnd: () -> Unit,
+    onSwipeDrag: (dragAmount: Float) -> Unit,
+    onSwipeEnd: () -> Unit
 ) {
     awaitEachGesture {
+        if (!isEnabled()) return@awaitEachGesture
+
+        val touchSlop = viewConfiguration.touchSlop
         var zoom = 1f
         var pan = Offset.Zero
         var pastTouchSlop = false
-        val touchSlop = viewConfiguration.touchSlop
+        
+        // Swipe-down states
+        var accumulatedDragY = 0f
+        var accumulatedDragX = 0f
+        var isSwipingDown = false
+        var isZoomPanActive = false
 
-        awaitFirstDown(requireUnconsumed = false)
+        // Wait for first down touch
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val activePointerId = down.id
+
         do {
             val event = awaitPointerEvent()
             val canceled = event.changes.any { it.isConsumed }
-            if (!canceled) {
-                val pointerCount = event.changes.size
-                val isZooming = pointerCount > 1
-                val isZoomedIn = currentScale() > 1.01f
+            if (canceled) break
 
+            val pointerCount = event.changes.size
+            val isZoomedIn = currentScale() > 1.01f
+
+            if (isZoomedIn || pointerCount > 1 || isZoomPanActive) {
+                // If zoomed in or multi-touch occurs, zoom/pan exclusively controls the gesture
+                isZoomPanActive = true
+                
                 val zoomChange = event.calculateZoom()
                 val panChange = event.calculatePan()
 
@@ -389,7 +456,7 @@ suspend fun PointerInputScope.detectZoomAndPan(
                         }
                     } else {
                         // When zoomed out, only pinch zoom triggers gesture start
-                        if (isZooming && zoomMotion > touchSlop) {
+                        if (pointerCount > 1 && zoomMotion > touchSlop) {
                             pastTouchSlop = true
                         }
                     }
@@ -399,19 +466,49 @@ suspend fun PointerInputScope.detectZoomAndPan(
                     val centroid = event.calculateCentroid(useCurrent = false)
                     onGesture(centroid, panChange, zoomChange)
 
-                    // Consume the event to prevent swiping/dismissing parent containers
-                    if (isZoomedIn || isZooming) {
-                        event.changes.forEach {
-                            if (it.positionChanged()) {
-                                it.consume()
-                            }
+                    // Consume the events
+                    event.changes.forEach {
+                        if (it.positionChanged()) {
+                            it.consume()
                         }
                     }
                 }
-            }
-        } while (!canceled && event.changes.any { it.pressed })
+            } else {
+                // Baseline scale, single finger: check for swipe-down to dismiss
+                val change = event.changes.firstOrNull { it.id == activePointerId }
+                if (change != null && change.pressed) {
+                    val position = change.position
+                    val prevPosition = change.previousPosition
+                    val deltaY = position.y - prevPosition.y
+                    val deltaX = position.x - prevPosition.x
 
-        onGestureEnd()
+                    if (!isSwipingDown) {
+                        accumulatedDragY += deltaY
+                        accumulatedDragX += deltaX
+                        val absX = kotlin.math.abs(accumulatedDragX)
+
+                        if (accumulatedDragY > touchSlop && accumulatedDragY > absX) {
+                            isSwipingDown = true
+                            change.consume()
+                        } else if (kotlin.math.abs(accumulatedDragY) > touchSlop || absX > touchSlop) {
+                            // Drag is horizontal or up - abort swipe-down detection to let parent scroll (pager)
+                            break
+                        }
+                    } else {
+                        if (deltaY != 0f) {
+                            onSwipeDrag(deltaY)
+                        }
+                        change.consume()
+                    }
+                }
+            }
+        } while (event.changes.any { it.pressed })
+
+        if (isSwipingDown) {
+            onSwipeEnd()
+        } else if (isZoomPanActive) {
+            onGestureEnd()
+        }
     }
 }
 

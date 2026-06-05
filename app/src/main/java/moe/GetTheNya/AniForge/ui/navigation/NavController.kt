@@ -45,6 +45,7 @@ class BackStackEntry(
     var dragOffset by mutableFloatStateOf(0f)
     var isDragging by mutableStateOf(false)
     var isEntranceStarted by mutableStateOf(false)
+    var swipeDismissProgress by mutableFloatStateOf(0f)
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory
         get() = activity.defaultViewModelProviderFactory

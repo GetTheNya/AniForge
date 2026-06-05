@@ -399,14 +399,27 @@ class MainActivity : ComponentActivity() {
                                                     translationX = offsetVal
                                                 } else if (index == lastIndex - 1) {
                                                     val topEntry = navController.backStack[lastIndex]
-                                                    val topOffset = if (topEntry.isDragging) {
-                                                        topEntry.dragOffset
-                                                    } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
-                                                        screenWidthPx
+                                                    val progress = if (topEntry.screen is Screen.ImageViewer) {
+                                                        if (topEntry.animatableOffset.value > 0f || !topEntry.isEntranceStarted) {
+                                                            val topOffset = if (!topEntry.isEntranceStarted) {
+                                                                screenWidthPx
+                                                            } else {
+                                                                topEntry.animatableOffset.value
+                                                            }
+                                                            (topOffset / screenWidthPx).coerceIn(0f, 1f)
+                                                        } else {
+                                                            topEntry.swipeDismissProgress
+                                                        }
                                                     } else {
-                                                        topEntry.animatableOffset.value
+                                                        val topOffset = if (topEntry.isDragging) {
+                                                            topEntry.dragOffset
+                                                        } else if (topEntry.screen != Screen.Tabs && !topEntry.isEntranceStarted) {
+                                                            screenWidthPx
+                                                        } else {
+                                                            topEntry.animatableOffset.value
+                                                        }
+                                                        (topOffset / screenWidthPx).coerceIn(0f, 1f)
                                                     }
-                                                    val progress = (topOffset / screenWidthPx).coerceIn(0f, 1f)
                                                     val s = 0.95f + 0.05f * progress
                                                     val a = 0.6f + 0.4f * progress
                                                     scaleX = s
@@ -608,7 +621,11 @@ class MainActivity : ComponentActivity() {
                                                         ImageViewerScreen(
                                                             urls = screen.urls,
                                                             initialIndex = screen.initialIndex,
-                                                            onBack = { triggerDismissAnimation(entry) }
+                                                            onBack = { triggerDismissAnimation(entry) },
+                                                            onSwipeDismiss = { navController.popBackStack() },
+                                                            onSwipeProgressChanged = { progress ->
+                                                                entry.swipeDismissProgress = progress
+                                                            }
                                                         )
                                                     }
                                                     is Screen.TrackedList -> {
