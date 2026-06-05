@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,7 +39,8 @@ fun HomeScreen(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.homeUiState.collectAsState()
-
+    val randomSubtitle by viewModel.randomWelcomeSubtitle.collectAsState()
+ 
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -52,19 +54,30 @@ fun HomeScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = strings.homeScreen.welcomeBack,
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
+            Column(
+                modifier = Modifier
+                    .padding(start = 4.dp, top = 8.dp)
+            ) {
                 Text(
                     text = strings.homeScreen.appName,
-                    color = TextPrimary,
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = strings.homeScreen.welcomeBack,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
+                    color = TextSecondary.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = randomSubtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Normal,
+                    fontStyle = FontStyle.Italic,
+                    color = TextSecondary.copy(alpha = 0.5f)
                 )
             }
         }

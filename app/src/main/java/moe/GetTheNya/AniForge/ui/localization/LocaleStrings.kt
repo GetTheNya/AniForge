@@ -48,7 +48,8 @@ data class HomeScreenStrings(
     val welcomeBack: String = "[homeScreen.welcomeBack]",
     val appName: String = "[homeScreen.appName]",
     val trackingProgress: String = "[homeScreen.trackingProgress]",
-    val spotlight: String = "[homeScreen.spotlight]"
+    val spotlight: String = "[homeScreen.spotlight]",
+    val welcomePhrases: List<String> = emptyList()
 )
 
 @Serializable
