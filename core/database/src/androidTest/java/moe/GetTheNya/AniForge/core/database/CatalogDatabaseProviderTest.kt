@@ -28,7 +28,14 @@ class CatalogDatabaseProviderTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        settingsProvider = SettingsProvider(context)
+        val fakeUserSettingDao = object : moe.GetTheNya.AniForge.core.database.dao.UserSettingDao {
+            override fun observeSetting(key: String): kotlinx.coroutines.flow.Flow<String?> =
+                kotlinx.coroutines.flow.flowOf(null)
+            override suspend fun getSettingSync(key: String): String? = null
+            override suspend fun insertOrUpdate(setting: moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity) {}
+        }
+        val fakeSettingsRepository = moe.GetTheNya.AniForge.core.database.repository.SettingsRepository(fakeUserSettingDao)
+        settingsProvider = SettingsProvider(context, fakeSettingsRepository)
         
         // Reset settings
         settingsProvider.setActiveCatalog("catalog_a.db", 1L)

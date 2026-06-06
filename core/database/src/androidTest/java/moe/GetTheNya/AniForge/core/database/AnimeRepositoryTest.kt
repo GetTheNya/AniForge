@@ -11,6 +11,9 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
+import moe.GetTheNya.AniForge.core.model.AnimeStaff
+import moe.GetTheNya.AniForge.core.model.Ranking
+import moe.GetTheNya.AniForge.core.model.Franchise
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -31,7 +34,14 @@ class AnimeRepositoryTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        settingsProvider = SettingsProvider(context)
+        val fakeUserSettingDao = object : moe.GetTheNya.AniForge.core.database.dao.UserSettingDao {
+            override fun observeSetting(key: String): kotlinx.coroutines.flow.Flow<String?> =
+                kotlinx.coroutines.flow.flowOf(null)
+            override suspend fun getSettingSync(key: String): String? = null
+            override suspend fun insertOrUpdate(setting: moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity) {}
+        }
+        val fakeSettingsRepository = moe.GetTheNya.AniForge.core.database.repository.SettingsRepository(fakeUserSettingDao)
+        settingsProvider = SettingsProvider(context, fakeSettingsRepository)
         
         // Target catalog_test.db
         settingsProvider.setActiveCatalog("catalog_test.db", 1L)
@@ -68,7 +78,17 @@ class AnimeRepositoryTest {
                             "cover_color TEXT, " +
                             "banner_image TEXT, " +
                             "has_uk_translation INTEGER, " +
-                            "updated_at INTEGER" +
+                            "updated_at INTEGER, " +
+                            "airing_at INTEGER, " +
+                            "airing_episode INTEGER, " +
+                            "trailer_id TEXT, " +
+                            "trailer_site TEXT, " +
+                            "trailer_thumbnail TEXT, " +
+                            "start_date_year INTEGER, " +
+                            "start_date_month INTEGER, " +
+                            "start_date_day INTEGER, " +
+                            "popularity INTEGER, " +
+                            "source TEXT" +
                             ");"
                         )
                     }
@@ -83,6 +103,12 @@ class AnimeRepositoryTest {
             // 1. Create relational lookup tables (SQLite holds them)
             db.execSQL("CREATE TABLE IF NOT EXISTS anime_genres (anilist_id INTEGER, genre_slug TEXT);")
             db.execSQL("CREATE TABLE IF NOT EXISTS anime_studios (anilist_id INTEGER, studio_id INTEGER);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS staff (staff_id INTEGER PRIMARY KEY, full_name TEXT NOT NULL, image_large TEXT);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS anime_staff (anilist_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, role TEXT NOT NULL, PRIMARY KEY (anilist_id, staff_id, role), FOREIGN KEY (anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE, FOREIGN KEY (staff_id) REFERENCES staff(staff_id) ON DELETE CASCADE);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS rankings (id INTEGER PRIMARY KEY AUTOINCREMENT, anilist_id INTEGER NOT NULL, rank INTEGER NOT NULL, context TEXT NOT NULL, all_time INTEGER, season TEXT, year INTEGER, UNIQUE(anilist_id, context), FOREIGN KEY (anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS anime_recommendations (source_anilist_id INTEGER NOT NULL, recommended_anilist_id INTEGER NOT NULL, PRIMARY KEY (source_anilist_id, recommended_anilist_id), FOREIGN KEY (source_anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS franchises (franchise_id INTEGER PRIMARY KEY AUTOINCREMENT, main_anilist_id INTEGER NOT NULL, name_en TEXT, name_uk TEXT, FOREIGN KEY (main_anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS anime_franchises (anilist_id INTEGER NOT NULL, franchise_id INTEGER NOT NULL, PRIMARY KEY (anilist_id), FOREIGN KEY (anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE, FOREIGN KEY (franchise_id) REFERENCES franchises(franchise_id) ON DELETE CASCADE);")
             
             // Diagnostics: Print SQLite version and compile options
             try {
@@ -123,8 +149,8 @@ class AnimeRepositoryTest {
 
             // 2. Insert Anime Records
             db.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
-                "VALUES (1, 'Shingeki no Kyojin', 9.1, 2013, 0, 1, 1000);"
+                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at, airing_at, airing_episode, trailer_id, trailer_site, trailer_thumbnail, start_date_year, start_date_month, start_date_day, popularity, source) " +
+                "VALUES (1, 'Shingeki no Kyojin', 9.1, 2013, 0, 1, 1000, 1622976000, 75, 'AdTzUx76Hjg', 'youtube', 'https://img.youtube.com/vi/AdTzUx76Hjg/0.jpg', 2013, 4, 7, 1250000, 'MANGA');"
             )
             db.execSQL(
                 "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
@@ -161,6 +187,25 @@ class AnimeRepositoryTest {
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (1, 10);") // Wit Studio
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (2, 20);") // Bones
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (3, 30);") // A-1 Pictures
+
+            // 6. Insert Staff records
+            db.execSQL("INSERT INTO staff (staff_id, full_name, image_large) VALUES (1001, 'Tetsurou Araki', 'https://img.staff/araki.png');")
+            db.execSQL("INSERT INTO staff (staff_id, full_name, image_large) VALUES (1002, 'Yuki Kaji', 'https://img.staff/kaji.png');")
+            db.execSQL("INSERT INTO anime_staff (anilist_id, staff_id, role) VALUES (1, 1001, 'Director');")
+            db.execSQL("INSERT INTO anime_staff (anilist_id, staff_id, role) VALUES (1, 1002, 'Eren Yeager');")
+
+            // 7. Insert Rankings records
+            db.execSQL("INSERT INTO rankings (anilist_id, rank, context, all_time, season, year) VALUES (1, 1, 'POPULARITY', 1, 'SPRING', 2013);")
+            db.execSQL("INSERT INTO rankings (anilist_id, rank, context, all_time, season, year) VALUES (1, 5, 'RATING', 0, NULL, NULL);")
+
+            // 8. Insert Recommendation records
+            db.execSQL("INSERT INTO anime_recommendations (source_anilist_id, recommended_anilist_id) VALUES (1, 2);")
+            db.execSQL("INSERT INTO anime_recommendations (source_anilist_id, recommended_anilist_id) VALUES (1, 3);")
+
+            // 9. Insert Franchise records
+            db.execSQL("INSERT INTO franchises (franchise_id, main_anilist_id, name_en, name_uk) VALUES (100, 1, 'Attack on Titan', 'Атака титанів');")
+            db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (1, 100);")
+            db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (2, 100);")
         }
 
         // Mock databaseProvider to return our pre-populated DB
@@ -168,7 +213,7 @@ class AnimeRepositoryTest {
             override suspend fun getDatabase(): SupportSQLiteDatabase = db
         }
 
-        repository = AnimeRepository(databaseProvider)
+        repository = AnimeRepository(databaseProvider, settingsProvider)
     }
 
     @After
@@ -228,5 +273,84 @@ class AnimeRepositoryTest {
         assertEquals(2L, results2[0].anilistId) // Year 2016
         assertEquals(1L, results2[1].anilistId) // Year 2013
         assertEquals(3L, results2[2].anilistId) // Year 2012
+    }
+
+    @Test
+    fun testAnimeFieldsParsing() = runBlocking {
+        val anime = repository.getAnimeById(1L)
+        assertNotNull(anime)
+        assertEquals(1622976000L, anime!!.airingAt)
+        assertEquals(75, anime.airingEpisode)
+        assertEquals("AdTzUx76Hjg", anime.trailerId)
+        assertEquals("youtube", anime.trailerSite)
+        assertEquals("https://img.youtube.com/vi/AdTzUx76Hjg/0.jpg", anime.trailerThumbnail)
+        assertEquals(2013, anime.startDateYear)
+        assertEquals(4, anime.startDateMonth)
+        assertEquals(7, anime.startDateDay)
+        assertEquals(1250000, anime.popularity)
+        assertEquals("MANGA", anime.source)
+    }
+
+    @Test
+    fun testGetStaffForAnime() = runBlocking {
+        val staff = repository.getStaffForAnime(1L)
+        assertEquals(2, staff.size)
+        
+        val first = staff[0]
+        assertEquals(1001L, first.staffId)
+        assertEquals("Tetsurou Araki", first.fullName)
+        assertEquals("https://img.staff/araki.png", first.imageLarge)
+        assertEquals("Director", first.role)
+
+        val second = staff[1]
+        assertEquals(1002L, second.staffId)
+        assertEquals("Yuki Kaji", second.fullName)
+        assertEquals("https://img.staff/kaji.png", second.imageLarge)
+        assertEquals("Eren Yeager", second.role)
+    }
+
+    @Test
+    fun testGetRankingsForAnime() = runBlocking {
+        val rankings = repository.getRankingsForAnime(1L)
+        assertEquals(2, rankings.size)
+
+        val popularity = rankings.find { it.context == "POPULARITY" }
+        assertNotNull(popularity)
+        assertEquals(1, popularity!!.rank)
+        assertTrue(popularity.allTime)
+        assertEquals("SPRING", popularity.season)
+        assertEquals(2013, popularity.year)
+
+        val rating = rankings.find { it.context == "RATING" }
+        assertNotNull(rating)
+        assertEquals(5, rating!!.rank)
+        assertFalse(rating.allTime)
+        assertNull(rating.season)
+        assertNull(rating.year)
+    }
+
+    @Test
+    fun testGetRecommendationsForAnime() = runBlocking {
+        val recs = repository.getRecommendationsForAnime(1L)
+        assertEquals(2, recs.size)
+        // Ordered by score_mal DESC: Boku no Hero (8.2), then Sword Art (7.2)
+        assertEquals(2L, recs[0].anilistId)
+        assertEquals(3L, recs[1].anilistId)
+    }
+
+    @Test
+    fun testGetFranchiseForAnime() = runBlocking {
+        val franchise = repository.getFranchiseForAnime(1L)
+        assertNotNull(franchise)
+        assertEquals(100L, franchise!!.franchiseId)
+        assertEquals(1L, franchise.mainAnilistId)
+        assertEquals("Attack on Titan", franchise.nameEn)
+        assertEquals("Атака титанів", franchise.nameUk)
+
+        val franchiseAnime = repository.getFranchiseAnime(100L)
+        assertEquals(2, franchiseAnime.size)
+        // Ordered by season_year ASC: Titan (2013), Hero (2016)
+        assertEquals(1L, franchiseAnime[0].anilistId)
+        assertEquals(2L, franchiseAnime[1].anilistId)
     }
 }

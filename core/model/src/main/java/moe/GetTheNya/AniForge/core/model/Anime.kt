@@ -24,7 +24,17 @@ data class Anime(
     val coverColor: String?,
     val bannerImage: String?,
     val hasUkTranslation: Boolean,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val airingAt: Long?,
+    val airingEpisode: Int?,
+    val trailerId: String?,
+    val trailerSite: String?,
+    val trailerThumbnail: String?,
+    val startDateYear: Int?,
+    val startDateMonth: Int?,
+    val startDateDay: Int?,
+    val popularity: Int?,
+    val source: String?
 ) {
     // Helper to get the display title based on preference or fallback
     fun getDisplayTitle(preferUk: Boolean = true): String {
