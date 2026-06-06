@@ -20,6 +20,6 @@ interface AniForgeApiService {
     ): Response<ResponseBody>
 
     companion object {
-        const val BASE_URL = "https://aniforge-api.romaro422.workers.dev/"
+        const val BASE_URL = "https://aniforge-api.getthenya.workers.dev/"
     }
 }
