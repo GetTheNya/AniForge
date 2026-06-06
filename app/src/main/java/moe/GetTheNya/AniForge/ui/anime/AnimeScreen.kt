@@ -53,7 +53,7 @@ fun AnimeScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Star,
-                    contentDescription = strings.animeScreen.underConstruction,
+                    contentDescription = strings.franchisesScreen.underConstruction,
                     tint = ElectricViolet,
                     modifier = Modifier.size(32.dp)
                 )
@@ -62,7 +62,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = strings.animeScreen.name,
+                text = strings.franchisesScreen.name,
                 color = TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
@@ -71,7 +71,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = strings.animeScreen.underConstruction,
+                text = strings.franchisesScreen.underConstruction,
                 color = ElectricViolet,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
@@ -81,7 +81,7 @@ fun AnimeScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = strings.animeScreen.description,
+                text = strings.franchisesScreen.description,
                 color = TextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,

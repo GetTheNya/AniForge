@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -117,7 +119,7 @@ import javax.inject.Inject
 enum class TabScreen {
     Home,
     Anime,
-    Seasons,
+    Franchises,
     Profile
 }
 
@@ -331,7 +333,7 @@ class MainActivity : ComponentActivity() {
                                 when (pagerState.currentPage) {
                                     0 -> TabScreen.Home
                                     1 -> TabScreen.Anime
-                                    2 -> TabScreen.Seasons
+                                    2 -> TabScreen.Franchises
                                     3 -> TabScreen.Profile
                                     else -> TabScreen.Home
                                 }
@@ -464,12 +466,12 @@ class MainActivity : ComponentActivity() {
                                                             viewModel = homeViewModel,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
                                                         )
-                                                        1 -> AnimeScreen()
-                                                        2 -> DashboardScreen(
+                                                        1 -> DashboardScreen(
                                                             viewModel = dashboardViewModel,
                                                             preferUk = preferUk,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
                                                         )
+                                                        2 -> AnimeScreen()
                                                         3 -> ProfileScreen(
                                                             viewModel = profileViewModel,
                                                             navController = navController
@@ -698,7 +700,7 @@ fun FloatingBottomNavigation(
         listOf(
             Color(0xFFFF4081), // Home (Index 0)
             Color(0xFF00FFCC), // Anime (Index 1)
-            Color(0xFFA855F7), // Seasons (Index 2)
+            Color(0xFFA855F7), // Franchises (Index 2)
             Color(0xFF00FF87)  // Profile (Index 3)
         )
     }
@@ -796,8 +798,8 @@ fun FloatingBottomNavigation(
             val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
             val tabs = listOf(
                 TabScreen.Home to (Icons.Default.Home to strings.homeScreen.name),
-                TabScreen.Anime to (Icons.Default.PlayArrow to strings.animeScreen.name),
-                TabScreen.Seasons to (Icons.Default.Search to strings.dashboardScreen.name),
+                TabScreen.Anime to (Icons.Default.DateRange to strings.dashboardScreen.name),
+                TabScreen.Franchises to (Icons.Default.Layers to strings.franchisesScreen.name),
                 TabScreen.Profile to (Icons.Default.Person to strings.profileScreen.name)
             )
  

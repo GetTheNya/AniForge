@@ -35,13 +35,13 @@
       "Your anime list won't watch itself!"
     ]
   },
-  "animeScreen": {
-    "name": "Anime",
+  "franchisesScreen": {
+    "name": "Franchises",
     "underConstruction": "Under Construction",
     "description": "We are currently designing database tables for personal anime lists, custom groups, and local search history. Watch progress indicators will show up here soon!"
   },
   "dashboardScreen": {
-    "name": "Seasons",
+    "name": "Anime",
     "searchPlaceholder": "Search catalog...",
     "discoverCatalog": "Discover Catalog",
     "unknownError": "Unknown error"

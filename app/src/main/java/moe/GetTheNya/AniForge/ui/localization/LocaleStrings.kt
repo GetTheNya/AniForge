@@ -11,7 +11,7 @@ data class LocaleStrings(
     val languageCode: String = "en",
     val misc: MiscStrings = MiscStrings(),
     val homeScreen: HomeScreenStrings = HomeScreenStrings(),
-    val animeScreen: AnimeScreenStrings = AnimeScreenStrings(),
+    val franchisesScreen: FranchisesScreenStrings = FranchisesScreenStrings(),
     val dashboardScreen: DashboardScreenStrings = DashboardScreenStrings(),
     val detailScreen: DetailScreenStrings = DetailScreenStrings(),
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
@@ -53,10 +53,10 @@ data class HomeScreenStrings(
 )
 
 @Serializable
-data class AnimeScreenStrings(
-    val name: String = "[animeScreen.name]",
-    val underConstruction: String = "[animeScreen.underConstruction]",
-    val description: String = "[animeScreen.description]"
+data class FranchisesScreenStrings(
+    val name: String = "[franchisesScreen.name]",
+    val underConstruction: String = "[franchisesScreen.underConstruction]",
+    val description: String = "[franchisesScreen.description]"
 )
 
 @Serializable
