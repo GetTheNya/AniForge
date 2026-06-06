@@ -3,7 +3,7 @@ package moe.GetTheNya.AniForge.core.database
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -47,7 +47,7 @@ class CatalogDatabaseProviderTest {
         deleteDbFiles()
 
         // Create catalog_a database and insert dummy record
-        val openHelperA = FrameworkSQLiteOpenHelperFactory().create(
+        val openHelperA = RequerySQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name("catalog_a.db")
                 .callback(object : SupportSQLiteOpenHelper.Callback(1) {
@@ -66,7 +66,7 @@ class CatalogDatabaseProviderTest {
         openHelperA.close()
 
         // Create catalog_b database and insert dummy record
-        val openHelperB = FrameworkSQLiteOpenHelperFactory().create(
+        val openHelperB = RequerySQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name("catalog_b.db")
                 .callback(object : SupportSQLiteOpenHelper.Callback(1) {

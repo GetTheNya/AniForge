@@ -7,6 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import moe.GetTheNya.AniForge.core.database.UserDatabase
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import javax.inject.Singleton
@@ -25,6 +26,7 @@ object DatabaseModule {
             UserDatabase::class.java,
             "user_data.db"
         )
+        .openHelperFactory(RequerySQLiteOpenHelperFactory())
         .fallbackToDestructiveMigration()
         .build()
     }

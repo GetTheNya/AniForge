@@ -1,7 +1,7 @@
 package moe.GetTheNya.AniForge.core.database.sync
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
+import io.requery.android.database.sqlite.SQLiteDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

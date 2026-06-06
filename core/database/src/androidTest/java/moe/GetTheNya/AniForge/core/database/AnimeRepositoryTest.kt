@@ -3,7 +3,7 @@ package moe.GetTheNya.AniForge.core.database
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
@@ -50,7 +50,7 @@ class AnimeRepositoryTest {
         if (testFile.exists()) testFile.delete()
 
         // Build database instance
-        openHelper = FrameworkSQLiteOpenHelperFactory().create(
+        openHelper = RequerySQLiteOpenHelperFactory().create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name("catalog_test.db")
                 .callback(object : SupportSQLiteOpenHelper.Callback(1) {

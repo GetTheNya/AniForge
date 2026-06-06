@@ -3,7 +3,7 @@ package moe.GetTheNya.AniForge.core.database
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
-import android.database.sqlite.SQLiteDatabase
+import io.requery.android.database.sqlite.SQLiteDatabase
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -115,7 +115,7 @@ open class CatalogDatabaseProvider @Inject constructor(
             })
             .build()
             
-        val helper = FrameworkSQLiteOpenHelperFactory().create(config)
+        val helper = RequerySQLiteOpenHelperFactory().create(config)
         val db = helper.writableDatabase
         return Pair(helper, db)
     }
@@ -130,9 +130,15 @@ open class CatalogDatabaseProvider @Inject constructor(
                 // Check if FTS5 is supported
                 var fts5Supported = false
                 try {
-                    db.execSQL("CREATE TEMP TABLE fts5_test USING fts5(dummy);")
-                    db.execSQL("DROP TABLE temp.fts5_test;")
-                    fts5Supported = true
+                    db.rawQuery("SELECT name FROM pragma_module_list();", null).use { cursor ->
+                        while (cursor.moveToNext()) {
+                            val moduleName = cursor.getString(0)
+                            if (moduleName.equals("fts5", ignoreCase = true)) {
+                                fts5Supported = true
+                                break
+                            }
+                        }
+                    }
                 } catch (_: Exception) {}
 
                 if (!fts5Supported) {

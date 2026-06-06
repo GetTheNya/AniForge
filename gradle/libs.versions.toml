@@ -16,6 +16,7 @@ okhttp = "4.12.0"
 retrofit = "2.11.0"
 datastore = "1.1.1"
 kotlinxSerializationJson = "1.6.3"
+sqlite-android = "3.49.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +46,7 @@ hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.r
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+sqlite-android = { group = "com.github.requery", name = "sqlite-android", version.ref = "sqlite-android" }
 
 # Image Loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
