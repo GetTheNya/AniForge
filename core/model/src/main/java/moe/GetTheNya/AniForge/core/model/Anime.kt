@@ -21,7 +21,6 @@ data class Anime(
     val scoreMal: Double?,
     val coverExtraLarge: String?,
     val coverLarge: String?,
-    val coverMedium: String?,
     val coverColor: String?,
     val bannerImage: String?,
     val hasUkTranslation: Boolean,

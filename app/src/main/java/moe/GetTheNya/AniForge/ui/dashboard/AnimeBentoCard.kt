@@ -127,7 +127,7 @@ fun AnimeBentoCard(
             // Background cover artwork (Coil exact resizing & GPU hardware optimization)
             AsyncImage(
                 model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                    .data(anime.coverLarge ?: anime.coverMedium)
+                    .data(anime.coverLarge)
                     .precision(coil.size.Precision.EXACT)
                     .allowHardware(true)
                     .crossfade(true)

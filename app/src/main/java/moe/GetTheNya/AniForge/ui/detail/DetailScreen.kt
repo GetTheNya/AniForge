@@ -414,7 +414,7 @@ fun DetailContent(
                         verticalAlignment = Alignment.Bottom
                     ) {
                         // Dedicated vertical poster image next to title section
-                        val posterUrl = anime.coverLarge ?: anime.coverMedium
+                        val posterUrl = anime.coverLarge
                         AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                 .data(posterUrl)

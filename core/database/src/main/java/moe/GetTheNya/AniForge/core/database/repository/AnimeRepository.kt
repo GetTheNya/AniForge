@@ -196,7 +196,6 @@ class AnimeRepository @Inject constructor(
             scoreMal = scoreMal,
             coverExtraLarge = coverExtraLarge,
             coverLarge = coverLarge,
-            coverMedium = coverMedium,
             coverColor = coverColor,
             bannerImage = bannerImage,
             hasUkTranslation = hasUkTranslation,
