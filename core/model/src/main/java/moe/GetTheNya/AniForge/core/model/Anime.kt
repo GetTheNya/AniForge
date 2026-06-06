@@ -34,7 +34,8 @@ data class Anime(
     val startDateMonth: Int?,
     val startDateDay: Int?,
     val popularity: Int?,
-    val source: String?
+    val source: String?,
+    val synonymsFlat: String? = null
 ) {
     // Helper to get the display title based on preference or fallback
     fun getDisplayTitle(preferUk: Boolean = true): String {

@@ -88,7 +88,8 @@ class AnimeRepositoryTest {
                             "start_date_month INTEGER, " +
                             "start_date_day INTEGER, " +
                             "popularity INTEGER, " +
-                            "source TEXT" +
+                            "source TEXT, " +
+                            "synonyms_flat TEXT" +
                             ");"
                         )
                     }
@@ -103,6 +104,7 @@ class AnimeRepositoryTest {
             // 1. Create relational lookup tables (SQLite holds them)
             db.execSQL("CREATE TABLE IF NOT EXISTS anime_genres (anilist_id INTEGER, genre_slug TEXT);")
             db.execSQL("CREATE TABLE IF NOT EXISTS anime_studios (anilist_id INTEGER, studio_id INTEGER);")
+            db.execSQL("CREATE TABLE IF NOT EXISTS studios (studio_id INTEGER PRIMARY KEY, name TEXT NOT NULL);")
             db.execSQL("CREATE TABLE IF NOT EXISTS staff (staff_id INTEGER PRIMARY KEY, full_name TEXT NOT NULL, image_large TEXT);")
             db.execSQL("CREATE TABLE IF NOT EXISTS anime_staff (anilist_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, role TEXT NOT NULL, PRIMARY KEY (anilist_id, staff_id, role), FOREIGN KEY (anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE, FOREIGN KEY (staff_id) REFERENCES staff(staff_id) ON DELETE CASCADE);")
             db.execSQL("CREATE TABLE IF NOT EXISTS rankings (id INTEGER PRIMARY KEY AUTOINCREMENT, anilist_id INTEGER NOT NULL, rank INTEGER NOT NULL, context TEXT NOT NULL, all_time INTEGER, season TEXT, year INTEGER, UNIQUE(anilist_id, context), FOREIGN KEY (anilist_id) REFERENCES anime(anilist_id) ON DELETE CASCADE);")
@@ -128,51 +130,61 @@ class AnimeRepositoryTest {
                 android.util.Log.e("SQL_DIAG", "Failed to query SQLite version/options", e)
             }
 
-            try {
-                db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts5(title_uk, title_romaji, synonyms_flat, tokenize='unicode61 remove_diacritics 2');")
-                android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table with tokenize options")
-            } catch (e: Exception) {
-                android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table with tokenize options: " + e.message)
+            val ftsTables = listOf(
+                "anime_search" to listOf("title_uk", "title_romaji", "title_en", "description_uk", "description_en", "synonyms_flat"),
+                "franchises_search" to listOf("name_uk", "name_en"),
+                "staff_search" to listOf("full_name"),
+                "studios_search" to listOf("name")
+            )
+
+            for ((tableName, cols) in ftsTables) {
+                val colList = cols.joinToString(", ")
                 try {
-                    db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts5(title_uk, title_romaji, synonyms_flat);")
-                    android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table without tokenize options")
-                } catch (e2: Exception) {
-                    android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table without tokenize options: " + e2.message)
+                    db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS $tableName USING fts5($colList, tokenize='unicode61 remove_diacritics 2');")
+                    android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table $tableName with tokenize options")
+                } catch (e: Exception) {
+                    android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table $tableName with tokenize options: " + e.message)
                     try {
-                        db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS anime_search USING fts4(title_uk, title_romaji, synonyms_flat);")
-                        android.util.Log.d("SQL_DIAG", "Successfully created FTS4 table instead of FTS5")
-                    } catch (e3: Exception) {
-                        android.util.Log.e("SQL_DIAG", "Failed to create FTS4 table: " + e3.message)
+                        db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS $tableName USING fts5($colList);")
+                        android.util.Log.d("SQL_DIAG", "Successfully created FTS5 table $tableName without tokenize options")
+                    } catch (e2: Exception) {
+                        android.util.Log.e("SQL_DIAG", "Failed to create FTS5 table $tableName without tokenize options: " + e2.message)
+                        try {
+                            db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS $tableName USING fts4($colList);")
+                            android.util.Log.d("SQL_DIAG", "Successfully created FTS4 table $tableName instead of FTS5")
+                        } catch (e3: Exception) {
+                            android.util.Log.e("SQL_DIAG", "Failed to create FTS4 table $tableName: " + e3.message)
+                        }
                     }
                 }
             }
 
             // 2. Insert Anime Records
             db.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at, airing_at, airing_episode, trailer_id, trailer_site, trailer_thumbnail, start_date_year, start_date_month, start_date_day, popularity, source) " +
-                "VALUES (1, 'Shingeki no Kyojin', 9.1, 2013, 0, 1, 1000, 1622976000, 75, 'AdTzUx76Hjg', 'youtube', 'https://img.youtube.com/vi/AdTzUx76Hjg/0.jpg', 2013, 4, 7, 1250000, 'MANGA');"
+                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at, airing_at, airing_episode, trailer_id, trailer_site, trailer_thumbnail, start_date_year, start_date_month, start_date_day, popularity, source, synonyms_flat) " +
+                "VALUES (1, 'Shingeki no Kyojin', 9.1, 2013, 0, 1, 1000, 1622976000, 75, 'AdTzUx76Hjg', 'youtube', 'https://img.youtube.com/vi/AdTzUx76Hjg/0.jpg', 2013, 4, 7, 1250000, 'MANGA', 'Attack on Titan SnK');"
             )
             db.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
-                "VALUES (2, 'Boku no Hero Academia', 8.2, 2016, 0, 1, 1001);"
+                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at, synonyms_flat) " +
+                "VALUES (2, 'Boku no Hero Academia', 8.2, 2016, 0, 1, 1001, 'My Hero Academia MHA');"
             )
             db.execSQL(
-                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at) " +
-                "VALUES (3, 'Sword Art Online', 7.2, 2012, 0, 1, 1002);"
+                "INSERT INTO anime (anilist_id, title_romaji, score_mal, season_year, is_adult, has_uk_translation, updated_at, synonyms_flat) " +
+                "VALUES (3, 'Sword Art Online', 7.2, 2012, 0, 1, 1002, 'SAO');"
             )
 
             // 3. Insert FTS Search Records
             db.execSQL(
-                "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
-                "VALUES (1, 'Атака титанів', 'Shingeki no Kyojin', 'Attack on Titan SnK');"
+                "INSERT INTO anime_search (rowid, title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat) " +
+                "VALUES (1, 'Атака титанів', 'Shingeki no Kyojin', 'Attack on Titan', 'Опис Атаки титанів', 'Description of Attack on Titan', 'Attack on Titan SnK');"
             )
             db.execSQL(
-                "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
-                "VALUES (2, 'Моя геройська академія', 'Boku no Hero Academia', 'My Hero Academia MHA');"
+                "INSERT INTO anime_search (rowid, title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat) " +
+                "VALUES (2, 'Моя геройська академія', 'Boku no Hero Academia', 'My Hero Academia', 'Опис Моя геройська академія', 'Description of My Hero Academia', 'My Hero Academia MHA');"
             )
             db.execSQL(
-                "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
-                "VALUES (3, 'Майстри меча онлайн', 'Sword Art Online', 'SAO');"
+                "INSERT INTO anime_search (rowid, title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat) " +
+                "VALUES (3, 'Майстри меча онлайн', 'Sword Art Online', 'Sword Art Online', 'Опис Майстри меча онлайн', 'Description of Sword Art Online', 'SAO');"
             )
 
             // 4. Insert Genre Records
@@ -184,15 +196,26 @@ class AnimeRepositoryTest {
             db.execSQL("INSERT INTO anime_genres (anilist_id, genre_slug) VALUES (3, 'fantasy');")
 
             // 5. Insert Studio Records
+            db.execSQL("INSERT INTO studios (studio_id, name) VALUES (10, 'Wit Studio');")
+            db.execSQL("INSERT INTO studios (studio_id, name) VALUES (20, 'Bones');")
+            db.execSQL("INSERT INTO studios (studio_id, name) VALUES (30, 'A-1 Pictures');")
+
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (1, 10);") // Wit Studio
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (2, 20);") // Bones
             db.execSQL("INSERT INTO anime_studios (anilist_id, studio_id) VALUES (3, 30);") // A-1 Pictures
+
+            db.execSQL("INSERT INTO studios_search (rowid, name) VALUES (10, 'Wit Studio');")
+            db.execSQL("INSERT INTO studios_search (rowid, name) VALUES (20, 'Bones');")
+            db.execSQL("INSERT INTO studios_search (rowid, name) VALUES (30, 'A-1 Pictures');")
 
             // 6. Insert Staff records
             db.execSQL("INSERT INTO staff (staff_id, full_name, image_large) VALUES (1001, 'Tetsurou Araki', 'https://img.staff/araki.png');")
             db.execSQL("INSERT INTO staff (staff_id, full_name, image_large) VALUES (1002, 'Yuki Kaji', 'https://img.staff/kaji.png');")
             db.execSQL("INSERT INTO anime_staff (anilist_id, staff_id, role) VALUES (1, 1001, 'Director');")
             db.execSQL("INSERT INTO anime_staff (anilist_id, staff_id, role) VALUES (1, 1002, 'Eren Yeager');")
+
+            db.execSQL("INSERT INTO staff_search (rowid, full_name) VALUES (1001, 'Tetsurou Araki');")
+            db.execSQL("INSERT INTO staff_search (rowid, full_name) VALUES (1002, 'Yuki Kaji');")
 
             // 7. Insert Rankings records
             db.execSQL("INSERT INTO rankings (anilist_id, rank, context, all_time, season, year) VALUES (1, 1, 'POPULARITY', 1, 'SPRING', 2013);")
@@ -206,6 +229,8 @@ class AnimeRepositoryTest {
             db.execSQL("INSERT INTO franchises (franchise_id, main_anilist_id, name_en, name_uk) VALUES (100, 1, 'Attack on Titan', 'Атака титанів');")
             db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (1, 100);")
             db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (2, 100);")
+
+            db.execSQL("INSERT INTO franchises_search (rowid, name_uk, name_en) VALUES (100, 'Атака титанів', 'Attack on Titan');")
         }
 
         // Mock databaseProvider to return our pre-populated DB
@@ -289,6 +314,7 @@ class AnimeRepositoryTest {
         assertEquals(7, anime.startDateDay)
         assertEquals(1250000, anime.popularity)
         assertEquals("MANGA", anime.source)
+        assertEquals("Attack on Titan SnK", anime.synonymsFlat)
     }
 
     @Test

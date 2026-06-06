@@ -146,36 +146,55 @@ open class CatalogDatabaseProvider @Inject constructor(
                 }
 
                 if (!fts5Supported) {
-                    // Check if anime_search table exists and is FTS5
-                    var isFts5Table = false
-                    try {
-                        db.rawQuery("SELECT sql FROM sqlite_master WHERE type='table' AND name='anime_search'", null).use { cursor ->
-                            if (cursor.moveToFirst()) {
-                                val sql = cursor.getString(0) ?: ""
-                                if (sql.contains("fts5", ignoreCase = true)) {
-                                    isFts5Table = true
+                    val tablesToRecreate = listOf(
+                        "anime_search" to Pair(
+                            "CREATE VIRTUAL TABLE anime_search USING fts4(title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat);",
+                            "INSERT INTO anime_search (rowid, title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat) " +
+                            "SELECT anilist_id, title_uk, title_romaji, title_en, description_uk, description_en, synonyms_flat FROM anime;"
+                        ),
+                        "franchises_search" to Pair(
+                            "CREATE VIRTUAL TABLE franchises_search USING fts4(name_uk, name_en);",
+                            "INSERT INTO franchises_search (rowid, name_uk, name_en) " +
+                            "SELECT franchise_id, name_uk, name_en FROM franchises;"
+                        ),
+                        "staff_search" to Pair(
+                            "CREATE VIRTUAL TABLE staff_search USING fts4(full_name);",
+                            "INSERT INTO staff_search (rowid, full_name) " +
+                            "SELECT staff_id, full_name FROM staff;"
+                        ),
+                        "studios_search" to Pair(
+                            "CREATE VIRTUAL TABLE studios_search USING fts4(name);",
+                            "INSERT INTO studios_search (rowid, name) " +
+                            "SELECT studio_id, name FROM studios;"
+                        )
+                    )
+
+                    for ((tableName, queries) in tablesToRecreate) {
+                        var isFts5Table = false
+                        try {
+                            db.rawQuery("SELECT sql FROM sqlite_master WHERE type='table' AND name='$tableName'", null).use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    val sql = cursor.getString(0) ?: ""
+                                    if (sql.contains("fts5", ignoreCase = true)) {
+                                        isFts5Table = true
+                                    }
                                 }
                             }
-                        }
-                    } catch (_: Exception) {}
+                        } catch (_: Exception) {}
 
-                    if (isFts5Table) {
-                        AppLogger.w("CatalogDatabaseProvider", "FTS5 not supported on device. Recreating anime_search as FTS4.")
-                        db.beginTransaction()
-                        try {
-                            db.execSQL("DROP TABLE IF EXISTS anime_search;")
-                            db.execSQL("CREATE VIRTUAL TABLE anime_search USING fts4(title_uk, title_romaji, synonyms_flat);")
-                            db.execSQL(
-                                "INSERT INTO anime_search (rowid, title_uk, title_romaji, synonyms_flat) " +
-                                "SELECT a.anilist_id, a.title_uk, a.title_romaji, " +
-                                "(SELECT group_concat(synonym, ' ') FROM anime_synonyms s WHERE s.anilist_id = a.anilist_id) " +
-                                "FROM anime a;"
-                            )
-                            db.setTransactionSuccessful()
-                        } catch (e: Exception) {
-                            AppLogger.e("CatalogDatabaseProvider", "Failed to recreate FTS4 table", e)
-                        } finally {
-                            db.endTransaction()
+                        if (isFts5Table) {
+                            AppLogger.w("CatalogDatabaseProvider", "FTS5 not supported on device. Recreating $tableName as FTS4.")
+                            db.beginTransaction()
+                            try {
+                                db.execSQL("DROP TABLE IF EXISTS $tableName;")
+                                db.execSQL(queries.first)
+                                db.execSQL(queries.second)
+                                db.setTransactionSuccessful()
+                            } catch (e: Exception) {
+                                AppLogger.e("CatalogDatabaseProvider", "Failed to recreate FTS4 table $tableName", e)
+                            } finally {
+                                db.endTransaction()
+                            }
                         }
                     }
                 }

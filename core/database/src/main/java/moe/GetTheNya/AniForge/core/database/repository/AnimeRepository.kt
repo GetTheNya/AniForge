@@ -190,6 +190,7 @@ class AnimeRepository @Inject constructor(
         val startDateDay = if (cursor.isNull(cursor.getColumnIndexOrThrow("start_date_day"))) null else cursor.getInt(cursor.getColumnIndexOrThrow("start_date_day"))
         val popularity = if (cursor.isNull(cursor.getColumnIndexOrThrow("popularity"))) null else cursor.getInt(cursor.getColumnIndexOrThrow("popularity"))
         val source = cursor.getString(cursor.getColumnIndexOrThrow("source"))
+        val synonymsFlat = if (cursor.isNull(cursor.getColumnIndexOrThrow("synonyms_flat"))) null else cursor.getString(cursor.getColumnIndexOrThrow("synonyms_flat"))
 
         return Anime(
             anilistId = anilistId,
@@ -222,7 +223,8 @@ class AnimeRepository @Inject constructor(
             startDateMonth = startDateMonth,
             startDateDay = startDateDay,
             popularity = popularity,
-            source = source
+            source = source,
+            synonymsFlat = synonymsFlat
         )
     }
 
