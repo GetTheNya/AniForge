@@ -139,7 +139,11 @@ open class CatalogDatabaseProvider @Inject constructor(
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLogger.e("CatalogDatabaseProvider", "Failed to check FTS5", e)
+                } finally {
+                    AppLogger.i("CatalogDatabaseProvider", "FTS5 check complete, result = $fts5Supported")
+                }
 
                 if (!fts5Supported) {
                     // Check if anime_search table exists and is FTS5
