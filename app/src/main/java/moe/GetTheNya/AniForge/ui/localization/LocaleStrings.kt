@@ -17,7 +17,8 @@ data class LocaleStrings(
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
     val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
     val devSettings: DevSettingsStrings = DevSettingsStrings(),
-    val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings()
+    val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings(),
+    val formats: FormatStrings = FormatStrings()
 )
 
 @Serializable
@@ -64,7 +65,41 @@ data class DashboardScreenStrings(
     val name: String = "[dashboardScreen.name]",
     val searchPlaceholder: String = "[dashboardScreen.searchPlaceholder]",
     val discoverCatalog: String = "[dashboardScreen.discoverCatalog]",
-    val unknownError: String = "[dashboardScreen.unknownError]"
+    val unknownError: String = "[dashboardScreen.unknownError]",
+    val filterTooltip: String = "[dashboardScreen.filterTooltip]",
+    val filterHubTitle: String = "[dashboardScreen.filterHubTitle]",
+    val clearAll: String = "[dashboardScreen.clearAll]",
+    val sortBy: String = "[dashboardScreen.sortBy]",
+    val scoreRange: String = "[dashboardScreen.scoreRange]",
+    val episodeCount: String = "[dashboardScreen.episodeCount]",
+    val format: String = "[dashboardScreen.format]",
+    val studios: String = "[dashboardScreen.studios]",
+    val genres: String = "[dashboardScreen.genres]",
+    val tags: String = "[dashboardScreen.tags]",
+    val trackingStatus: String = "[dashboardScreen.trackingStatus]",
+    val foundCount: String = "[dashboardScreen.foundCount]",
+    val viewAll: String = "[dashboardScreen.viewAll]",
+    val hasTranslation: String = "[dashboardScreen.hasTranslation]",
+    val hasTranslationDesc: String = "[dashboardScreen.hasTranslationDesc]",
+    val popularity: String = "[dashboardScreen.popularity]",
+    val releaseDate: String = "[dashboardScreen.releaseDate]",
+    val alphabetical: String = "[dashboardScreen.alphabetical]",
+    val readyWithCount: String = "[dashboardScreen.readyWithCount]",
+    val allGenres: String = "[dashboardScreen.allGenres]",
+    val allTags: String = "[dashboardScreen.allTags]",
+    val allStudios: String = "[dashboardScreen.allStudios]",
+    val sortScoreDesc: String = "[dashboardScreen.sortScoreDesc]",
+    val sortScoreAsc: String = "[dashboardScreen.sortScoreAsc]",
+    val sortTitleAsc: String = "[dashboardScreen.sortTitleAsc]",
+    val sortTitleDesc: String = "[dashboardScreen.sortTitleDesc]",
+    val sortPopularityDesc: String = "[dashboardScreen.sortPopularityDesc]",
+    val sortPopularityAsc: String = "[dashboardScreen.sortPopularityAsc]",
+    val sortYearDesc: String = "[dashboardScreen.sortYearDesc]",
+    val sortYearAsc: String = "[dashboardScreen.sortYearAsc]",
+    val sortReleaseDesc: String = "[dashboardScreen.sortReleaseDesc]",
+    val sortReleaseAsc: String = "[dashboardScreen.sortReleaseAsc]",
+    val sortEpisodesDesc: String = "[dashboardScreen.sortEpisodesDesc]",
+    val sortEpisodesAsc: String = "[dashboardScreen.sortEpisodesAsc]"
 )
 
 @Serializable
@@ -156,4 +191,18 @@ fun DevSettingsStrings.getAnimationLabel(key: String): String {
         else -> key
     }
 }
+
+@Serializable
+data class FormatStrings(
+    val tv: String = "[formats.tv]",
+    val tvShort: String = "[formats.tvShort]",
+    val movie: String = "[formats.movie]",
+    val special: String = "[formats.special]",
+    val ova: String = "[formats.ova]",
+    val ona: String = "[formats.ona]",
+    val music: String = "[formats.music]",
+    val manga: String = "[formats.manga]",
+    val novel: String = "[formats.novel]",
+    val oneShot: String = "[formats.oneShot]"
+)
 

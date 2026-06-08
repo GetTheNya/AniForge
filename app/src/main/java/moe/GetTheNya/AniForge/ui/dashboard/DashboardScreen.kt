@@ -10,10 +10,14 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -32,13 +36,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.theme.*
-import moe.GetTheNya.AniForge.ui.utils.disableSplitTouch
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.filter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +58,25 @@ fun DashboardScreen(
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.uiState.collectAsState()
     val searchFilter by viewModel.searchFilter.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    val hasActiveFilters = remember(searchFilter) {
+        searchFilter.genres.isNotEmpty() ||
+        searchFilter.excludedGenres.isNotEmpty() ||
+        searchFilter.studios.isNotEmpty() ||
+        searchFilter.excludedStudios.isNotEmpty() ||
+        searchFilter.tags.isNotEmpty() ||
+        searchFilter.excludedTags.isNotEmpty() ||
+        searchFilter.minScore != null ||
+        searchFilter.maxScore != null ||
+        searchFilter.episodeGroups.isNotEmpty() ||
+        searchFilter.excludedEpisodeGroups.isNotEmpty() ||
+        searchFilter.formats.isNotEmpty() ||
+        searchFilter.excludedFormats.isNotEmpty() ||
+        searchFilter.hasUkTranslation == true ||
+        searchFilter.trackingStatuses.isNotEmpty() ||
+        searchFilter.excludedTrackingStatuses.isNotEmpty()
+    }
 
     Column(
         modifier = modifier
@@ -58,12 +84,50 @@ fun DashboardScreen(
             .background(BackgroundDark)
             .statusBarsPadding()
     ) {
-        // Sticky Header & Search Bar
-        SearchBar(
-            query = searchFilter.textQuery,
-            onQueryChange = viewModel::updateSearchQuery,
-            modifier = Modifier.padding(16.dp)
-        )
+        // Sticky Header & Search Bar with Filter Icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SearchBar(
+                query = searchFilter.textQuery,
+                onQueryChange = viewModel::updateSearchQuery,
+                modifier = Modifier.weight(1f)
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Box {
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
+                    ),
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = strings.dashboardScreen.filterTooltip,
+                        tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                if (hasActiveFilters) {
+                    Badge(
+                        containerColor = NeonCoral,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(10.dp)
+                    )
+                }
+            }
+        }
 
         // Main Bento list container
         when (val state = uiState) {
@@ -97,6 +161,13 @@ fun DashboardScreen(
                 )
             }
         }
+    }
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            viewModel = viewModel,
+            onDismiss = { showFilterSheet = false }
+        )
     }
 }
 
@@ -141,19 +212,22 @@ fun DashboardContent(
     var activeMenuAnimeId by remember { mutableStateOf<Long?>(null) }
     val gridState = rememberLazyGridState()
 
-    if (gridState.isScrollInProgress) {
-        LaunchedEffect(gridState.isScrollInProgress) {
-            activeMenuAnimeId = null
-        }
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.isScrollInProgress }
+            .filter { it }
+            .collect {
+                activeMenuAnimeId = null
+            }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { activeMenuAnimeId = null }
-                )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                activeMenuAnimeId = null
             }
     ) {
         LazyVerticalGrid(
@@ -162,17 +236,30 @@ fun DashboardContent(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize().disableSplitTouch()
+            modifier = Modifier.fillMaxSize()
         ) {
             // Header for Catalog listing
             item(span = { GridItemSpan(2) }) {
-                Text(
-                    text = strings.dashboardScreen.discoverCatalog,
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = strings.dashboardScreen.discoverCatalog,
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = strings.dashboardScreen.foundCount.replace("{count}", animeList.size.toString()),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
             }
 
             // Grid Catalog items
