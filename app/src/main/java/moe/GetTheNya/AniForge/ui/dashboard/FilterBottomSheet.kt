@@ -5,10 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -24,9 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.Studio
@@ -37,6 +34,7 @@ import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -104,6 +102,19 @@ fun FilterBottomSheet(
 
     val readyText = strings.dashboardScreen.readyWithCount.replace("{count}", count.toString())
 
+    // Remember the lazy list state to track scroll position
+    val lazyListState = rememberLazyListState()
+    
+    // Track whether the current touch gesture started while the list was at the top
+    var gestureStartedAtTop by remember { mutableStateOf(true) }
+    LaunchedEffect(lazyListState.isScrollInProgress) {
+        if (lazyListState.isScrollInProgress) {
+            gestureStartedAtTop = lazyListState.firstVisibleItemIndex == 0 &&
+                    lazyListState.firstVisibleItemScrollOffset == 0
+        }
+    }
+
+    // Intercept nested scroll from scrollable content to enforce 2-step discrete scrolling
     val bottomSheetScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPostScroll(
@@ -111,19 +122,47 @@ fun FilterBottomSheet(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                return if (available.y < 0f) {
-                    Offset(x = 0f, y = available.y)
-                } else {
-                    Offset.Zero
+                var consumedY = 0f
+                if (available.y < 0f) {
+                    consumedY = available.y
+                    if (source == NestedScrollSource.SideEffect) {
+                        scope.launch {
+                            try {
+                                lazyListState.scrollToItem(
+                                    lazyListState.firstVisibleItemIndex,
+                                    lazyListState.firstVisibleItemScrollOffset
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+                } else if (available.y > 0f && !gestureStartedAtTop) {
+                    consumedY = available.y
+                    if (source == NestedScrollSource.SideEffect) {
+                        scope.launch {
+                            try {
+                                lazyListState.scrollToItem(
+                                    lazyListState.firstVisibleItemIndex,
+                                    lazyListState.firstVisibleItemScrollOffset
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
                 }
+                return Offset(x = 0f, y = consumedY)
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                return if (available.y < 0f) {
-                    Velocity(x = 0f, y = available.y)
-                } else {
-                    Velocity.Zero
+                var consumedY = 0f
+                if (available.y < 0f) {
+                    consumedY = available.y
+                } else if (available.y > 0f && !gestureStartedAtTop) {
+                    consumedY = available.y
                 }
+                return Velocity(x = 0f, y = consumedY)
             }
         }
     }
@@ -132,13 +171,15 @@ fun FilterBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = BackgroundDark,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = CardBorder) }
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
                 .padding(horizontal = 20.dp)
+                .padding(top = 12.dp)
+                .nestedScroll(bottomSheetScrollConnection)
         ) {
             // Header
             Row(
@@ -167,10 +208,10 @@ fun FilterBottomSheet(
             HorizontalDivider(color = CardBorder, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
             
             LazyColumn(
+                state = lazyListState,
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .nestedScroll(bottomSheetScrollConnection),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 item {
@@ -443,93 +484,93 @@ fun FilterBottomSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = strings.dashboardScreen.studios, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            TextButton(
-                                onClick = { showStudioDialog = true }
-                            ) {
-                                Text(
-                                    text = strings.dashboardScreen.viewAll,
-                                    color = ElectricViolet,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        TextButton(
+                            onClick = { showStudioDialog = true }
                         ) {
-                            for (studio in inlineStudios) {
-                                val isIncluded = filter.studios.contains(studio.studioId)
-                                val isExcluded = filter.excludedStudios.contains(studio.studioId)
-                                TriStateChip(
-                                    label = studio.name,
-                                    isIncluded = isIncluded,
-                                    isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleStudioFilter(studio.studioId) }
-                                )
-                            }
+                            Text(
+                                text = strings.dashboardScreen.viewAll,
+                                color = ElectricViolet,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        for (studio in inlineStudios) {
+                            val isIncluded = filter.studios.contains(studio.studioId)
+                            val isExcluded = filter.excludedStudios.contains(studio.studioId)
+                            TriStateChip(
+                                label = studio.name,
+                                isIncluded = isIncluded,
+                                isExcluded = isExcluded,
+                                onClick = { viewModel.toggleStudioFilter(studio.studioId) }
+                            )
                         }
                     }
                 }
+            }
 
-                item {
-                    // 8. Dual-state Genre Negation Filter
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            item {
+                // 8. Dual-state Genre Negation Filter
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = strings.dashboardScreen.genres, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = { showGenreDialog = true }
                         ) {
-                            Text(text = strings.dashboardScreen.genres, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            TextButton(
-                                onClick = { showGenreDialog = true }
-                            ) {
-                                Text(
-                                    text = strings.dashboardScreen.viewAll,
-                                    color = ElectricViolet,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Text(
+                                text = strings.dashboardScreen.viewAll,
+                                color = ElectricViolet,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            for (genre in inlineGenres) {
-                                val isIncluded = filter.genres.contains(genre.slug)
-                                val isExcluded = filter.excludedGenres.contains(genre.slug)
-                                TriStateChip(
-                                    label = genre.getDisplayName(preferUk = true),
-                                    isIncluded = isIncluded,
-                                    isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleGenreFilterState(genre.slug) }
-                                )
-                            }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        for (genre in inlineGenres) {
+                            val isIncluded = filter.genres.contains(genre.slug)
+                            val isExcluded = filter.excludedGenres.contains(genre.slug)
+                            TriStateChip(
+                                label = genre.getDisplayName(preferUk = true),
+                                isIncluded = isIncluded,
+                                isExcluded = isExcluded,
+                                onClick = { viewModel.toggleGenreFilterState(genre.slug) }
+                            )
                         }
                     }
                 }
+            }
 
-                item {
-                    // 9. Dual-state Tag Negation Filter
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            item {
+                // 9. Dual-state Tag Negation Filter
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = strings.dashboardScreen.tags, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = { showTagDialog = true }
                         ) {
-                            Text(text = strings.dashboardScreen.tags, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            TextButton(
-                                onClick = { showTagDialog = true }
-                            ) {
                                 Text(
                                     text = strings.dashboardScreen.viewAll,
                                     color = ElectricViolet,
@@ -587,7 +628,7 @@ fun FilterBottomSheet(
 
     // Secondary Overlays for large taxonomies
     if (showGenreDialog) {
-        TaxonomySelectionDialog<Genre>(
+        TaxonomySelectionSheet<Genre>(
             title = strings.dashboardScreen.allGenres,
             items = genres,
             isIncluded = { filter.genres.contains(it.slug) },
@@ -601,7 +642,7 @@ fun FilterBottomSheet(
     }
 
     if (showTagDialog) {
-        TaxonomySelectionDialog<Tag>(
+        TaxonomySelectionSheet<Tag>(
             title = strings.dashboardScreen.allTags,
             items = tags,
             isIncluded = { filter.tags.contains(it.tagId) },
@@ -615,7 +656,7 @@ fun FilterBottomSheet(
     }
 
     if (showStudioDialog) {
-        TaxonomySelectionDialog<Studio>(
+        TaxonomySelectionSheet<Studio>(
             title = strings.dashboardScreen.allStudios,
             items = studios,
             isIncluded = { filter.studios.contains(it.studioId) },
@@ -812,9 +853,9 @@ fun getAnimeFormatLabel(format: AnimeFormat): String {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun <T> TaxonomySelectionDialog(
+fun <T> TaxonomySelectionSheet(
     title: String,
     items: List<T>,
     isIncluded: (T) -> Boolean,
@@ -835,101 +876,181 @@ fun <T> TaxonomySelectionDialog(
         }
     }
 
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    // Remember the lazy grid state to check its scroll position
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    
+    // Track whether the current touch gesture started while the list was at the top
+    var gestureStartedAtTop by remember { mutableStateOf(true) }
+    LaunchedEffect(gridState.isScrollInProgress) {
+        if (gridState.isScrollInProgress) {
+            gestureStartedAtTop = gridState.firstVisibleItemIndex == 0 &&
+                    gridState.firstVisibleItemScrollOffset == 0
+        }
+    }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                var consumedY = 0f
+                if (available.y < 0f) {
+                    consumedY = available.y
+                    if (source == NestedScrollSource.SideEffect) {
+                        scope.launch {
+                            try {
+                                gridState.scrollToItem(
+                                    gridState.firstVisibleItemIndex,
+                                    gridState.firstVisibleItemScrollOffset
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+                } else if (available.y > 0f && !gestureStartedAtTop) {
+                    consumedY = available.y
+                    if (source == NestedScrollSource.SideEffect) {
+                        scope.launch {
+                            try {
+                                gridState.scrollToItem(
+                                    gridState.firstVisibleItemIndex,
+                                    gridState.firstVisibleItemScrollOffset
+                                )
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
+                return Offset(x = 0f, y = consumedY)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                var consumedY = 0f
+                if (available.y < 0f) {
+                    consumedY = available.y
+                } else if (available.y > 0f && !gestureStartedAtTop) {
+                    consumedY = available.y
+                }
+                return Velocity(x = 0f, y = consumedY)
+            }
+        }
+    }
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState,
+        containerColor = BackgroundDark,
+        dragHandle = null
     ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = BackgroundDark
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(horizontal = 20.dp)
+                .padding(top = 12.dp)
+                .nestedScroll(nestedScrollConnection)
+                .navigationBarsPadding()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp)
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header
+                Text(text = title, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = title, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        TextButton(onClick = onClear) {
-                            Text(text = strings.dashboardScreen.clearAll, color = NeonCoral, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = onClear) {
+                        Text(text = strings.dashboardScreen.clearAll, color = NeonCoral, fontWeight = FontWeight.SemiBold)
+                    }
+                    IconButton(onClick = {
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            onDismiss()
                         }
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
-                        }
+                    }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Search Bar
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text(strings.dashboardScreen.searchPlaceholder, color = TextSecondary, fontSize = 14.sp) },
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedContainerColor = SurfaceDark,
-                        unfocusedContainerColor = SurfaceDark,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Performant, lazy grid layout of chips to avoid layout bottlenecks on large lists
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 120.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filteredItems) { item ->
-                        TriStateChip(
-                            label = getLabel(item),
-                            isIncluded = isIncluded(item),
-                            isExcluded = isExcluded(item),
-                            onClick = { onClick(item) }
-                        )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Search Bar
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(strings.dashboardScreen.searchPlaceholder, color = TextSecondary, fontSize = 14.sp) },
+                colors = TextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedContainerColor = SurfaceDark,
+                    unfocusedContainerColor = SurfaceDark,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Performant, lazy grid layout of chips to avoid layout bottlenecks on large lists
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Adaptive(minSize = 120.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(filteredItems) { item ->
+                    TriStateChip(
+                        label = getLabel(item),
+                        isIncluded = isIncluded(item),
+                        isExcluded = isExcluded(item),
+                        onClick = { onClick(item) }
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Confirm button
+            Button(
+                onClick = {
+                    scope.launch {
+                        sheetState.hide()
+                    }.invokeOnCompletion {
+                        onDismiss()
                     }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Confirm button
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricViolet,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                ) {
-                    Text(text = strings.misc.ready, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ElectricViolet,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+                    .height(52.dp)
+            ) {
+                Text(text = strings.misc.ready, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }
