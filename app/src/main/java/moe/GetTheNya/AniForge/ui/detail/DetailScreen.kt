@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.text.style.TextOverflow
+import moe.GetTheNya.AniForge.ui.localization.getPlural
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
@@ -155,6 +157,8 @@ fun DetailScreen(
                         relations = state.relations,
                         tracking = state.tracking,
                         trackingMap = state.trackingMap,
+                        franchise = state.franchise,
+                        franchiseReleaseCount = state.franchiseReleaseCount,
                         onStatusChange = viewModel::updateWatchStatus,
                         onIncrementProgress = viewModel::incrementEpisodeProgress,
                         onDecrementProgress = viewModel::decrementEpisodeProgress,
@@ -164,6 +168,9 @@ fun DetailScreen(
                         },
                         onImageClick = { urls, index ->
                             navController.navigate(Screen.ImageViewer(urls, index))
+                        },
+                        onFranchiseClick = { franchiseId ->
+                            navController.navigate(Screen.FranchiseTree(franchiseId))
                         },
                         preferUk = preferUk,
                         modifier = Modifier.fillMaxSize()
@@ -251,12 +258,15 @@ fun DetailContent(
     relations: List<Anime>,
     tracking: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity?,
     trackingMap: Map<Long, String>,
+    franchise: moe.GetTheNya.AniForge.core.model.Franchise?,
+    franchiseReleaseCount: Int,
     onStatusChange: (String) -> Unit,
     onIncrementProgress: () -> Unit,
     onDecrementProgress: () -> Unit,
     onSaveNotes: (String) -> Unit,
     onAnimeClick: (Long) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
+    onFranchiseClick: (Long) -> Unit,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -554,32 +564,108 @@ fun DetailContent(
                         }
                     }
 
-                    // Related Anime List (sorted by release date)
-                    if (relations.isNotEmpty()) {
-                        Column {
+                    // Franchise Bento Widget (Replaces legacy Related Releases row)
+                    if (franchise != null) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
-                                text = strings.detailScreen.relatedTitles,
+                                text = strings.franchisesScreen.name,
                                 color = TextPrimary,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                modifier = Modifier.fillMaxWidth()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(SurfaceCardDark)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                                    .clickable { onFranchiseClick(franchise.franchiseId) }
+                                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                items(
-                                    items = relations,
-                                    key = { rel -> rel.anilistId }
-                                ) { rel ->
-                                    AnimeBentoCard(
-                                        anime = rel,
-                                        status = trackingMap[rel.anilistId],
-                                        preferUk = preferUk,
-                                        onClick = { onAnimeClick(rel.anilistId) },
-                                        modifier = Modifier.width(160.dp)
+                                // Minimal 3-node vertical visual timeline hint
+                                androidx.compose.foundation.Canvas(
+                                    modifier = Modifier
+                                        .width(24.dp)
+                                        .height(64.dp)
+                                ) {
+                                    val x = size.width / 2f
+                                    val h = size.height
+                                    
+                                    // Spine line
+                                    drawLine(
+                                        color = ElectricViolet.copy(alpha = 0.4f),
+                                        start = Offset(x, 4.dp.toPx()),
+                                        end = Offset(x, h - 4.dp.toPx()),
+                                        strokeWidth = 2.dp.toPx()
+                                    )
+                                    
+                                    // Node 1 (top)
+                                    drawCircle(
+                                        color = TextSecondary.copy(alpha = 0.6f),
+                                        radius = 3.dp.toPx(),
+                                        center = Offset(x, 10.dp.toPx())
+                                    )
+                                    
+                                    // Active Node (middle) - glowing and highlighted
+                                    // Glow
+                                    drawCircle(
+                                        color = ElectricViolet.copy(alpha = 0.3f),
+                                        radius = 12.dp.toPx(),
+                                        center = Offset(x, h / 2)
+                                    )
+                                    // Fill
+                                    drawCircle(
+                                        color = ElectricViolet,
+                                        radius = 6.dp.toPx(),
+                                        center = Offset(x, h / 2)
+                                    )
+                                    
+                                    // Node 3 (bottom)
+                                    drawCircle(
+                                        color = TextSecondary.copy(alpha = 0.6f),
+                                        radius = 3.dp.toPx(),
+                                        center = Offset(x, h - 10.dp.toPx())
                                     )
                                 }
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                // Text details
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = String.format(strings.detailScreen.partOfFranchise, franchise.getDisplayName(preferUk) ?: ""),
+                                        color = TextPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    
+                                    Text(
+                                        text = strings.detailScreen.releasesCount.getPlural(franchiseReleaseCount),
+                                        color = CyberTeal,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.width(8.dp))
+                                
+                                // Chevron arrow indicating CTA navigation pass
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
                     }

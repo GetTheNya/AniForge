@@ -96,7 +96,10 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
-import moe.GetTheNya.AniForge.ui.anime.AnimeScreen
+import moe.GetTheNya.AniForge.ui.franchises.FranchisesScreen
+import moe.GetTheNya.AniForge.ui.franchises.FranchisesViewModel
+import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeScreen
+import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeViewModel
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardScreen
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardViewModel
 import moe.GetTheNya.AniForge.ui.detail.DetailScreen
@@ -147,6 +150,7 @@ class MainActivity : ComponentActivity() {
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
+    private val franchisesViewModel: FranchisesViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -471,7 +475,11 @@ class MainActivity : ComponentActivity() {
                                                             preferUk = preferUk,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
                                                         )
-                                                        2 -> AnimeScreen()
+                                                        2 -> FranchisesScreen(
+                                                            viewModel = franchisesViewModel,
+                                                            navController = navController,
+                                                            preferUk = preferUk
+                                                        )
                                                         3 -> ProfileScreen(
                                                             viewModel = profileViewModel,
                                                             navController = navController
@@ -639,6 +647,24 @@ class MainActivity : ComponentActivity() {
                                                             initialStatusId = screen.initialStatusId,
                                                             viewModel = scopedViewModel,
                                                             navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.FranchiseTree -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {
+                                                                 entry.savedStateHandle.keys().forEach { key ->
+                                                                     this.savedStateHandle.set(key, entry.savedStateHandle.get<Any>(key))
+                                                                 }
+                                                                 entry.savedStateHandle = this.savedStateHandle
+                                                             }
+                                                         }
+                                                         FranchiseTreeScreen(
+                                                            franchiseId = screen.franchiseId,
+                                                            viewModel = scopedViewModel,
+                                                            navController = navController,
+                                                            preferUk = preferUk,
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )

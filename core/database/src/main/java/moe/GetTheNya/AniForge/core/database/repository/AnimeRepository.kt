@@ -11,6 +11,7 @@ import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.AnimeStaff
 import moe.GetTheNya.AniForge.core.model.Ranking
 import moe.GetTheNya.AniForge.core.model.Franchise
+import moe.GetTheNya.AniForge.core.model.Relation
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
 import moe.GetTheNya.AniForge.core.model.AnimeFormat
@@ -378,6 +379,92 @@ class AnimeRepository @Inject constructor(
             ).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    suspend fun getAllFranchises(): List<Franchise> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Franchise>()
+        try {
+            db.query("SELECT franchise_id, main_anilist_id, name_en, name_uk FROM franchises").use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("franchise_id")
+                val mainIdx = cursor.getColumnIndexOrThrow("main_anilist_id")
+                val enIdx = cursor.getColumnIndexOrThrow("name_en")
+                val ukIdx = cursor.getColumnIndexOrThrow("name_uk")
+                while (cursor.moveToNext()) {
+                    list.add(
+                        Franchise(
+                            franchiseId = cursor.getLong(idIdx),
+                            mainAnilistId = cursor.getLong(mainIdx),
+                            nameEn = if (cursor.isNull(enIdx)) null else cursor.getString(enIdx),
+                            nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx)
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    suspend fun getFranchiseById(franchiseId: Long): Franchise? = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        var franchise: Franchise? = null
+        try {
+            db.query(
+                "SELECT franchise_id, main_anilist_id, name_en, name_uk FROM franchises WHERE franchise_id = ?",
+                arrayOf(franchiseId.toString())
+            ).use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("franchise_id")
+                val mainIdx = cursor.getColumnIndexOrThrow("main_anilist_id")
+                val enIdx = cursor.getColumnIndexOrThrow("name_en")
+                val ukIdx = cursor.getColumnIndexOrThrow("name_uk")
+                if (cursor.moveToNext()) {
+                    franchise = Franchise(
+                        franchiseId = cursor.getLong(idIdx),
+                        mainAnilistId = cursor.getLong(mainIdx),
+                        nameEn = if (cursor.isNull(enIdx)) null else cursor.getString(enIdx),
+                        nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx)
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        franchise
+    }
+
+    suspend fun getFranchiseRelations(franchiseId: Long): List<Relation> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Relation>()
+        try {
+            db.query(
+                "SELECT r.edge_id, r.source_anilist_id, r.target_anilist_id, r.relation_type " +
+                "FROM relations r " +
+                "JOIN anime_franchises af1 ON r.source_anilist_id = af1.anilist_id " +
+                "JOIN anime_franchises af2 ON r.target_anilist_id = af2.anilist_id " +
+                "WHERE af1.franchise_id = ? AND af2.franchise_id = ?",
+                arrayOf(franchiseId.toString(), franchiseId.toString())
+            ).use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("edge_id")
+                val srcIdx = cursor.getColumnIndexOrThrow("source_anilist_id")
+                val tgtIdx = cursor.getColumnIndexOrThrow("target_anilist_id")
+                val typeIdx = cursor.getColumnIndexOrThrow("relation_type")
+                while (cursor.moveToNext()) {
+                    list.add(
+                        Relation(
+                            edgeId = cursor.getLong(idIdx),
+                            sourceAnilistId = cursor.getLong(srcIdx),
+                            targetAnilistId = cursor.getLong(tgtIdx),
+                            relationType = cursor.getString(typeIdx)
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {

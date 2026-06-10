@@ -13,6 +13,7 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import androidx.lifecycle.SavedStateHandle
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.core.model.Anime
+import moe.GetTheNya.AniForge.core.model.Franchise
 import javax.inject.Inject
 
 sealed interface DetailUiEvent {
@@ -97,9 +98,13 @@ class DetailViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Load screenshots and relations in parallel
+                // Load screenshots, relations and franchise details
                 val screenshots = animeRepository.getScreenshots(anilistId)
                 val relations = animeRepository.getRelations(anilistId)
+                val franchise = animeRepository.getFranchiseForAnime(anilistId)
+                val franchiseReleaseCount = if (franchise != null) {
+                    animeRepository.getFranchiseAnime(franchise.franchiseId).size
+                } else 0
 
                 combine(
                     userTrackingDao.observeTrackingForAnime(anilistId),
@@ -111,7 +116,9 @@ class DetailViewModel @Inject constructor(
                         screenshots = screenshots,
                         relations = relations,
                         tracking = tracking,
-                        trackingMap = trackingMap
+                        trackingMap = trackingMap,
+                        franchise = franchise,
+                        franchiseReleaseCount = franchiseReleaseCount
                     )
                 }.collect { successState ->
                     _uiState.value = successState
@@ -241,7 +248,9 @@ sealed interface DetailUiState {
         val screenshots: List<String>,
         val relations: List<Anime>,
         val tracking: UserTrackingEntity?,
-        val trackingMap: Map<Long, String> = emptyMap()
+        val trackingMap: Map<Long, String> = emptyMap(),
+        val franchise: Franchise? = null,
+        val franchiseReleaseCount: Int = 0
     ) : DetailUiState
     @Immutable
     data class Error(val message: String) : DetailUiState

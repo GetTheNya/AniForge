@@ -37,8 +37,7 @@
   },
   "franchisesScreen": {
     "name": "Franchises",
-    "underConstruction": "Under Construction",
-    "description": "We are currently designing database tables for personal anime lists, custom groups, and local search history. Watch progress indicators will show up here soon!"
+    "youAreHere": "You are here"
   },
   "dashboardScreen": {
     "name": "Anime",
@@ -91,7 +90,12 @@
     "personalNotes": "Personal Notes",
     "addCustomNotes": "Add custom notes...",
     "errorNotFound": "Anime not found in catalog",
-    "errorFailedToLoad": "Failed to load details"
+    "errorFailedToLoad": "Failed to load details",
+    "partOfFranchise": "Part of the %s Franchise",
+    "releasesCount": {
+      "one": "%d release",
+      "many": "%d releases"
+    }
   },
   "profileScreen": {
     "name": "Profile",
@@ -157,5 +161,20 @@
     "manga": "Manga",
     "novel": "Novel",
     "oneShot": "One Shot"
+  },
+  "relationTypes": {
+    "ADAPTATION": "Adaptation",
+    "PREQUEL": "Prequel",
+    "SEQUEL": "Sequel",
+    "PARENT": "Parent Story",
+    "SIDE_STORY": "Side Story",
+    "CHARACTER": "Character",
+    "SUMMARY": "Summary",
+    "ALTERNATIVE": "Alternative",
+    "SPIN_OFF": "Spin-off",
+    "OTHER": "Other",
+    "SOURCE": "Source",
+    "COMPILATION": "Compilation",
+    "CONTAINS": "Contains"
   }
 }

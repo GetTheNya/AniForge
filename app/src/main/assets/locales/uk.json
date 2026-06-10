@@ -37,8 +37,7 @@
   },
   "franchisesScreen": {
     "name": "Франшизи",
-    "underConstruction": "В розробці",
-    "description": "Ми розробляємо таблиці бази даних для персональних списків аніме, користувацьких груп та локальної історії пошуку. Незабаром тут з'явиться прогрес перегляду!"
+    "youAreHere": "Ви тут"
   },
   "dashboardScreen": {
     "name": "Аніме",
@@ -91,7 +90,13 @@
     "personalNotes": "Особисті нотатки",
     "addCustomNotes": "Додати власні нотатки...",
     "errorNotFound": "Аніме не знайдено в каталозі",
-    "errorFailedToLoad": "Не вдалося завантажити деталі"
+    "errorFailedToLoad": "Не вдалося завантажити деталі",
+    "partOfFranchise": "Частина франшизи %s",
+    "releasesCount": {
+      "one": "%d реліз",
+      "few": "%d релізи",
+      "many": "%d релізів"
+    }
   },
   "profileScreen": {
     "name": "Профіль",
@@ -158,5 +163,20 @@
     "manga": "Манґа",
     "novel": "Ранобе",
     "oneShot": "Ваншот"
+  },
+  "relationTypes": {
+    "ADAPTATION": "Адаптація",
+    "PREQUEL": "Приквел",
+    "SEQUEL": "Сиквел",
+    "PARENT": "Основна історія / Батьківський реліз",
+    "SIDE_STORY": "Сайд-сторі",
+    "CHARACTER": "Про персонажа",
+    "SUMMARY": "Рекап / Короткий зміст",
+    "ALTERNATIVE": "Альтернативна версія",
+    "SPIN_OFF": "Спін-офф",
+    "OTHER": "Інше",
+    "SOURCE": "Першоджерело",
+    "COMPILATION": "Компіляція",
+    "CONTAINS": "Включає в себе"
   }
 }

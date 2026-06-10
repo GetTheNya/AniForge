@@ -18,7 +18,8 @@ data class LocaleStrings(
     val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
     val devSettings: DevSettingsStrings = DevSettingsStrings(),
     val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings(),
-    val formats: FormatStrings = FormatStrings()
+    val formats: FormatStrings = FormatStrings(),
+    val relationTypes: Map<String, String> = emptyMap()
 )
 
 @Serializable
@@ -56,8 +57,7 @@ data class HomeScreenStrings(
 @Serializable
 data class FranchisesScreenStrings(
     val name: String = "[franchisesScreen.name]",
-    val underConstruction: String = "[franchisesScreen.underConstruction]",
-    val description: String = "[franchisesScreen.description]"
+    val youAreHere: String = "[franchisesScreen.youAreHere]"
 )
 
 @Serializable
@@ -114,7 +114,9 @@ data class DetailScreenStrings(
     val personalNotes: String = "[detailScreen.personalNotes]",
     val addCustomNotes: String = "[detailScreen.addCustomNotes]",
     val errorNotFound: String = "[detailScreen.errorNotFound]",
-    val errorFailedToLoad: String = "[detailScreen.errorFailedToLoad]"
+    val errorFailedToLoad: String = "[detailScreen.errorFailedToLoad]",
+    val partOfFranchise: String = "[detailScreen.partOfFranchise]",
+    val releasesCount: Map<String, String> = emptyMap()
 )
 
 @Serializable

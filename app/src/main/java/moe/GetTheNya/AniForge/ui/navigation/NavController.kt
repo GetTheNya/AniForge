@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.getValue
@@ -16,6 +17,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 sealed interface Screen {
@@ -31,6 +35,7 @@ sealed interface Screen {
     data object DevSettings : Screen
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
     data class TrackedList(val initialStatusId: String) : Screen
+    data class FranchiseTree(val franchiseId: Long) : Screen
 }
 
 class BackStackEntry(
@@ -46,6 +51,26 @@ class BackStackEntry(
     var isDragging by mutableStateOf(false)
     var isEntranceStarted by mutableStateOf(false)
     var swipeDismissProgress by mutableFloatStateOf(0f)
+
+    var savedStateHandle = SavedStateHandle(
+        buildMap {
+            when (val s = screen) {
+                is Screen.Detail -> {
+                    put("anilistId", s.anilistId)
+                    s.sourceStatusId?.let { put("sourceStatusId", it) }
+                    put("rouletteCount", s.rouletteCount)
+                    put("visitedIds", s.visitedIds)
+                }
+                is Screen.TrackedList -> {
+                    put("initialStatusId", s.initialStatusId)
+                }
+                is Screen.FranchiseTree -> {
+                    put("franchiseId", s.franchiseId)
+                }
+                else -> {}
+            }
+        }
+    )
 
     override val defaultViewModelProviderFactory: ViewModelProvider.Factory
         get() = activity.defaultViewModelProviderFactory
@@ -64,6 +89,9 @@ class BackStackEntry(
                 is Screen.TrackedList -> {
                     bundle.putString("initialStatusId", s.initialStatusId)
                 }
+                is Screen.FranchiseTree -> {
+                    bundle.putLong("franchiseId", s.franchiseId)
+                }
                 else -> {}
             }
             extras[androidx.lifecycle.DEFAULT_ARGS_KEY] = bundle
@@ -80,13 +108,84 @@ class NavController(
     private val activity: ComponentActivity
 ) {
     var rouletteExitMaxCount by mutableStateOf<Int?>(null)
+    var composeCoroutineScope: kotlinx.coroutines.CoroutineScope? = null
 
     val backStack: SnapshotStateList<BackStackEntry> = mutableStateListOf(
         BackStackEntry(screen = initialScreen, activity = activity)
     )
 
     fun navigate(screen: Screen) {
-        val isDuplicateActive = backStack.any { it.screen == screen }
+        if (screen is Screen.FranchiseTree) {
+            val existingIndex = backStack.indexOfFirst { entry ->
+                val s = entry.screen
+                s is Screen.FranchiseTree && s.franchiseId == screen.franchiseId
+            }
+            if (existingIndex != -1) {
+                val existingEntry = backStack[existingIndex]
+                val currentAnimeId = (backStack.lastOrNull()?.screen as? Screen.Detail)?.anilistId
+                if (currentAnimeId != null) {
+                    existingEntry.savedStateHandle.set("activeAnimeId", currentAnimeId)
+                }
+
+                val lastEntry = backStack.lastOrNull()
+                if (lastEntry != null && lastEntry != existingEntry) {
+                    // Instantly remove and clear any intermediate screens below the top screen but above the target
+                    val currentIndex = backStack.indexOf(existingEntry)
+                    val lastIndex = backStack.indexOf(lastEntry)
+                    if (currentIndex != -1 && lastIndex != -1 && lastIndex > currentIndex + 1) {
+                        for (i in (lastIndex - 1) downTo (currentIndex + 1)) {
+                            backStack.removeAt(i).clear()
+                        }
+                    }
+
+                    // Now, only lastEntry is left above existingEntry in the backstack.
+                    // Animate lastEntry sliding away to reveal existingEntry underneath.
+                    val cleanup = {
+                        if (backStack.remove(lastEntry)) {
+                            lastEntry.clear()
+                        }
+                    }
+                    val screenWidthPx = activity.resources.displayMetrics.widthPixels.toFloat()
+                    val scope = composeCoroutineScope
+                    if (scope != null) {
+                        scope.launch {
+                            try {
+                                lastEntry.isDragging = false
+                                lastEntry.animatableOffset.snapTo(0f)
+                                lastEntry.animatableOffset.animateTo(
+                                    targetValue = screenWidthPx,
+                                    animationSpec = androidx.compose.animation.core.tween(durationMillis = 300)
+                                )
+                            } catch (e: Exception) {
+                                // Fallback to instant transition if frame clock animation fails
+                            } finally {
+                                cleanup()
+                            }
+                        }
+                    } else {
+                        cleanup()
+                    }
+                } else {
+                    while (backStack.lastIndex > existingIndex) {
+                        backStack.removeAt(backStack.lastIndex).clear()
+                    }
+                }
+                return
+            } else {
+                // Forward navigation: inject activeAnimeId if navigating from Screen.Detail
+                val currentAnimeId = (backStack.lastOrNull()?.screen as? Screen.Detail)?.anilistId
+                val newEntry = BackStackEntry(screen = screen, activity = activity).apply {
+                    if (currentAnimeId != null) {
+                        savedStateHandle.set("activeAnimeId", currentAnimeId)
+                    }
+                }
+                backStack.add(newEntry)
+                return
+            }
+        }
+
+        val isDuplicateActive = !(backStack.lastOrNull()?.screen is Screen.FranchiseTree && screen is Screen.Detail) &&
+                backStack.any { it.screen == screen }
 
         val lastEntry = backStack.lastOrNull()
         val isMultiTouchSpam = lastEntry != null &&
@@ -130,5 +229,8 @@ class NavController(
 fun rememberNavController(initialScreen: Screen = Screen.Tabs): NavController {
     val context = LocalContext.current
     val activity = remember(context) { context as ComponentActivity }
-    return remember(activity) { NavController(initialScreen, activity) }
+    val coroutineScope = rememberCoroutineScope()
+    return remember(activity) { NavController(initialScreen, activity) }.apply {
+        this.composeCoroutineScope = coroutineScope
+    }
 }
