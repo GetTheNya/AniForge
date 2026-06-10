@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import moe.GetTheNya.AniForge.ui.utils.StatusItemConfig
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 
@@ -30,6 +31,7 @@ fun AnimeStatsPieChart(
     // Isolate the animation progress state to avoid triggering recompositions on parent layout.
     val animationProgress = remember { Animatable(0f) }
     LaunchedEffect(stats) {
+        delay(100L)
         animationProgress.snapTo(0f)
         animationProgress.animateTo(
             targetValue = 1f,
