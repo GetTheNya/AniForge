@@ -621,7 +621,10 @@ class AnimeRepository @Inject constructor(
         queryBuilder.append("SELECT anime.* FROM anime")
         
         // FTS5 MATCH join
-        val hasText = filter.textQuery.isNotBlank()
+        val words = filter.textQuery.trim()
+            .split("[^\\p{L}\\p{N}]+".toRegex())
+            .filter { it.isNotBlank() }
+        val hasText = words.isNotEmpty()
         if (hasText) {
             queryBuilder.append(" JOIN anime_search ON anime.anilist_id = anime_search.rowid")
         }
@@ -630,12 +633,7 @@ class AnimeRepository @Inject constructor(
         
         if (hasText) {
             whereClauses.add("anime_search MATCH ?")
-            // Transform query for SQLite FTS prefix match: e.g. "shingeki no" -> "shingeki* no*"
-            val sanitizedQuery = filter.textQuery.trim()
-                .replace("'", "''")
-                .split("\\s+".toRegex())
-                .filter { it.isNotBlank() }
-                .joinToString(" ") { "$it*" }
+            val sanitizedQuery = words.joinToString(" ") { "$it*" }
             args.add(sanitizedQuery)
         }
         
@@ -759,6 +757,20 @@ class AnimeRepository @Inject constructor(
         
         // Ordering
         when (filter.sortBy) {
+            SortOption.RELEVANCE -> {
+                if (hasText) {
+                    val searchWordFts = words.joinToString(" ") { "$it*" }
+                    val escapedSearchWordFts = searchWordFts.replace("'", "''")
+                    
+                    queryBuilder.append(" ORDER BY CASE " +
+                        "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_uk MATCH '$escapedSearchWordFts') THEN 1 " +
+                        "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_en MATCH '$escapedSearchWordFts' OR synonyms_flat MATCH '$escapedSearchWordFts') THEN 2 " +
+                        "ELSE 3 " +
+                        "END ASC, anime.popularity DESC")
+                } else {
+                    queryBuilder.append(" ORDER BY anime.popularity DESC")
+                }
+            }
             SortOption.SCORE -> queryBuilder.append(" ORDER BY score_mal DESC")
             SortOption.SCORE_ASC -> queryBuilder.append(" ORDER BY score_mal ASC")
             SortOption.YEAR_DESC -> queryBuilder.append(" ORDER BY season_year DESC, updated_at DESC")

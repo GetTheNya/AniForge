@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.launch
 
 private enum class SortCategory {
-    SCORE, POPULARITY, RELEASE_DATE, EPISODES, TITLE
+    RELEVANCE, SCORE, POPULARITY, RELEASE_DATE, EPISODES, TITLE
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -222,6 +222,7 @@ fun FilterBottomSheet(
                         
                         val activeSort = filter.sortBy
                         val (activeCategory, isDescending) = when (activeSort) {
+                            SortOption.RELEVANCE -> SortCategory.RELEVANCE to true
                             SortOption.SCORE -> SortCategory.SCORE to true
                             SortOption.SCORE_ASC -> SortCategory.SCORE to false
                             SortOption.POPULARITY -> SortCategory.POPULARITY to true
@@ -236,8 +237,11 @@ fun FilterBottomSheet(
                         
                         val onSortCategoryClick = { category: SortCategory ->
                             val newSortOption = if (activeCategory == category) {
-                                if (isDescending) {
+                                if (category == SortCategory.RELEVANCE) {
+                                    SortOption.RELEVANCE
+                                } else if (isDescending) {
                                     when (category) {
+                                        SortCategory.RELEVANCE -> SortOption.RELEVANCE
                                         SortCategory.SCORE -> SortOption.SCORE_ASC
                                         SortCategory.POPULARITY -> SortOption.POPULARITY_ASC
                                         SortCategory.RELEASE_DATE -> SortOption.START_DATE_ASC
@@ -249,6 +253,7 @@ fun FilterBottomSheet(
                                 }
                             } else {
                                 when (category) {
+                                    SortCategory.RELEVANCE -> SortOption.RELEVANCE
                                     SortCategory.SCORE -> SortOption.SCORE
                                     SortCategory.POPULARITY -> SortOption.POPULARITY
                                     SortCategory.RELEASE_DATE -> SortOption.START_DATE_DESC
@@ -273,6 +278,28 @@ fun FilterBottomSheet(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            if (filter.textQuery.isNotBlank()) {
+                                val isRelevanceActive = activeSort == SortOption.RELEVANCE
+                                FilterChip(
+                                    selected = isRelevanceActive,
+                                    onClick = { onSortCategoryClick(SortCategory.RELEVANCE) },
+                                    label = { Text(strings.dashboardScreen.byRelevance, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = ElectricViolet,
+                                        selectedLabelColor = Color.White,
+                                        containerColor = SurfaceDark,
+                                        labelColor = TextSecondary
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isRelevanceActive,
+                                        borderColor = CardBorder,
+                                        selectedBorderColor = ElectricViolet,
+                                        borderWidth = 1.dp
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                            }
                             for ((category, label) in sortCategories) {
                                 val isActive = activeCategory == category
                                 
@@ -811,6 +838,7 @@ fun TriStateChip(
 fun getSortOptionLabel(option: SortOption): String {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     return when (option) {
+        SortOption.RELEVANCE -> strings.dashboardScreen.byRelevance
         SortOption.SCORE -> strings.dashboardScreen.sortScoreDesc
         SortOption.SCORE_ASC -> strings.dashboardScreen.sortScoreAsc
         SortOption.TITLE -> strings.dashboardScreen.sortTitleAsc

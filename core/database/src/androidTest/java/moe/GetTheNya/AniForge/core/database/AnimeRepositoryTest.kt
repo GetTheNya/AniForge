@@ -379,4 +379,26 @@ class AnimeRepositoryTest {
         assertEquals(1L, franchiseAnime[0].anilistId)
         assertEquals(2L, franchiseAnime[1].anilistId)
     }
+
+    @Test
+    fun testRelevanceSorting() = runBlocking {
+        db.execSQL("INSERT INTO anime (anilist_id, title_uk, title_en, popularity) VALUES (10, 'Тест A', 'Test A', 1000);")
+        db.execSQL("INSERT INTO anime_search (rowid, title_uk, title_en, description_en) VALUES (10, 'Тест A', 'Test A', 'Contains searchword');")
+
+        db.execSQL("INSERT INTO anime (anilist_id, title_uk, title_en, popularity) VALUES (11, 'Тест B', 'Test B searchword', 10);")
+        db.execSQL("INSERT INTO anime_search (rowid, title_uk, title_en, description_en) VALUES (11, 'Тест B', 'Test B searchword', 'Some desc');")
+
+        db.execSQL("INSERT INTO anime (anilist_id, title_uk, title_en, popularity) VALUES (12, 'Тест C searchword', 'Test C', 5);")
+        db.execSQL("INSERT INTO anime_search (rowid, title_uk, title_en, description_en) VALUES (12, 'Тест C searchword', 'Test C', 'Some desc');")
+
+        db.execSQL("INSERT INTO anime (anilist_id, title_uk, title_en, popularity) VALUES (13, 'Тест D', 'Test D searchword', 2000);")
+        db.execSQL("INSERT INTO anime_search (rowid, title_uk, title_en, description_en) VALUES (13, 'Тест D', 'Test D searchword', 'Some desc');")
+
+        val results = repository.queryAnime(SearchFilterQuery(textQuery = "searchword", sortBy = SortOption.RELEVANCE))
+        assertEquals(4, results.size)
+        assertEquals(12L, results[0].anilistId) // Tier 1: title_uk
+        assertEquals(13L, results[1].anilistId) // Tier 2: title_en (popularity 2000)
+        assertEquals(11L, results[2].anilistId) // Tier 2: title_en (popularity 10)
+        assertEquals(10L, results[3].anilistId) // Tier 3: description
+    }
 }

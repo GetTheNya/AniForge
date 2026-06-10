@@ -70,6 +70,7 @@ data class DashboardScreenStrings(
     val filterHubTitle: String = "[dashboardScreen.filterHubTitle]",
     val clearAll: String = "[dashboardScreen.clearAll]",
     val sortBy: String = "[dashboardScreen.sortBy]",
+    val byRelevance: String = "[dashboardScreen.byRelevance]",
     val scoreRange: String = "[dashboardScreen.scoreRange]",
     val episodeCount: String = "[dashboardScreen.episodeCount]",
     val format: String = "[dashboardScreen.format]",

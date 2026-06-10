@@ -34,6 +34,7 @@ data class SearchFilterQuery(
 )
 
 enum class SortOption {
+    RELEVANCE,
     SCORE,
     SCORE_ASC,
     YEAR_DESC,

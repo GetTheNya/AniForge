@@ -115,7 +115,15 @@ class DashboardViewModel @Inject constructor(
         )
 
     fun updateSearchQuery(query: String) {
-        _searchFilter.value = _searchFilter.value.copy(textQuery = query)
+        val wasBlank = _searchFilter.value.textQuery.isBlank()
+        val isNowNotBlank = query.isNotBlank()
+        var newSortBy = _searchFilter.value.sortBy
+        if (wasBlank && isNowNotBlank) {
+            newSortBy = SortOption.RELEVANCE
+        } else if (!isNowNotBlank && newSortBy == SortOption.RELEVANCE) {
+            newSortBy = SortOption.SCORE
+        }
+        _searchFilter.value = _searchFilter.value.copy(textQuery = query, sortBy = newSortBy)
     }
 
     fun toggleGenreFilterState(genre: String) {
