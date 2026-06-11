@@ -30,23 +30,35 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
+import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.style.TextOverflow
 import moe.GetTheNya.AniForge.ui.localization.getPlural
 import moe.GetTheNya.AniForge.core.model.Anime
+import moe.GetTheNya.AniForge.core.model.Genre
+import moe.GetTheNya.AniForge.core.model.Tag
+import moe.GetTheNya.AniForge.core.model.AnimeStaff
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
+import moe.GetTheNya.AniForge.core.model.Studio
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(
     anilistId: Long,
@@ -55,6 +67,10 @@ fun DetailScreen(
     visitedIds: String = "",
     navController: NavController,
     viewModel: DetailViewModel,
+    onGenreClick: (String) -> Unit,
+    onTagClick: (Long) -> Unit,
+    onStaffClick: (Long) -> Unit,
+    onStudioClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     preferUk: Boolean = true,
     onBack: () -> Unit = { navController.popBackStack() }
@@ -159,6 +175,10 @@ fun DetailScreen(
                         trackingMap = state.trackingMap,
                         franchise = state.franchise,
                         franchiseReleaseCount = state.franchiseReleaseCount,
+                        genres = state.genres,
+                        tags = state.tags,
+                        staffList = state.staff,
+                        studios = state.studios,
                         onStatusChange = viewModel::updateWatchStatus,
                         onIncrementProgress = viewModel::incrementEpisodeProgress,
                         onDecrementProgress = viewModel::decrementEpisodeProgress,
@@ -172,6 +192,10 @@ fun DetailScreen(
                         onFranchiseClick = { franchiseId ->
                             navController.navigate(Screen.FranchiseTree(franchiseId))
                         },
+                        onGenreClick = onGenreClick,
+                        onTagClick = onTagClick,
+                        onStaffClick = onStaffClick,
+                        onStudioClick = onStudioClick,
                         preferUk = preferUk,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -251,6 +275,7 @@ fun DetailScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DetailContent(
     anime: Anime,
@@ -260,6 +285,10 @@ fun DetailContent(
     trackingMap: Map<Long, String>,
     franchise: moe.GetTheNya.AniForge.core.model.Franchise?,
     franchiseReleaseCount: Int,
+    genres: List<Genre>,
+    tags: List<Tag>,
+    staffList: List<AnimeStaff>,
+    studios: List<Studio> = emptyList(),
     onStatusChange: (String) -> Unit,
     onIncrementProgress: () -> Unit,
     onDecrementProgress: () -> Unit,
@@ -267,6 +296,10 @@ fun DetailContent(
     onAnimeClick: (Long) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     onFranchiseClick: (Long) -> Unit,
+    onGenreClick: (String) -> Unit,
+    onTagClick: (Long) -> Unit,
+    onStaffClick: (Long) -> Unit,
+    onStudioClick: (Long) -> Unit,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -274,6 +307,14 @@ fun DetailContent(
     val scrollState = rememberLazyListState()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val headerHeightPx = remember(density) { with(density) { 300.dp.toPx() } }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val bannerWidthPx = remember { context.resources.displayMetrics.widthPixels }
+    val bannerHeightPx = remember(density) { with(density) { 300.dp.roundToPx() } }
+    val posterWidthPx = remember(density) { with(density) { 90.dp.roundToPx() } }
+    val posterHeightPx = remember(density) { with(density) { 130.dp.roundToPx() } }
+    val screenshotWidthPx = remember(density) { with(density) { 220.dp.roundToPx() } }
+    val screenshotHeightPx = remember(density) { with(density) { 130.dp.roundToPx() } }
     val maxOverscrollPx = remember(headerHeightPx) { headerHeightPx * 0.15f }
     val overscrollOffsetState = remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
@@ -380,7 +421,10 @@ fun DetailContent(
             AsyncImage(
                 model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                     .data(anime.bannerImage ?: anime.coverLarge)
+                    .size(bannerWidthPx, bannerHeightPx)
                     .precision(coil.size.Precision.EXACT)
+                    .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                     .allowHardware(true)
                     .crossfade(true)
                     .build(),
@@ -428,7 +472,10 @@ fun DetailContent(
                         AsyncImage(
                             model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                 .data(posterUrl)
+                                .size(posterWidthPx, posterHeightPx)
                                 .precision(coil.size.Precision.EXACT)
+                                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                                 .allowHardware(true)
                                 .crossfade(true)
                                 .build(),
@@ -447,7 +494,7 @@ fun DetailContent(
                         )
                         
                         Spacer(modifier = Modifier.width(16.dp))
-
+ 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -472,16 +519,57 @@ fun DetailContent(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                                if (studios.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 1.dp, height = 12.dp)
+                                            .background(TextSecondary.copy(alpha = 0.4f))
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        studios.forEachIndexed { index, studio ->
+                                            if (index > 0) {
+                                                Text(
+                                                    text = ",",
+                                                    color = TextSecondary.copy(alpha = 0.6f),
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                            Text(
+                                                text = studio.name,
+                                                color = CyberTeal,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier
+                                                    .clickable { onStudioClick(studio.studioId) }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
+                            AutoScalingTitle(
                                 text = anime.getDisplayTitle(preferUk = preferUk),
                                 color = TextPrimary,
-                                fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                maxLines = Int.MAX_VALUE,
-                                softWrap = true
+                                maxLines = 3,
+                                modifier = Modifier.fillMaxWidth()
                             )
+                            if (anime.titleRomaji.isNotBlank() && anime.titleRomaji != anime.getDisplayTitle(preferUk = preferUk)) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = anime.titleRomaji,
+                                    color = TextSecondary.copy(alpha = 0.6f),
+                                    fontSize = 14.sp,
+                                    fontStyle = FontStyle.Italic,
+                                    maxLines = Int.MAX_VALUE,
+                                    softWrap = true
+                                )
+                            }
                         }
                     }
                 }
@@ -523,6 +611,59 @@ fun DetailContent(
                         )
                     }
 
+                    // Genres & Tags
+                    if (genres.isNotEmpty() || tags.isNotEmpty()) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (genres.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = strings.detailScreen.genresTitle,
+                                        color = TextPrimary,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    CustomStretchingFlowRow(
+                                        horizontalGap = 8.dp,
+                                        verticalGap = 8.dp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        genres.forEach { genre ->
+                                            GenreChipPremium(
+                                                name = genre.getDisplayName(preferUk),
+                                                onClick = { onGenreClick(genre.slug) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (tags.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = strings.detailScreen.tagsTitle,
+                                        color = TextPrimary,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    CustomStretchingFlowRow(
+                                        horizontalGap = 8.dp,
+                                        verticalGap = 8.dp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        tags.forEach { tag ->
+                                            TagChipMinimal(
+                                                name = tag.getDisplayName(preferUk),
+                                                onClick = { onTagClick(tag.tagId) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+ 
                     // Screenshots Gallery
                     if (screenshots.isNotEmpty()) {
                         Column {
@@ -544,7 +685,10 @@ fun DetailContent(
                                     AsyncImage(
                                         model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                                             .data(imageUrl)
+                                            .size(screenshotWidthPx, screenshotHeightPx)
                                             .precision(coil.size.Precision.EXACT)
+                                            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                                             .allowHardware(true)
                                             .crossfade(true)
                                             .build(),
@@ -562,6 +706,14 @@ fun DetailContent(
                                 }
                             }
                         }
+                    }
+
+                    // Staff Section
+                    if (staffList.isNotEmpty()) {
+                        StaffSection(
+                            staffList = staffList,
+                            onStaffClick = onStaffClick
+                        )
                     }
 
                     // Franchise Bento Widget (Replaces legacy Related Releases row)
@@ -806,5 +958,311 @@ fun TrackingWidget(
             }
         }
     }
+}
+
+@Composable
+fun GenreChipPremium(
+    name: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(SurfaceDark.copy(alpha = 0.6f))
+            .border(0.5.dp, ElectricViolet.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = name,
+            color = TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+fun TagChipMinimal(
+    name: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalLocaleStrings.current
+    val prefix = if (strings.languageCode == "uk") "• " else "#"
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFF2C2C35))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "$prefix$name",
+            color = TextSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+fun StaffSection(
+    staffList: List<AnimeStaff>,
+    onStaffClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalLocaleStrings.current
+    val density = LocalDensity.current
+    val avatarSizePx = remember(density) { with(density) { 80.dp.roundToPx() } }
+
+    var maxCardHeightPx by remember { mutableStateOf(0) }
+    val maxCardHeightDp = remember(maxCardHeightPx) {
+        with(density) { maxCardHeightPx.toDp() }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = strings.detailScreen.staffTitle,
+            color = TextPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(
+                items = staffList,
+                key = { it.staffId.toString() + "_" + it.role }
+            ) { member ->
+                StaffCard(
+                    member = member,
+                    avatarSizePx = avatarSizePx,
+                    onStaffClick = onStaffClick,
+                    modifier = Modifier
+                        .then(
+                            if (maxCardHeightDp > 0.dp) {
+                                Modifier.heightIn(min = maxCardHeightDp)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .onGloballyPositioned { coords ->
+                            val height = coords.size.height
+                            if (height > maxCardHeightPx) {
+                                maxCardHeightPx = height
+                            }
+                        }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun StaffCard(
+    member: AnimeStaff,
+    avatarSizePx: Int,
+    onStaffClick: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .width(130.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceDark)
+            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+            .clickable { onStaffClick(member.staffId) }
+            .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AsyncImage(
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(member.imageLarge)
+                .size(avatarSizePx, avatarSizePx)
+                .precision(coil.size.Precision.EXACT)
+                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                .allowHardware(true)
+                .crossfade(true)
+                .build(),
+            contentDescription = member.fullName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(80.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .border(1.dp, CardBorder, androidx.compose.foundation.shape.CircleShape)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = member.fullName,
+            color = TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = member.role,
+            color = TextSecondary.copy(alpha = 0.8f),
+            fontSize = 10.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun CustomStretchingFlowRow(
+    modifier: Modifier = Modifier,
+    horizontalGap: androidx.compose.ui.unit.Dp = 8.dp,
+    verticalGap: androidx.compose.ui.unit.Dp = 8.dp,
+    content: @Composable () -> Unit
+) {
+    Layout(
+        content = content,
+        modifier = modifier
+    ) { measurables, constraints ->
+        val g = horizontalGap.roundToPx()
+        val v = verticalGap.roundToPx()
+        
+        val naturalWidths = measurables.map { measurable ->
+            measurable.maxIntrinsicWidth(constraints.maxHeight)
+        }
+        
+        val rows = mutableListOf<MutableList<Pair<androidx.compose.ui.layout.Measurable, Int>>>()
+        var currentRow = mutableListOf<Pair<androidx.compose.ui.layout.Measurable, Int>>()
+        var currentRowWidth = 0
+        
+        measurables.zip(naturalWidths).forEach { pair ->
+            val (_, itemWidth) = pair
+            if (currentRow.isEmpty()) {
+                currentRow.add(pair)
+                currentRowWidth = itemWidth
+            } else if (currentRowWidth + g + itemWidth <= constraints.maxWidth) {
+                currentRow.add(pair)
+                currentRowWidth += g + itemWidth
+            } else {
+                rows.add(currentRow)
+                currentRow = mutableListOf(pair)
+                currentRowWidth = itemWidth
+            }
+        }
+        if (currentRow.isNotEmpty()) {
+            rows.add(currentRow)
+        }
+        
+        val finalPlaceables = mutableListOf<List<androidx.compose.ui.layout.Placeable>>()
+        var totalHeight = 0
+        
+        rows.forEachIndexed { rowIndex, row ->
+            val rowPlaceables = mutableListOf<androidx.compose.ui.layout.Placeable>()
+            if (row.size == 1) {
+                val (measurable, naturalWidth) = row[0]
+                val placeable = measurable.measure(
+                    Constraints(
+                        minWidth = 0,
+                        maxWidth = naturalWidth.coerceAtMost(constraints.maxWidth),
+                        minHeight = 0,
+                        maxHeight = constraints.maxHeight
+                    )
+                )
+                rowPlaceables.add(placeable)
+            } else {
+                val K = row.size
+                val totalWidth = row.sumOf { it.second }
+                val totalGaps = (K - 1) * g
+                val remainingSpace = constraints.maxWidth - totalWidth - totalGaps
+                val extraWidth = if (remainingSpace > 0) remainingSpace / K else 0
+                val remainder = if (remainingSpace > 0) remainingSpace % K else 0
+                
+                row.forEachIndexed { index, (measurable, naturalWidth) ->
+                    val addedWidth = extraWidth + (if (index < remainder) 1 else 0)
+                    val targetWidth = naturalWidth + addedWidth
+                    val remeasured = measurable.measure(
+                        Constraints(
+                            minWidth = targetWidth,
+                            maxWidth = targetWidth,
+                            minHeight = 0,
+                            maxHeight = constraints.maxHeight
+                        )
+                    )
+                    rowPlaceables.add(remeasured)
+                }
+            }
+            finalPlaceables.add(rowPlaceables)
+            
+            val rowHeight = rowPlaceables.maxOf { it.height }
+            totalHeight += rowHeight
+            if (rowIndex < rows.size - 1) {
+                totalHeight += v
+            }
+        }
+        
+        layout(constraints.maxWidth, totalHeight) {
+            var currentY = 0
+            finalPlaceables.forEachIndexed { rowIndex, row ->
+                var currentX = 0
+                val rowHeight = row.maxOf { it.height }
+                row.forEach { placeable ->
+                    val yOffset = (rowHeight - placeable.height) / 2
+                    placeable.placeRelative(currentX, currentY + yOffset)
+                    currentX += placeable.width + g
+                }
+                currentY += rowHeight + v
+            }
+        }
+    }
+}
+
+@Composable
+fun AutoScalingTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = TextPrimary,
+    fontWeight: FontWeight = FontWeight.Bold,
+    maxLines: Int = 3,
+    initialFontSize: Float = 24f,
+    minFontSize: Float = 14f
+) {
+    var fontSizeValue by remember(text) { mutableStateOf(initialFontSize) }
+    var readyToDraw by remember(text) { mutableStateOf(false) }
+
+    Text(
+        text = text,
+        color = color,
+        fontSize = fontSizeValue.sp,
+        fontWeight = fontWeight,
+        maxLines = maxLines,
+        softWrap = true,
+        overflow = TextOverflow.Ellipsis,
+        onTextLayout = { textLayoutResult ->
+            if (textLayoutResult.didOverflowHeight || textLayoutResult.lineCount > maxLines) {
+                if (fontSizeValue > minFontSize) {
+                    fontSizeValue = (fontSizeValue - 1f).coerceAtLeast(minFontSize)
+                } else {
+                    readyToDraw = true
+                }
+            } else {
+                readyToDraw = true
+            }
+        },
+        modifier = modifier.graphicsLayer {
+            alpha = if (readyToDraw) 1f else 0f
+        }
+    )
 }
 

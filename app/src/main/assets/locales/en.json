@@ -67,6 +67,7 @@
     "allGenres": "All Genres",
     "allTags": "All Tags",
     "allStudios": "All Studios",
+    "allStaff": "All Staff",
     "sortScoreDesc": "Highest MAL Score",
     "sortScoreAsc": "Lowest MAL Score",
     "sortTitleAsc": "Alphabetical (A-Z)",
@@ -93,6 +94,9 @@
     "errorNotFound": "Anime not found in catalog",
     "errorFailedToLoad": "Failed to load details",
     "partOfFranchise": "Part of the %s Franchise",
+    "genresTitle": "Genres",
+    "tagsTitle": "Tags",
+    "staffTitle": "Staff",
     "releasesCount": {
       "one": "%d release",
       "many": "%d releases"

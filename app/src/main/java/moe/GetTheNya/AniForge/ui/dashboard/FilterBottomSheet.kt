@@ -28,6 +28,7 @@ import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.Studio
 import moe.GetTheNya.AniForge.core.model.EpisodeGroup
+import moe.GetTheNya.AniForge.core.model.Staff
 import moe.GetTheNya.AniForge.core.model.SortOption
 import moe.GetTheNya.AniForge.core.model.AnimeFormat
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -86,6 +87,7 @@ fun FilterBottomSheet(
     val genres by viewModel.allGenres.collectAsState()
     val tags by viewModel.allTags.collectAsState()
     val studios by viewModel.allStudios.collectAsState()
+    val staff by viewModel.allStaff.collectAsState()
 
     val inlineGenres = remember(filter.genres, filter.excludedGenres, genres) {
         val selectedGenres = genres.filter { filter.genres.contains(it.slug) || filter.excludedGenres.contains(it.slug) }
@@ -105,9 +107,16 @@ fun FilterBottomSheet(
         (selectedStudios + top8Studios).distinct()
     }
 
+    val inlineStaff = remember(filter.staff, filter.excludedStaff, staff) {
+        val selectedStaff = staff.filter { filter.staff.contains(it.staffId) || filter.excludedStaff.contains(it.staffId) }
+        val top8Staff = staff.take(8)
+        (selectedStaff + top8Staff).distinct()
+    }
+
     var showGenreDialog by remember { mutableStateOf(false) }
     var showTagDialog by remember { mutableStateOf(false) }
     var showStudioDialog by remember { mutableStateOf(false) }
+    var showStaffDialog by remember { mutableStateOf(false) }
 
     val readyText = strings.dashboardScreen.readyWithCount.replace("{count}", count.toString())
 
@@ -679,6 +688,48 @@ fun FilterBottomSheet(
                         }
                     }
                 }
+
+                item {
+                    // 10. Dual-state Staff Negation Filter
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = strings.detailScreen.staffTitle, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            TextButton(
+                                onClick = { showStaffDialog = true }
+                            ) {
+                                Text(
+                                    text = strings.dashboardScreen.viewAll,
+                                    color = ElectricViolet,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (member in inlineStaff) {
+                                val isIncluded = filter.staff.contains(member.staffId)
+                                val isExcluded = filter.excludedStaff.contains(member.staffId)
+                                TriStateChip(
+                                    label = member.fullName,
+                                    isIncluded = isIncluded,
+                                    isExcluded = isExcluded,
+                                    onClick = { viewModel.toggleStaffFilterState(member.staffId) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             
             // Footer Apply Button
@@ -745,6 +796,20 @@ fun FilterBottomSheet(
             getLabel = { it.name },
             getItemSearchText = { it.name },
             onDismiss = { showStudioDialog = false }
+        )
+    }
+
+    if (showStaffDialog) {
+        TaxonomySelectionSheet<Staff>(
+            title = strings.dashboardScreen.allStaff,
+            items = staff,
+            isIncluded = { filter.staff.contains(it.staffId) },
+            isExcluded = { filter.excludedStaff.contains(it.staffId) },
+            onClick = { viewModel.toggleStaffFilterState(it.staffId) },
+            onClear = { viewModel.clearStaffFilters() },
+            getLabel = { it.fullName },
+            getItemSearchText = { it.fullName },
+            onDismiss = { showStaffDialog = false }
         )
     }
 }

@@ -67,6 +67,7 @@
     "allGenres": "Всі Жанри",
     "allTags": "Всі Теги",
     "allStudios": "Всі Студії",
+    "allStaff": "Весь персонал",
     "sortScoreDesc": "Найвищий рейтинг MAL",
     "sortScoreAsc": "Найнижчий рейтинг MAL",
     "sortTitleAsc": "Назва (А-Я)",
@@ -93,6 +94,9 @@
     "errorNotFound": "Аніме не знайдено в каталозі",
     "errorFailedToLoad": "Не вдалося завантажити деталі",
     "partOfFranchise": "Частина франшизи %s",
+    "genresTitle": "Жанри",
+    "tagsTitle": "Теги",
+    "staffTitle": "Персонал",
     "releasesCount": {
       "one": "%d реліз",
       "few": "%d релізи",

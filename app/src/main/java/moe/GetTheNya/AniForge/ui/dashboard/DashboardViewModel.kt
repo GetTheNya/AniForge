@@ -17,6 +17,7 @@ import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.Studio
 import moe.GetTheNya.AniForge.core.model.EpisodeGroup
+import moe.GetTheNya.AniForge.core.model.Staff
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import javax.inject.Inject
 
@@ -43,6 +44,10 @@ class DashboardViewModel @Inject constructor(
 
     val allStudios: StateFlow<List<Studio>> = flow {
         emit(animeRepository.getAllStudios())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val allStaff: StateFlow<List<Staff>> = flow {
+        emit(animeRepository.getAllStaff())
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val uiState: StateFlow<DashboardUiState> = combine(
@@ -273,6 +278,60 @@ class DashboardViewModel @Inject constructor(
         _searchFilter.value = _searchFilter.value.copy(
             studios = emptyList(),
             excludedStudios = emptyList()
+        )
+    }
+
+    fun toggleStaffFilterState(staffId: Long) {
+        val currentStaff = _searchFilter.value.staff.toMutableList()
+        val currentExcluded = _searchFilter.value.excludedStaff.toMutableList()
+        
+        if (currentStaff.contains(staffId)) {
+            currentStaff.remove(staffId)
+            currentExcluded.add(staffId)
+        } else if (currentExcluded.contains(staffId)) {
+            currentExcluded.remove(staffId)
+        } else {
+            currentStaff.add(staffId)
+        }
+        
+        _searchFilter.value = _searchFilter.value.copy(
+            staff = currentStaff,
+            excludedStaff = currentExcluded
+        )
+    }
+
+    fun clearStaffFilters() {
+        _searchFilter.value = _searchFilter.value.copy(
+            staff = emptyList(),
+            excludedStaff = emptyList()
+        )
+    }
+
+    fun selectGenreOnly(genreSlug: String) {
+        _searchFilter.value = SearchFilterQuery(
+            genres = listOf(genreSlug),
+            sortBy = SortOption.SCORE
+        )
+    }
+
+    fun selectTagOnly(tagId: Long) {
+        _searchFilter.value = SearchFilterQuery(
+            tags = listOf(tagId),
+            sortBy = SortOption.SCORE
+        )
+    }
+
+    fun selectStaffOnly(staffId: Long) {
+        _searchFilter.value = SearchFilterQuery(
+            staff = listOf(staffId),
+            sortBy = SortOption.SCORE
+        )
+    }
+
+    fun selectStudioOnly(studioId: Long) {
+        _searchFilter.value = SearchFilterQuery(
+            studios = listOf(studioId),
+            sortBy = SortOption.SCORE
         )
     }
 

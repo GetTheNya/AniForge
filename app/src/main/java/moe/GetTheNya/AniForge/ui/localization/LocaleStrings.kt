@@ -89,6 +89,7 @@ data class DashboardScreenStrings(
     val allGenres: String = "[dashboardScreen.allGenres]",
     val allTags: String = "[dashboardScreen.allTags]",
     val allStudios: String = "[dashboardScreen.allStudios]",
+    val allStaff: String = "[dashboardScreen.allStaff]",
     val sortScoreDesc: String = "[dashboardScreen.sortScoreDesc]",
     val sortScoreAsc: String = "[dashboardScreen.sortScoreAsc]",
     val sortTitleAsc: String = "[dashboardScreen.sortTitleAsc]",
@@ -117,6 +118,9 @@ data class DetailScreenStrings(
     val errorNotFound: String = "[detailScreen.errorNotFound]",
     val errorFailedToLoad: String = "[detailScreen.errorFailedToLoad]",
     val partOfFranchise: String = "[detailScreen.partOfFranchise]",
+    val genresTitle: String = "[detailScreen.genresTitle]",
+    val tagsTitle: String = "[detailScreen.tagsTitle]",
+    val staffTitle: String = "[detailScreen.staffTitle]",
     val releasesCount: Map<String, String> = emptyMap()
 )
 

@@ -19,6 +19,7 @@ import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.Studio
 import moe.GetTheNya.AniForge.core.model.EpisodeGroup
+import moe.GetTheNya.AniForge.core.model.Staff
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -611,6 +612,190 @@ class AnimeRepository @Inject constructor(
         list
     }
 
+    suspend fun getStudiosForAnime(anilistId: Long): List<Studio> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Studio>()
+        try {
+            db.query(
+                "SELECT s.studio_id, s.name FROM studios s " +
+                "JOIN anime_studios ast ON s.studio_id = ast.studio_id " +
+                "WHERE ast.anilist_id = ? " +
+                "ORDER BY s.name ASC",
+                arrayOf(anilistId.toString())
+            ).use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("studio_id")
+                val nameIdx = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) {
+                    list.add(
+                        Studio(
+                            studioId = cursor.getLong(idIdx),
+                            name = cursor.getString(nameIdx)
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    suspend fun getGenresForAnime(anilistId: Long): List<Genre> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Genre>()
+        
+        var genresTableExists = false
+        try {
+            db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='genres'").use { cursor ->
+                if (cursor.moveToNext()) {
+                    genresTableExists = true
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (genresTableExists) {
+            try {
+                db.query(
+                    "SELECT g.slug, g.name_en, g.name_uk FROM genres g " +
+                    "JOIN anime_genres ag ON g.slug = ag.genre_slug " +
+                    "WHERE ag.anilist_id = ?",
+                    arrayOf(anilistId.toString())
+                ).use { cursor ->
+                    val slugIdx = cursor.getColumnIndexOrThrow("slug")
+                    val enIdx = cursor.getColumnIndexOrThrow("name_en")
+                    val ukIdx = cursor.getColumnIndexOrThrow("name_uk")
+                    while (cursor.moveToNext()) {
+                        list.add(
+                            Genre(
+                                slug = cursor.getString(slugIdx),
+                                nameEn = cursor.getString(enIdx),
+                                nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx)
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            try {
+                db.query(
+                    "SELECT genre_slug FROM anime_genres WHERE anilist_id = ?",
+                    arrayOf(anilistId.toString())
+                ).use { cursor ->
+                    val slugIdx = cursor.getColumnIndexOrThrow("genre_slug")
+                    while (cursor.moveToNext()) {
+                        val slug = cursor.getString(slugIdx)
+                        val displayName = slug.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                        list.add(
+                            Genre(
+                                slug = slug,
+                                nameEn = displayName,
+                                nameUk = null
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        list
+    }
+
+    suspend fun getTagsForAnime(anilistId: Long): List<Tag> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Tag>()
+        
+        var tagsTableExists = false
+        try {
+            db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='tags'").use { cursor ->
+                if (cursor.moveToNext()) {
+                    tagsTableExists = true
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (tagsTableExists) {
+            try {
+                db.query(
+                    "SELECT t.tag_id, t.name_en, t.name_uk, t.category FROM tags t " +
+                    "JOIN anime_tags at ON t.tag_id = at.tag_id " +
+                    "WHERE at.anilist_id = ?",
+                    arrayOf(anilistId.toString())
+                ).use { cursor ->
+                    val idIdx = cursor.getColumnIndexOrThrow("tag_id")
+                    val enIdx = cursor.getColumnIndexOrThrow("name_en")
+                    val ukIdx = cursor.getColumnIndexOrThrow("name_uk")
+                    val catIdx = cursor.getColumnIndexOrThrow("category")
+                    while (cursor.moveToNext()) {
+                        list.add(
+                            Tag(
+                                tagId = cursor.getLong(idIdx),
+                                nameEn = cursor.getString(enIdx),
+                                nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx),
+                                category = if (cursor.isNull(catIdx)) null else cursor.getString(catIdx)
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else {
+            try {
+                db.query(
+                    "SELECT tag_id FROM anime_tags WHERE anilist_id = ?",
+                    arrayOf(anilistId.toString())
+                ).use { cursor ->
+                    val idIdx = cursor.getColumnIndexOrThrow("tag_id")
+                    while (cursor.moveToNext()) {
+                        val tagId = cursor.getLong(idIdx)
+                        list.add(
+                            Tag(
+                                tagId = tagId,
+                                nameEn = "Tag #$tagId",
+                                nameUk = null,
+                                category = null
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        list
+    }
+
+    suspend fun getAllStaff(): List<Staff> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Staff>()
+        try {
+            db.query("SELECT s.staff_id, s.full_name, s.image_large, COUNT(ast.anilist_id) as cnt FROM staff s LEFT JOIN anime_staff ast ON s.staff_id = ast.staff_id GROUP BY s.staff_id ORDER BY cnt DESC, s.full_name ASC").use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("staff_id")
+                val nameIdx = cursor.getColumnIndexOrThrow("full_name")
+                val imgIdx = cursor.getColumnIndexOrThrow("image_large")
+                while (cursor.moveToNext()) {
+                    list.add(
+                        Staff(
+                            staffId = cursor.getLong(idIdx),
+                            fullName = cursor.getString(nameIdx),
+                            imageLarge = if (cursor.isNull(imgIdx)) null else cursor.getString(imgIdx)
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
     /**
      * Core dynamic SQLite statement builder. Intersects multiple criteria dynamically.
      */
@@ -748,6 +933,19 @@ class AnimeRepository @Inject constructor(
             val placeholders = filter.excludedTags.joinToString(",") { "?" }
             whereClauses.add("anime.anilist_id NOT IN (SELECT anilist_id FROM anime_tags WHERE tag_id IN ($placeholders))")
             args.addAll(filter.excludedTags)
+        }
+
+        // Staff inclusion
+        if (filter.staff.isNotEmpty()) {
+            val placeholders = filter.staff.joinToString(",") { "?" }
+            whereClauses.add("anime.anilist_id IN (SELECT anilist_id FROM anime_staff WHERE staff_id IN ($placeholders))")
+            args.addAll(filter.staff)
+        }
+        // Staff exclusion
+        if (filter.excludedStaff.isNotEmpty()) {
+            val placeholders = filter.excludedStaff.joinToString(",") { "?" }
+            whereClauses.add("anime.anilist_id NOT IN (SELECT anilist_id FROM anime_staff WHERE staff_id IN ($placeholders))")
+            args.addAll(filter.excludedStaff)
         }
         
         if (whereClauses.isNotEmpty()) {

@@ -197,6 +197,12 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val pagerState = rememberPagerState(initialPage = 0) { TabScreen.entries.size }
             val coroutineScope = rememberCoroutineScope()
+            
+            navController.onSelectTab = { tab ->
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(tab.ordinal)
+                }
+            }
             val context = androidx.compose.ui.platform.LocalContext.current
             val localeStrings by localizationService.activeLocaleStrings.collectAsState()
 
@@ -598,8 +604,88 @@ class MainActivity : ComponentActivity() {
                                                             viewModel = scopedViewModel,
                                                             preferUk = preferUk,
                                                             modifier = Modifier.padding(innerPadding),
-                                                            onBack = { triggerDismissAnimation(entry) }
-                                                        )
+                                                            onBack = { triggerDismissAnimation(entry) },
+                                                            onGenreClick = { genreSlug ->
+                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                 navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                 coroutineScope.launch {
+                                                                     val stack = navController.backStack
+                                                                     if (stack.size > 2) {
+                                                                         val top = stack.last()
+                                                                         val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                         stack.removeAll(toRemove)
+                                                                         toRemove.forEach { it.clear() }
+                                                                     }
+                                                                     entry.isDragging = false
+                                                                     entry.animatableOffset.snapTo(0f)
+                                                                     entry.animatableOffset.animateTo(
+                                                                         targetValue = screenWidthPx,
+                                                                         animationSpec = tween(durationMillis = 300)
+                                                                     )
+                                                                     navController.popBackStack()
+                                                                 }
+                                                             },
+                                                             onTagClick = { tagId ->
+                                                                 dashboardViewModel.selectTagOnly(tagId)
+                                                                 navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                 coroutineScope.launch {
+                                                                     val stack = navController.backStack
+                                                                     if (stack.size > 2) {
+                                                                         val top = stack.last()
+                                                                         val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                         stack.removeAll(toRemove)
+                                                                         toRemove.forEach { it.clear() }
+                                                                     }
+                                                                     entry.isDragging = false
+                                                                     entry.animatableOffset.snapTo(0f)
+                                                                     entry.animatableOffset.animateTo(
+                                                                         targetValue = screenWidthPx,
+                                                                         animationSpec = tween(durationMillis = 300)
+                                                                     )
+                                                                     navController.popBackStack()
+                                                                 }
+                                                             },
+                                                             onStudioClick = { studioId ->
+                                                                 dashboardViewModel.selectStudioOnly(studioId)
+                                                                 navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                 coroutineScope.launch {
+                                                                     val stack = navController.backStack
+                                                                     if (stack.size > 2) {
+                                                                         val top = stack.last()
+                                                                         val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                         stack.removeAll(toRemove)
+                                                                         toRemove.forEach { it.clear() }
+                                                                     }
+                                                                     entry.isDragging = false
+                                                                     entry.animatableOffset.snapTo(0f)
+                                                                     entry.animatableOffset.animateTo(
+                                                                         targetValue = screenWidthPx,
+                                                                         animationSpec = tween(durationMillis = 300)
+                                                                     )
+                                                                     navController.popBackStack()
+                                                                 }
+                                                             },
+                                                             onStaffClick = { staffId ->
+                                                                 dashboardViewModel.selectStaffOnly(staffId)
+                                                                 navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                 coroutineScope.launch {
+                                                                     val stack = navController.backStack
+                                                                     if (stack.size > 2) {
+                                                                         val top = stack.last()
+                                                                         val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                         stack.removeAll(toRemove)
+                                                                         toRemove.forEach { it.clear() }
+                                                                     }
+                                                                     entry.isDragging = false
+                                                                     entry.animatableOffset.snapTo(0f)
+                                                                     entry.animatableOffset.animateTo(
+                                                                         targetValue = screenWidthPx,
+                                                                         animationSpec = tween(durationMillis = 300)
+                                                                     )
+                                                                     navController.popBackStack()
+                                                                 }
+                                                             }
+                                                         )
                                                     }
                                                     is Screen.LogViewer -> {
                                                         LogViewerScreen(

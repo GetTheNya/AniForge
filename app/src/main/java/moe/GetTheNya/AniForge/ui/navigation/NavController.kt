@@ -109,6 +109,7 @@ class NavController(
 ) {
     var rouletteExitMaxCount by mutableStateOf<Int?>(null)
     var composeCoroutineScope: kotlinx.coroutines.CoroutineScope? = null
+    var onSelectTab: ((moe.GetTheNya.AniForge.TabScreen) -> Unit)? = null
 
     val backStack: SnapshotStateList<BackStackEntry> = mutableStateListOf(
         BackStackEntry(screen = initialScreen, activity = activity)

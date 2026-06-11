@@ -14,6 +14,10 @@ import androidx.lifecycle.SavedStateHandle
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.Franchise
+import moe.GetTheNya.AniForge.core.model.Genre
+import moe.GetTheNya.AniForge.core.model.Tag
+import moe.GetTheNya.AniForge.core.model.AnimeStaff
+import moe.GetTheNya.AniForge.core.model.Studio
 import javax.inject.Inject
 
 sealed interface DetailUiEvent {
@@ -98,13 +102,17 @@ class DetailViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Load screenshots, relations and franchise details
+                // Load screenshots, relations, franchise details, genres, tags, and staff
                 val screenshots = animeRepository.getScreenshots(anilistId)
                 val relations = animeRepository.getRelations(anilistId)
                 val franchise = animeRepository.getFranchiseForAnime(anilistId)
                 val franchiseReleaseCount = if (franchise != null) {
                     animeRepository.getFranchiseAnime(franchise.franchiseId).size
                 } else 0
+                val genres = animeRepository.getGenresForAnime(anilistId)
+                val tags = animeRepository.getTagsForAnime(anilistId)
+                val staff = animeRepository.getStaffForAnime(anilistId)
+                val studios = animeRepository.getStudiosForAnime(anilistId)
 
                 combine(
                     userTrackingDao.observeTrackingForAnime(anilistId),
@@ -118,7 +126,11 @@ class DetailViewModel @Inject constructor(
                         tracking = tracking,
                         trackingMap = trackingMap,
                         franchise = franchise,
-                        franchiseReleaseCount = franchiseReleaseCount
+                        franchiseReleaseCount = franchiseReleaseCount,
+                        genres = genres,
+                        tags = tags,
+                        staff = staff,
+                        studios = studios
                     )
                 }.collect { successState ->
                     _uiState.value = successState
@@ -250,7 +262,11 @@ sealed interface DetailUiState {
         val tracking: UserTrackingEntity?,
         val trackingMap: Map<Long, String> = emptyMap(),
         val franchise: Franchise? = null,
-        val franchiseReleaseCount: Int = 0
+        val franchiseReleaseCount: Int = 0,
+        val genres: List<Genre> = emptyList(),
+        val tags: List<Tag> = emptyList(),
+        val staff: List<AnimeStaff> = emptyList(),
+        val studios: List<Studio> = emptyList()
     ) : DetailUiState
     @Immutable
     data class Error(val message: String) : DetailUiState

@@ -67,6 +67,8 @@ fun DashboardScreen(
         searchFilter.excludedStudios.isNotEmpty() ||
         searchFilter.tags.isNotEmpty() ||
         searchFilter.excludedTags.isNotEmpty() ||
+        searchFilter.staff.isNotEmpty() ||
+        searchFilter.excludedStaff.isNotEmpty() ||
         searchFilter.minScore != null ||
         searchFilter.maxScore != null ||
         searchFilter.episodeGroups.isNotEmpty() ||
