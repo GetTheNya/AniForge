@@ -52,6 +52,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.launch
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.positionChanged
 
 private enum class SortCategory {
     RELEVANCE, SCORE, POPULARITY, RELEASE_DATE, EPISODES, TITLE
@@ -65,6 +71,9 @@ fun FilterBottomSheet(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val scope = rememberCoroutineScope()
+    val view = LocalView.current
+    
+    var isDraggingSlider by remember { mutableStateOf(false) }
     
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
@@ -115,13 +124,31 @@ fun FilterBottomSheet(
     }
 
     // Intercept nested scroll from scrollable content to enforce 2-step discrete scrolling
-    val bottomSheetScrollConnection = remember {
+    val bottomSheetScrollConnection = remember(isDraggingSlider) {
         object : NestedScrollConnection {
+            override fun onPreScroll(
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (isDraggingSlider) {
+                    return available
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (isDraggingSlider) {
+                    return available
+                }
+                return Velocity.Zero
+            }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
+                if (isDraggingSlider) return Offset.Zero
                 var consumedY = 0f
                 if (available.y < 0f) {
                     consumedY = available.y
@@ -156,6 +183,7 @@ fun FilterBottomSheet(
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (isDraggingSlider) return Velocity.Zero
                 var consumedY = 0f
                 if (available.y < 0f) {
                     consumedY = available.y
@@ -171,7 +199,8 @@ fun FilterBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = BackgroundDark,
-        dragHandle = null
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0.dp) }
     ) {
         Column(
             modifier = Modifier
@@ -183,7 +212,9 @@ fun FilterBottomSheet(
         ) {
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -209,6 +240,7 @@ fun FilterBottomSheet(
             
             LazyColumn(
                 state = lazyListState,
+                userScrollEnabled = !isDraggingSlider,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -379,7 +411,27 @@ fun FilterBottomSheet(
                                 inactiveTrackColor = CardBorder,
                                 thumbColor = ElectricViolet
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    awaitEachGesture {
+                                        awaitFirstDown(requireUnconsumed = false)
+                                        view.parent?.requestDisallowInterceptTouchEvent(true)
+                                        isDraggingSlider = true
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val anyPressed = event.changes.any { it.pressed }
+                                            if (!anyPressed) break
+                                            
+                                            event.changes.forEach { change ->
+                                                if (change.positionChanged()) {
+                                                    change.consume()
+                                                }
+                                            }
+                                        }
+                                        isDraggingSlider = false
+                                    }
+                                }
                         )
                     }
                 }
@@ -698,41 +750,6 @@ fun FilterBottomSheet(
 }
 
 @Composable
-fun MoreChip(
-    label: String,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(SurfaceDark)
-            .border(1.dp, ElectricViolet, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = ElectricViolet,
-                modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = label,
-                color = ElectricViolet,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
 fun TriStateChip(
     label: String,
     isIncluded: Boolean,
@@ -975,7 +992,8 @@ fun <T> TaxonomySelectionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = BackgroundDark,
-        dragHandle = null
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0.dp) }
     ) {
         Column(
             modifier = Modifier
@@ -988,7 +1006,9 @@ fun <T> TaxonomySelectionSheet(
         ) {
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {

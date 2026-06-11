@@ -125,6 +125,8 @@ class NavController(
                 val currentAnimeId = (backStack.lastOrNull()?.screen as? Screen.Detail)?.anilistId
                 if (currentAnimeId != null) {
                     existingEntry.savedStateHandle.set("activeAnimeId", currentAnimeId)
+                } else {
+                    existingEntry.savedStateHandle.set("activeAnimeId", null)
                 }
 
                 val lastEntry = backStack.lastOrNull()
@@ -177,6 +179,8 @@ class NavController(
                 val newEntry = BackStackEntry(screen = screen, activity = activity).apply {
                     if (currentAnimeId != null) {
                         savedStateHandle.set("activeAnimeId", currentAnimeId)
+                    } else {
+                        savedStateHandle.set("activeAnimeId", null)
                     }
                 }
                 backStack.add(newEntry)
