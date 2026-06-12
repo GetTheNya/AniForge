@@ -137,6 +137,8 @@
     "genresTitle": "Жанри",
     "tagsTitle": "Теги",
     "staffTitle": "Персонал",
+    "episodeSuffix": "еп.",
+    "durationSuffix": "хв.",
     "releasesCount": {
       "one": "%d реліз",
       "few": "%d релізи",

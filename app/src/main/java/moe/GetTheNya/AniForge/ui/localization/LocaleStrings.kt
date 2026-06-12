@@ -153,6 +153,8 @@ data class DetailScreenStrings(
     val genresTitle: String = "[detailScreen.genresTitle]",
     val tagsTitle: String = "[detailScreen.tagsTitle]",
     val staffTitle: String = "[detailScreen.staffTitle]",
+    val episodeSuffix: String = "[detailScreen.episodeSuffix]",
+    val durationSuffix: String = "[detailScreen.durationSuffix]",
     val releasesCount: Map<String, String> = emptyMap()
 )
 

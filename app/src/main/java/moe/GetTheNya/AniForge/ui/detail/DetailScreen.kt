@@ -626,43 +626,22 @@ fun DetailContent(
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = anime.format ?: "",
-                                    color = NeonCoral,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (studios.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(width = 1.dp, height = 12.dp)
-                                            .background(TextSecondary.copy(alpha = 0.4f))
+                                val format = anime.format
+                                if (!format.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "•",
+                                        color = TextSecondary.copy(alpha = 0.6f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        studios.forEachIndexed { index, studio ->
-                                            if (index > 0) {
-                                                Text(
-                                                    text = ",",
-                                                    color = TextSecondary.copy(alpha = 0.6f),
-                                                    fontSize = 12.sp
-                                                )
-                                            }
-                                            Text(
-                                                text = studio.name,
-                                                color = CyberTeal,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier
-                                                    .clickable { onStudioClick(studio.studioId) }
-                                            )
-                                        }
-                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = format,
+                                        color = NeonCoral,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -708,6 +687,115 @@ fun DetailContent(
                         onSaveNotes = onSaveNotes,
                         onScoreChange = onScoreChange
                     )
+
+                    // Secondary Metadata Chips Layout
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // First Row: Studio Badges
+                        if (studios.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                studios.forEach { studio ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(SurfaceCardDark)
+                                            .border(1.dp, CardBorder, RoundedCornerShape(50.dp))
+                                            .clickable { onStudioClick(studio.studioId) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Business,
+                                                contentDescription = null,
+                                                tint = CyberTeal,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = studio.name,
+                                                color = CyberTeal,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Second Row: Episodes and Duration
+                        if (anime.episodes != null || anime.duration != null) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (anime.episodes != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(SurfaceCardDark)
+                                            .border(1.dp, CardBorder, RoundedCornerShape(50.dp))
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                                tint = TextSecondary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = "${anime.episodes} ${strings.detailScreen.episodeSuffix}",
+                                                color = TextPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (anime.duration != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(SurfaceCardDark)
+                                            .border(1.dp, CardBorder, RoundedCornerShape(50.dp))
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AccessTime,
+                                                contentDescription = null,
+                                                tint = TextSecondary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = "${anime.duration} ${strings.detailScreen.durationSuffix}",
+                                                color = TextPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Synopsis
                     Column {

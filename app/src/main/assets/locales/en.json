@@ -135,6 +135,8 @@
     "genresTitle": "Genres",
     "tagsTitle": "Tags",
     "staffTitle": "Staff",
+    "episodeSuffix": "ep",
+    "durationSuffix": "min",
     "releasesCount": {
       "one": "%d release",
       "many": "%d releases"
