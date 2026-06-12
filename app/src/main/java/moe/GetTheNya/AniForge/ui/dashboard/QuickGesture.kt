@@ -35,6 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.text.style.TextAlign
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import kotlinx.coroutines.*
 import moe.GetTheNya.AniForge.core.model.Anime
@@ -740,6 +741,7 @@ fun QuickGestureWrapper(
 
                                 // Help instructions
                                 Text(
+                                    modifier = Modifier.fillMaxWidth(),
                                     text = if (action == QuickGestureAction.Continuous.EpisodeSlider && maxEp >= 30) {
                                         strings.settingsScreen.dragToScrollFast
                                     } else {
@@ -747,7 +749,8 @@ fun QuickGestureWrapper(
                                     },
                                     color = TextSecondary.copy(alpha = 0.6f),
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
