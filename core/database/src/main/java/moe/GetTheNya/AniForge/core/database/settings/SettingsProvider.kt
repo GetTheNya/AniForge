@@ -65,6 +65,56 @@ class SettingsProvider @Inject constructor(
         initialValue = "POWER_UP"
     )
 
+    val gestureCenterStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.GESTURE_CENTER,
+        "OpenDetails"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "OpenDetails"
+    )
+
+    val gestureUpStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.GESTURE_UP,
+        "EpisodeSlider"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "EpisodeSlider"
+    )
+
+    val gestureDownStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.GESTURE_DOWN,
+        "ScoreSlider"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "ScoreSlider"
+    )
+
+    val gestureLeftStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.GESTURE_LEFT,
+        "OpenWatchStatusPicker"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "OpenWatchStatusPicker"
+    )
+
+    val gestureRightStr: StateFlow<String> = settingsRepository.getSettingFlow(
+        SettingsKeys.GESTURE_RIGHT,
+        "ShareLink"
+    )
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = "ShareLink"
+    )
+
     /**
      * Returns the name of the currently active catalog file (e.g. "catalog_a.db").
      */
@@ -122,6 +172,36 @@ class SettingsProvider @Inject constructor(
     fun setContentAnimStyle(value: String) {
         scope.launch {
             settingsRepository.saveSetting(SettingsKeys.CONTENT_ANIM_STYLE, value)
+        }
+    }
+
+    fun setGestureCenter(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.GESTURE_CENTER, value)
+        }
+    }
+
+    fun setGestureUp(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.GESTURE_UP, value)
+        }
+    }
+
+    fun setGestureDown(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.GESTURE_DOWN, value)
+        }
+    }
+
+    fun setGestureLeft(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.GESTURE_LEFT, value)
+        }
+    }
+
+    fun setGestureRight(value: String) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.GESTURE_RIGHT, value)
         }
     }
 }

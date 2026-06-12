@@ -32,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -59,6 +60,12 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchFilter by viewModel.searchFilter.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
+
+    val gestureCenter by viewModel.gestureCenter.collectAsState()
+    val gestureUp by viewModel.gestureUp.collectAsState()
+    val gestureDown by viewModel.gestureDown.collectAsState()
+    val gestureLeft by viewModel.gestureLeft.collectAsState()
+    val gestureRight by viewModel.gestureRight.collectAsState()
 
     val hasActiveFilters = remember(searchFilter) {
         searchFilter.genres.isNotEmpty() ||
@@ -157,9 +164,17 @@ fun DashboardScreen(
                 DashboardContent(
                     animeList = state.animeList,
                     trackingMap = state.trackingMap,
+                    trackingEntitiesMap = state.trackingEntitiesMap,
+                    gestureCenter = gestureCenter,
+                    gestureUp = gestureUp,
+                    gestureDown = gestureDown,
+                    gestureLeft = gestureLeft,
+                    gestureRight = gestureRight,
                     preferUk = preferUk,
                     onAnimeClick = onAnimeClick,
-                    onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) }
+                    onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) },
+                    onScoreChange = { anilistId, score -> viewModel.updateScore(anilistId, score) },
+                    onEpisodeChange = { anilistId, progress -> viewModel.updateEpisodeProgress(anilistId, progress) }
                 )
             }
         }
@@ -206,12 +221,23 @@ fun SearchBar(
 fun DashboardContent(
     animeList: List<Anime>,
     trackingMap: Map<Long, String>,
+    trackingEntitiesMap: Map<Long, moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>,
+    gestureCenter: QuickGestureAction,
+    gestureUp: QuickGestureAction,
+    gestureDown: QuickGestureAction,
+    gestureLeft: QuickGestureAction,
+    gestureRight: QuickGestureAction,
     preferUk: Boolean,
     onAnimeClick: (Long) -> Unit,
-    onStatusChange: (Long, String) -> Unit
+    onStatusChange: (Long, String) -> Unit,
+    onScoreChange: (Long, Double) -> Unit,
+    onEpisodeChange: (Long, Int) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     var activeMenuAnimeId by remember { mutableStateOf<Long?>(null) }
+    var gridScrollEnabled by remember { mutableStateOf(true) }
+    var isSliderActive by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
 
     LaunchedEffect(gridState) {
@@ -238,7 +264,10 @@ fun DashboardContent(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(if (isSliderActive) 16.dp else 0.dp),
+            userScrollEnabled = gridScrollEnabled
         ) {
             // Header for Catalog listing
             item(span = { GridItemSpan(2) }) {
@@ -270,15 +299,35 @@ fun DashboardContent(
                 key = { anime -> anime.anilistId },
                 contentType = { "anime_card" }
             ) { anime ->
+                val trackingEntity = trackingEntitiesMap[anime.anilistId]
                 AnimeBentoCard(
                     anime = anime,
                     status = trackingMap[anime.anilistId],
                     preferUk = preferUk,
-                    onClick = { onAnimeClick(anime.anilistId) },
+                    onGestureActionTriggered = { action, value ->
+                        handleQuickGestureAction(
+                            context = context,
+                            anime = anime,
+                            action = action,
+                            value = value,
+                            onOpenDetails = { onAnimeClick(anime.anilistId) },
+                            onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
+                            onScoreChange = { newScore -> onScoreChange(anime.anilistId, newScore) },
+                            onEpisodeChange = { newEp -> onEpisodeChange(anime.anilistId, newEp) }
+                        )
+                    },
                     onStatusChange = { newStatus -> onStatusChange(anime.anilistId, newStatus) },
                     isMenuVisible = activeMenuAnimeId == anime.anilistId,
-                    onMenuShow = { activeMenuAnimeId = anime.anilistId },
-                    onMenuDismiss = { activeMenuAnimeId = null }
+                    onMenuDismiss = { activeMenuAnimeId = null },
+                    initialScore = trackingEntity?.score,
+                    initialEpisode = trackingEntity?.episodeProgress ?: 0,
+                    onDragStateChanged = { isDragging -> gridScrollEnabled = !isDragging },
+                    onSliderStateChanged = { isActive -> isSliderActive = isActive },
+                    gestureCenter = gestureCenter,
+                    gestureUp = gestureUp,
+                    gestureDown = gestureDown,
+                    gestureLeft = gestureLeft,
+                    gestureRight = gestureRight
                 )
             }
         }

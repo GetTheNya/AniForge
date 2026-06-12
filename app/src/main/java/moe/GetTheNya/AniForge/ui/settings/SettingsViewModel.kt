@@ -82,4 +82,30 @@ class SettingsViewModel @Inject constructor(
     fun setSelectedLanguage(langCode: String) {
         localizationService.setSelectedLanguage(langCode)
     }
+
+    val gestureCenter: StateFlow<String> = settingsProvider.gestureCenterStr
+    val gestureUp: StateFlow<String> = settingsProvider.gestureUpStr
+    val gestureDown: StateFlow<String> = settingsProvider.gestureDownStr
+    val gestureLeft: StateFlow<String> = settingsProvider.gestureLeftStr
+    val gestureRight: StateFlow<String> = settingsProvider.gestureRightStr
+
+    fun setGestureCenter(value: String) {
+        settingsProvider.setGestureCenter(value)
+    }
+
+    fun setGestureUp(value: String) {
+        settingsProvider.setGestureUp(value)
+    }
+
+    fun setGestureDown(value: String) {
+        settingsProvider.setGestureDown(value)
+    }
+
+    fun setGestureLeft(value: String) {
+        settingsProvider.setGestureLeft(value)
+    }
+
+    fun setGestureRight(value: String) {
+        settingsProvider.setGestureRight(value)
+    }
 }

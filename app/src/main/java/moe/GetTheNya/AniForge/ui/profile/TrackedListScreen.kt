@@ -26,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -43,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
+import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
+import moe.GetTheNya.AniForge.ui.dashboard.handleQuickGestureAction
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -68,6 +71,16 @@ fun TrackedListScreen(
     val filteredAnime by viewModel.filteredAnime.collectAsState()
     val preferUk by viewModel.preferUk.collectAsState()
     val trackingMap by viewModel.trackingMap.collectAsState()
+    val trackingEntitiesMap by viewModel.trackingEntitiesMap.collectAsState()
+
+    val gestureCenter by viewModel.gestureCenter.collectAsState()
+    val gestureUp by viewModel.gestureUp.collectAsState()
+    val gestureDown by viewModel.gestureDown.collectAsState()
+    val gestureLeft by viewModel.gestureLeft.collectAsState()
+    val gestureRight by viewModel.gestureRight.collectAsState()
+
+    var scrollEnabled by remember { mutableStateOf(true) }
+    var isSliderActive by remember { mutableStateOf(false) }
 
     val isTopMost = remember(navController.backStack.lastOrNull()) {
         navController.backStack.lastOrNull()?.screen is Screen.TrackedList
@@ -275,6 +288,8 @@ fun TrackedListScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .blur(if (isSliderActive) 16.dp else 0.dp),
+            userScrollEnabled = scrollEnabled
         ) { pageIndex ->
             // Watch status pages
             val statusId = statusConfigs[pageIndex].id
@@ -327,21 +342,42 @@ fun TrackedListScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
                         .fillMaxSize()
-                        .disableSplitTouch()
+                        .disableSplitTouch(),
+                    userScrollEnabled = scrollEnabled
                 ) {
                     items(
                         items = items,
                         key = { it.anilistId }
                     ) { anime ->
+                        val trackingEntity = trackingEntitiesMap[anime.anilistId]
                         AnimeBentoCard(
                             anime = anime,
                             status = trackingMap[anime.anilistId],
                             preferUk = preferUk,
-                            onClick = { navController.navigate(Screen.Detail(anime.anilistId, sourceStatusId = null)) },
+                            onGestureActionTriggered = { action, value ->
+                                handleQuickGestureAction(
+                                    context = context,
+                                    anime = anime,
+                                    action = action,
+                                    value = value,
+                                    onOpenDetails = { navController.navigate(Screen.Detail(anime.anilistId, sourceStatusId = null)) },
+                                    onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
+                                    onScoreChange = { newScore -> viewModel.updateScore(anime.anilistId, newScore) },
+                                    onEpisodeChange = { newEp -> viewModel.updateEpisodeProgress(anime.anilistId, newEp) }
+                                )
+                            },
                             onStatusChange = { newStatus -> viewModel.updateWatchStatus(anime.anilistId, newStatus) },
                             isMenuVisible = activeMenuAnimeId == anime.anilistId,
-                            onMenuShow = { activeMenuAnimeId = anime.anilistId },
-                            onMenuDismiss = { activeMenuAnimeId = null }
+                            onMenuDismiss = { activeMenuAnimeId = null },
+                            initialScore = trackingEntity?.score,
+                            initialEpisode = trackingEntity?.episodeProgress ?: 0,
+                            onDragStateChanged = { isDragging -> scrollEnabled = !isDragging },
+                            onSliderStateChanged = { isActive -> isSliderActive = isActive },
+                            gestureCenter = gestureCenter,
+                            gestureUp = gestureUp,
+                            gestureDown = gestureDown,
+                            gestureLeft = gestureLeft,
+                            gestureRight = gestureRight
                         )
                     }
                 }

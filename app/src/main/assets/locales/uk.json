@@ -19,7 +19,15 @@
     "save": "Зберегти",
     "clear": "Очистити",
     "settings": "Налаштування",
-    "update": "Оновити"
+    "update": "Оновити",
+    "gestureCenterDir": "Центр",
+    "gestureUpDir": "Вгору",
+    "gestureDownDir": "Вниз",
+    "gestureLeftDir": "Ліворуч",
+    "gestureRightDir": "Праворуч",
+    "setScore": "ВСТАНОВИТИ ОЦІНКУ",
+    "setEpisodes": "ВСТАНОВИТИ СЕРІЮ",
+    "episodeLabel": "Сер."
   },
   "homeScreen": {
     "name": "Головна",
@@ -155,7 +163,22 @@
     "forceUpdateDesc": "Перевірити та оновити каталог",
     "hotswappingEnabled": "A/B динамічна гаряча заміна активна",
     "activeSlot": "Активний слот",
-    "catalogStamp": "Штамп каталогу"
+    "catalogStamp": "Штамп каталогу",
+    "gesturesHeader": "Жести швидких дій",
+    "gesturesDesc": "Налаштування жестів змахування та утримання для карток бенто",
+    "gestureCenter": "Утримання по центру",
+    "gestureUp": "Змахування вгору",
+    "gestureDown": "Змахування вниз",
+    "gestureLeft": "Змахування ліворуч",
+    "gestureRight": "Змахування праворуч",
+    "actionOpenDetails": "Відкрити деталі",
+    "actionOpenWatchStatusPicker": "Змінити статус перегляду",
+    "actionShareLink": "Поділитися посиланням",
+    "actionScoreSlider": "Слайдер оцінки (1-10)",
+    "actionEpisodeSlider": "Слайдер серій (Прогрес)",
+    "actionNone": "Немає",
+    "dragToScrollFast": "Зсуньте далеко ліворуч/праворуч або вниз/вверх для швидкої прокрутки",
+    "dragToAdjust": "Зсуньте ліворуч/праворуч або вниз/вверх для прокрутки"
   },
   "devSettings": {
     "devSettingsHeader": "Налаштування розробника",

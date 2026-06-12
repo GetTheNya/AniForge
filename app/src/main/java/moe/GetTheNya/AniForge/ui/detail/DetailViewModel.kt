@@ -184,8 +184,16 @@ class DetailViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val currentTracking = state.tracking
             if (currentTracking != null && currentTracking.watchStatus == status) {
-                // Tapping a button that is already active must completely remove the anime from all tracking lists (delete database link).
-                userTrackingDao.delete(currentTracking)
+                val updated = currentTracking.copy(
+                    watchStatus = "",
+                    episodeProgress = 0,
+                    lastModified = System.currentTimeMillis()
+                )
+                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
+                    userTrackingDao.delete(currentTracking)
+                } else {
+                    userTrackingDao.insertOrUpdate(updated)
+                }
             } else {
                 // New Selection
                 val maxEpisodes = state.anime.episodes ?: 0
@@ -271,19 +279,64 @@ class DetailViewModel @Inject constructor(
     fun saveNotes(notes: String) {
         val state = _uiState.value as? DetailUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val currentTracking = state.tracking ?: UserTrackingEntity(
-                anilistId = currentAnimeId,
-                watchStatus = "PLANNING",
-                episodeProgress = 0,
-                score = null,
-                notes = notes,
-                lastModified = System.currentTimeMillis()
-            )
-            val updated = currentTracking.copy(
-                notes = notes,
-                lastModified = System.currentTimeMillis()
-            )
-            userTrackingDao.insertOrUpdate(updated)
+            val dbNotes = if (notes.isBlank()) null else notes
+            val currentTracking = state.tracking
+            
+            if (currentTracking == null) {
+                if (dbNotes != null) {
+                    val newTracking = UserTrackingEntity(
+                        anilistId = currentAnimeId,
+                        watchStatus = "",
+                        episodeProgress = 0,
+                        score = null,
+                        notes = dbNotes,
+                        lastModified = System.currentTimeMillis()
+                    )
+                    userTrackingDao.insertOrUpdate(newTracking)
+                }
+            } else {
+                val updated = currentTracking.copy(
+                    notes = dbNotes,
+                    lastModified = System.currentTimeMillis()
+                )
+                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
+                    userTrackingDao.delete(currentTracking)
+                } else {
+                    userTrackingDao.insertOrUpdate(updated)
+                }
+            }
+        }
+    }
+
+    fun updateScore(score: Double?) {
+        val state = _uiState.value as? DetailUiState.Success ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val dbScore = if (score == null || score == 0.0) null else score
+            val currentTracking = state.tracking
+            
+            if (currentTracking == null) {
+                if (dbScore != null) {
+                    val newTracking = UserTrackingEntity(
+                        anilistId = currentAnimeId,
+                        watchStatus = "",
+                        episodeProgress = 0,
+                        score = dbScore,
+                        notes = null,
+                        lastModified = System.currentTimeMillis()
+                    )
+                    userTrackingDao.insertOrUpdate(newTracking)
+                }
+            } else {
+                val updated = currentTracking.copy(
+                    score = dbScore,
+                    lastModified = System.currentTimeMillis()
+                )
+                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
+                    userTrackingDao.delete(currentTracking)
+                } else {
+                    userTrackingDao.insertOrUpdate(updated)
+                }
+            }
         }
     }
 }

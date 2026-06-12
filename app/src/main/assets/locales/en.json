@@ -19,7 +19,15 @@
     "save": "Save",
     "clear": "Clear",
     "settings": "Settings",
-    "update": "Update"
+    "update": "Update",
+    "gestureCenterDir": "Center",
+    "gestureUpDir": "Up",
+    "gestureDownDir": "Down",
+    "gestureLeftDir": "Left",
+    "gestureRightDir": "Right",
+    "setScore": "SET SCORE",
+    "setEpisodes": "SET EPISODES",
+    "episodeLabel": "Ep."
   },
   "homeScreen": {
     "name": "Home",
@@ -151,7 +159,22 @@
     "forceUpdateDesc": "Check and update catalog",
     "hotswappingEnabled": "A/B Dynamic Hotswapping Enabled",
     "activeSlot": "Active Slot",
-    "catalogStamp": "Catalog Stamp"
+    "catalogStamp": "Catalog Stamp",
+    "gesturesHeader": "Quick Action Gestures",
+    "gesturesDesc": "Configure swipe & hold shortcuts for bento cards",
+    "gestureCenter": "Center Tap/Hold",
+    "gestureUp": "Swipe Up",
+    "gestureDown": "Swipe Down",
+    "gestureLeft": "Swipe Left",
+    "gestureRight": "Swipe Right",
+    "actionOpenDetails": "Open Details",
+    "actionOpenWatchStatusPicker": "Open Status Picker",
+    "actionShareLink": "Share Link",
+    "actionScoreSlider": "Score Slider (1-10)",
+    "actionEpisodeSlider": "Episode Slider (Progress)",
+    "actionNone": "None",
+    "dragToScrollFast": "Drag far left/right or down/bottom to scroll fast",
+    "dragToAdjust": "Drag left/right or down/bottom to scroll"
   },
   "devSettings": {
     "devSettingsHeader": "Developer Settings",

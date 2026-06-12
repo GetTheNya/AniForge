@@ -41,7 +41,15 @@ data class MiscStrings(
     val save: String = "[misc.save]",
     val clear: String = "[misc.clear]",
     val settings: String = "[misc.settings]",
-    val update: String = "[misc.update]"
+    val update: String = "[misc.update]",
+    val gestureCenterDir: String = "[misc.gestureCenterDir]",
+    val gestureUpDir: String = "[misc.gestureUpDir]",
+    val gestureDownDir: String = "[misc.gestureDownDir]",
+    val gestureLeftDir: String = "[misc.gestureLeftDir]",
+    val gestureRightDir: String = "[misc.gestureRightDir]",
+    val setScore: String = "[misc.setScore]",
+    val setEpisodes: String = "[misc.setEpisodes]",
+    val episodeLabel: String = "[misc.episodeLabel]"
 )
 
 @Serializable
@@ -167,7 +175,22 @@ data class SettingsScreenStrings(
     val forceUpdateDesc: String = "[settingsScreen.forceUpdateDesc]",
     val hotswappingEnabled: String = "[settingsScreen.hotswappingEnabled]",
     val activeSlot: String = "[settingsScreen.activeSlot]",
-    val catalogStamp: String = "[settingsScreen.catalogStamp]"
+    val catalogStamp: String = "[settingsScreen.catalogStamp]",
+    val gesturesHeader: String = "[settingsScreen.gesturesHeader]",
+    val gesturesDesc: String = "[settingsScreen.gesturesDesc]",
+    val gestureCenter: String = "[settingsScreen.gestureCenter]",
+    val gestureUp: String = "[settingsScreen.gestureUp]",
+    val gestureDown: String = "[settingsScreen.gestureDown]",
+    val gestureLeft: String = "[settingsScreen.gestureLeft]",
+    val gestureRight: String = "[settingsScreen.gestureRight]",
+    val actionOpenDetails: String = "[settingsScreen.actionOpenDetails]",
+    val actionOpenWatchStatusPicker: String = "[settingsScreen.actionOpenWatchStatusPicker]",
+    val actionShareLink: String = "[settingsScreen.actionShareLink]",
+    val actionScoreSlider: String = "[settingsScreen.actionScoreSlider]",
+    val actionEpisodeSlider: String = "[settingsScreen.actionEpisodeSlider]",
+    val actionNone: String = "[settingsScreen.actionNone]",
+    val dragToScrollFast: String = "[settingsScreen.dragToScrollFast]",
+    val dragToAdjust: String = "[settingsScreen.dragToAdjust]"
 )
 
 @Serializable
@@ -220,6 +243,18 @@ fun DevSettingsStrings.getAnimationLabel(key: String): String {
         "animContentSlideUp" -> animContentSlideUp
         "animContentFlip3d" -> animContentFlip3d
         else -> key
+    }
+}
+
+fun SettingsScreenStrings.getActionLabel(actionId: String): String {
+    return when (actionId) {
+        "OpenDetails" -> actionOpenDetails
+        "OpenWatchStatusPicker" -> actionOpenWatchStatusPicker
+        "ShareLink" -> actionShareLink
+        "ScoreSlider" -> actionScoreSlider
+        "EpisodeSlider" -> actionEpisodeSlider
+        "None" -> actionNone
+        else -> actionId
     }
 }
 

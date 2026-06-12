@@ -3,6 +3,8 @@ package moe.GetTheNya.AniForge.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,16 +36,37 @@ fun SettingsScreen(
     val availableLangs by viewModel.availableLanguages.collectAsState()
     val isUpdating by viewModel.isUpdating.collectAsState()
     val metadata by viewModel.catalogMetadata.collectAsState()
-    
+
+    val gestureCenter by viewModel.gestureCenter.collectAsState()
+    val gestureUp by viewModel.gestureUp.collectAsState()
+    val gestureDown by viewModel.gestureDown.collectAsState()
+    val gestureLeft by viewModel.gestureLeft.collectAsState()
+    val gestureRight by viewModel.gestureRight.collectAsState()
+
+    val scrollState = rememberScrollState()
+
     var dropdownExpanded by remember { mutableStateOf(false) }
     val currentLangName = availableLangs[currentLangCode] ?: currentLangCode
+
+    val actionLabels = remember(strings) {
+        mapOf(
+            "OpenDetails" to strings.settingsScreen.actionOpenDetails,
+            "OpenWatchStatusPicker" to strings.settingsScreen.actionOpenWatchStatusPicker,
+            "ShareLink" to strings.settingsScreen.actionShareLink,
+            "ScoreSlider" to strings.settingsScreen.actionScoreSlider,
+            "EpisodeSlider" to strings.settingsScreen.actionEpisodeSlider,
+            "None" to strings.settingsScreen.actionNone
+        )
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(BackgroundDark)
             .statusBarsPadding()
+            .verticalScroll(scrollState)
             .padding(horizontal = 24.dp)
+            .padding(bottom = 36.dp)
     ) {
         // Sticky Header with Back Button
         Row(
@@ -184,6 +207,75 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // 4. Quick Action Gestures Configuration Card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column {
+                Text(
+                    text = strings.settingsScreen.gesturesHeader,
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = strings.settingsScreen.gesturesDesc,
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            GestureConfigRow(
+                label = strings.settingsScreen.gestureCenter,
+                selectedAction = gestureCenter,
+                options = listOf("OpenDetails", "OpenWatchStatusPicker", "ShareLink", "None"),
+                actionLabels = actionLabels,
+                onActionSelected = viewModel::setGestureCenter
+            )
+
+            GestureConfigRow(
+                label = strings.settingsScreen.gestureUp,
+                selectedAction = gestureUp,
+                options = listOf("OpenDetails", "OpenWatchStatusPicker", "ShareLink", "None", "ScoreSlider", "EpisodeSlider"),
+                actionLabels = actionLabels,
+                onActionSelected = viewModel::setGestureUp
+            )
+
+            GestureConfigRow(
+                label = strings.settingsScreen.gestureDown,
+                selectedAction = gestureDown,
+                options = listOf("OpenDetails", "OpenWatchStatusPicker", "ShareLink", "None", "ScoreSlider", "EpisodeSlider"),
+                actionLabels = actionLabels,
+                onActionSelected = viewModel::setGestureDown
+            )
+
+            GestureConfigRow(
+                label = strings.settingsScreen.gestureLeft,
+                selectedAction = gestureLeft,
+                options = listOf("OpenDetails", "OpenWatchStatusPicker", "ShareLink", "None", "ScoreSlider", "EpisodeSlider"),
+                actionLabels = actionLabels,
+                onActionSelected = viewModel::setGestureLeft
+            )
+
+            GestureConfigRow(
+                label = strings.settingsScreen.gestureRight,
+                selectedAction = gestureRight,
+                options = listOf("OpenDetails", "OpenWatchStatusPicker", "ShareLink", "None", "ScoreSlider", "EpisodeSlider"),
+                actionLabels = actionLabels,
+                onActionSelected = viewModel::setGestureRight
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         // 3. Database Management Card
         Column(
             modifier = Modifier
@@ -299,6 +391,86 @@ fun SettingsScreen(
                             text = strings.settingsScreen.forceUpdate,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GestureConfigRow(
+    label: String,
+    selectedAction: String,
+    options: List<String>,
+    actionLabels: Map<String, String>,
+    onActionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val displayLabel = actionLabels[selectedAction] ?: selectedAction
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+
+        Box(modifier = Modifier.width(180.dp)) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
+            ) {
+                OutlinedTextField(
+                    value = displayLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = NeonCoral,
+                        unfocusedBorderColor = CardBorder,
+                        focusedContainerColor = Color(0xFF0F0F13),
+                        unfocusedContainerColor = Color(0xFF0F0F13)
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(SurfaceDark)
+                ) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = actionLabels[option] ?: option,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (option == selectedAction) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                onActionSelected(option)
+                                expanded = false
+                            },
+                            modifier = Modifier.background(SurfaceDark)
                         )
                     }
                 }

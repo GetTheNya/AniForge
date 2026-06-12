@@ -26,13 +26,29 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao,
-    private val settingsProvider: SettingsProvider
+    private val settingsProvider: SettingsProvider,
+    private val userTrackingRepository: UserTrackingRepository
 ) : ViewModel() {
 
     private val _searchFilter = MutableStateFlow(SearchFilterQuery())
     val searchFilter = _searchFilter.asStateFlow()
 
     val preferUkTitles: StateFlow<Boolean> = settingsProvider.preferUkTitles
+
+    val gestureCenter: StateFlow<QuickGestureAction> = userTrackingRepository.gestureCenter
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenDetails)
+
+    val gestureUp: StateFlow<QuickGestureAction> = userTrackingRepository.gestureUp
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Continuous.EpisodeSlider)
+
+    val gestureDown: StateFlow<QuickGestureAction> = userTrackingRepository.gestureDown
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Continuous.ScoreSlider)
+
+    val gestureLeft: StateFlow<QuickGestureAction> = userTrackingRepository.gestureLeft
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenWatchStatusPicker)
+
+    val gestureRight: StateFlow<QuickGestureAction> = userTrackingRepository.gestureRight
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.ShareLink)
 
     val allGenres: StateFlow<List<Genre>> = flow {
         emit(animeRepository.getAllGenres())
@@ -94,7 +110,8 @@ class DashboardViewModel @Inject constructor(
             animeList = animeList,
             featuredAnime = featured,
             stats = stats,
-            trackingMap = trackingMap
+            trackingMap = trackingMap,
+            trackingEntitiesMap = trackingList.associateBy { it.anilistId }
         ) as DashboardUiState
     }
     .catch { e ->
@@ -340,33 +357,20 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun updateWatchStatus(anilistId: Long, status: String) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
-            if (currentTracking != null && currentTracking.watchStatus == status) {
-                userTrackingDao.delete(currentTracking)
-            } else {
-                val anime = animeRepository.getAnimeById(anilistId)
-                val maxEpisodes = anime?.episodes ?: 0
-                val progress = if (status == "COMPLETED") {
-                    maxEpisodes
-                } else {
-                    currentTracking?.episodeProgress ?: 0
-                }
+        viewModelScope.launch {
+            userTrackingRepository.updateWatchStatus(anilistId, status)
+        }
+    }
 
-                val updated = currentTracking?.copy(
-                    watchStatus = status,
-                    episodeProgress = progress,
-                    lastModified = System.currentTimeMillis()
-                ) ?: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity(
-                    anilistId = anilistId,
-                    watchStatus = status,
-                    episodeProgress = progress,
-                    score = null,
-                    notes = null,
-                    lastModified = System.currentTimeMillis()
-                )
-                userTrackingDao.insertOrUpdate(updated)
-            }
+    fun updateScore(anilistId: Long, score: Double) {
+        viewModelScope.launch {
+            userTrackingRepository.updateScore(anilistId, score)
+        }
+    }
+
+    fun updateEpisodeProgress(anilistId: Long, progress: Int) {
+        viewModelScope.launch {
+            userTrackingRepository.updateEpisodeProgress(anilistId, progress)
         }
     }
 
@@ -391,7 +395,8 @@ sealed interface DashboardUiState {
         val animeList: List<Anime>,
         val featuredAnime: Anime?,
         val stats: UserStats,
-        val trackingMap: Map<Long, String> = emptyMap()
+        val trackingMap: Map<Long, String> = emptyMap(),
+        val trackingEntitiesMap: Map<Long, moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity> = emptyMap()
     ) : DashboardUiState
     @Immutable
     data class Error(val message: String) : DashboardUiState

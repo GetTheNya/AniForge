@@ -183,6 +183,7 @@ fun DetailScreen(
                         onIncrementProgress = viewModel::incrementEpisodeProgress,
                         onDecrementProgress = viewModel::decrementEpisodeProgress,
                         onSaveNotes = viewModel::saveNotes,
+                        onScoreChange = viewModel::updateScore,
                         onAnimeClick = { newId ->
                             navController.navigate(Screen.Detail(newId))
                         },
@@ -405,6 +406,7 @@ fun DetailContent(
     onIncrementProgress: () -> Unit,
     onDecrementProgress: () -> Unit,
     onSaveNotes: (String) -> Unit,
+    onScoreChange: (Double) -> Unit,
     onAnimeClick: (Long) -> Unit,
     onImageClick: (List<String>, Int) -> Unit,
     onFranchiseClick: (Long) -> Unit,
@@ -703,7 +705,8 @@ fun DetailContent(
                         onStatusChange = onStatusChange,
                         onIncrement = onIncrementProgress,
                         onDecrement = onDecrementProgress,
-                        onSaveNotes = onSaveNotes
+                        onSaveNotes = onSaveNotes,
+                        onScoreChange = onScoreChange
                     )
 
                     // Synopsis
@@ -946,7 +949,8 @@ fun TrackingWidget(
     onStatusChange: (String) -> Unit,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
-    onSaveNotes: (String) -> Unit
+    onSaveNotes: (String) -> Unit,
+    onScoreChange: (Double) -> Unit
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
@@ -1030,6 +1034,47 @@ fun TrackingWidget(
                 ) {
                     Text("+", color = BackgroundDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+
+        // Score Rating Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                var sliderValue by remember(tracking?.score) { mutableFloatStateOf(tracking?.score?.toFloat() ?: 0.0f) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = strings.misc.score, color = TextSecondary, fontSize = 14.sp)
+                    Text(
+                        text = if (sliderValue > 0f) String.format("%.1f", sliderValue) else "-",
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Slider(
+                    value = sliderValue,
+                    onValueChange = { 
+                        sliderValue = (Math.round(it * 2.0) / 2.0).toFloat()
+                    },
+                    onValueChangeFinished = {
+                        onScoreChange(sliderValue.toDouble())
+                    },
+                    valueRange = 0.0f..10.0f,
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = NeonCoral,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                        thumbColor = NeonCoral
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(32.dp)
+                )
             }
         }
 
