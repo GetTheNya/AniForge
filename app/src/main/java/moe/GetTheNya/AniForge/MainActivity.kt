@@ -96,8 +96,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
-import moe.GetTheNya.AniForge.ui.franchises.FranchisesScreen
-import moe.GetTheNya.AniForge.ui.franchises.FranchisesViewModel
+import moe.GetTheNya.AniForge.ui.franchises.LibraryScreen
+import moe.GetTheNya.AniForge.ui.franchises.LibraryViewModel
 import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeScreen
 import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeViewModel
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardScreen
@@ -122,7 +122,7 @@ import javax.inject.Inject
 enum class TabScreen {
     Home,
     Anime,
-    Franchises,
+    Library,
     Profile
 }
 
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
-    private val franchisesViewModel: FranchisesViewModel by viewModels()
+    private val libraryViewModel: LibraryViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -343,7 +343,7 @@ class MainActivity : ComponentActivity() {
                                 when (pagerState.currentPage) {
                                     0 -> TabScreen.Home
                                     1 -> TabScreen.Anime
-                                    2 -> TabScreen.Franchises
+                                    2 -> TabScreen.Library
                                     3 -> TabScreen.Profile
                                     else -> TabScreen.Home
                                 }
@@ -481,8 +481,8 @@ class MainActivity : ComponentActivity() {
                                                             preferUk = preferUk,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
                                                         )
-                                                        2 -> FranchisesScreen(
-                                                            viewModel = franchisesViewModel,
+                                                        2 -> LibraryScreen(
+                                                            viewModel = libraryViewModel,
                                                             navController = navController,
                                                             preferUk = preferUk
                                                         )
@@ -498,8 +498,12 @@ class MainActivity : ComponentActivity() {
                                             FloatingBottomNavigation(
                                                 selectedTab = { selectedTabState.value },
                                                 onTabSelected = { tab ->
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(tab.ordinal)
+                                                    if (tab == TabScreen.Library && pagerState.currentPage == TabScreen.Library.ordinal) {
+                                                        navController.onLibraryClick?.invoke()
+                                                    } else {
+                                                        coroutineScope.launch {
+                                                            pagerState.animateScrollToPage(tab.ordinal)
+                                                        }
                                                     }
                                                 },
                                                 contentLayer = contentLayer,
@@ -684,15 +688,45 @@ class MainActivity : ComponentActivity() {
                                                                      )
                                                                      navController.popBackStack()
                                                                  }
-                                                             }
-                                                         )
+                                                            }
+                                                        )
                                                     }
                                                     is Screen.LogViewer -> {
                                                         LogViewerScreen(
-                                                             viewModel = profileViewModel,
-                                                             navController = navController,
-                                                             modifier = Modifier.padding(innerPadding),
-                                                             onBack = { triggerDismissAnimation(entry) }
+                                                            viewModel = profileViewModel,
+                                                            navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.FranchiseTree -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {
+                                                                 entry.savedStateHandle.keys().forEach { key ->
+                                                                     this.savedStateHandle.set(key, entry.savedStateHandle.get<Any>(key))
+                                                                 }
+                                                                 entry.savedStateHandle = this.savedStateHandle
+                                                             }
+                                                         }
+                                                         FranchiseTreeScreen(
+                                                            franchiseId = screen.franchiseId,
+                                                            viewModel = scopedViewModel,
+                                                            navController = navController,
+                                                            preferUk = preferUk,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
+                                                        )
+                                                    }
+                                                    is Screen.CollectionDetail -> {
+                                                        val scopedViewModel = remember(entry) {
+                                                            ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.profile.CollectionDetailViewModel::class.java]
+                                                        }
+                                                        moe.GetTheNya.AniForge.ui.profile.CollectionDetailScreen(
+                                                            collectionId = screen.collectionId,
+                                                            viewModel = scopedViewModel,
+                                                            navController = navController,
+                                                            modifier = Modifier.padding(innerPadding),
+                                                            onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }
                                                     is Screen.Settings -> {
@@ -737,7 +771,7 @@ class MainActivity : ComponentActivity() {
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }
-                                                    is Screen.FranchiseTree -> {
+                                                    is Screen.Tabs -> {} /*
                                                          val scopedViewModel = remember(entry) {
                                                              ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {
                                                                  entry.savedStateHandle.keys().forEach { key ->
@@ -754,7 +788,7 @@ class MainActivity : ComponentActivity() {
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
-                                                    }
+                                                    }*/
                                                     else -> {}
                                                 }
                                             }
@@ -911,7 +945,7 @@ fun FloatingBottomNavigation(
             val tabs = listOf(
                 TabScreen.Home to (Icons.Default.Home to strings.homeScreen.name),
                 TabScreen.Anime to (Icons.Default.DateRange to strings.dashboardScreen.name),
-                TabScreen.Franchises to (Icons.Default.Layers to strings.franchisesScreen.name),
+                TabScreen.Library to (Icons.Default.Layers to strings.libraryScreen.name),
                 TabScreen.Profile to (Icons.Default.Person to strings.profileScreen.name)
             )
  

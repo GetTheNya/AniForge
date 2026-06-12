@@ -19,6 +19,7 @@ import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.AnimeStaff
 import moe.GetTheNya.AniForge.core.model.Studio
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 sealed interface DetailUiEvent {
     data class Navigate(val screen: Screen) : DetailUiEvent
@@ -29,8 +30,45 @@ sealed interface DetailUiEvent {
 class DetailViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao,
+    private val collectionDao: moe.GetTheNya.AniForge.core.database.dao.CollectionDao,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    val collections = collectionDao.observeCollections()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val animeCollectionIds: StateFlow<List<Int>> = savedStateHandle.getStateFlow<Long>("anilistId", 0L)
+        .flatMapLatest { animeId ->
+            collectionDao.observeCollectionIdsForAnime(animeId)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun toggleAnimeInCollection(collectionId: Int) {
+        val animeId = currentAnimeId
+        viewModelScope.launch(Dispatchers.IO) {
+            val list = animeCollectionIds.value
+            if (list.contains(collectionId)) {
+                collectionDao.deleteCrossRef(collectionId, animeId)
+            } else {
+                val maxIndex = collectionDao.getMaxOrderIndex(collectionId) ?: -1
+                val ref = moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef(
+                    collectionId = collectionId,
+                    animeId = animeId,
+                    orderIndex = maxIndex + 1
+                )
+                collectionDao.insertCrossRef(ref)
+            }
+        }
+    }
 
     var sourceStatusId: String? = savedStateHandle.get<String>("sourceStatusId")
     var rouletteCount: Int = savedStateHandle.get<Int>("rouletteCount") ?: 0

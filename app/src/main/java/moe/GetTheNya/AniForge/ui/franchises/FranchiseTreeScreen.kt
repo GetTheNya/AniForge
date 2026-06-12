@@ -376,7 +376,7 @@ fun TimelineRow(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = strings.franchisesScreen.youAreHere.uppercase(),
+                        text = strings.libraryScreen.youAreHere.uppercase(),
                         color = TextPrimary,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Black,

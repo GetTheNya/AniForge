@@ -218,6 +218,118 @@ fun DetailScreen(
                 )
             }
 
+            var showCollectionSheet by remember { mutableStateOf(false) }
+
+            // Top Add to Collection Button
+            IconButton(
+                onClick = { showCollectionSheet = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x990C0C0E))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = strings.libraryScreen.addToCollection,
+                    tint = TextPrimary
+                )
+            }
+
+            if (showCollectionSheet) {
+                val collections by viewModel.collections.collectAsState()
+                val animeCollectionIds by viewModel.animeCollectionIds.collectAsState()
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+                ModalBottomSheet(
+                    onDismissRequest = { showCollectionSheet = false },
+                    sheetState = sheetState,
+                    containerColor = BackgroundDark,
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary.copy(alpha = 0.5f)) },
+                    contentWindowInsets = { WindowInsets(0.dp) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = strings.libraryScreen.addToCollection,
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+
+                        if (collections.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(150.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = strings.libraryScreen.noCollectionsFound,
+                                    color = TextSecondary,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(collections, key = { it.id }) { collection ->
+                                    val isAdded = animeCollectionIds.contains(collection.id)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(SurfaceDark)
+                                            .border(1.dp, if (isAdded) ElectricViolet else CardBorder, RoundedCornerShape(16.dp))
+                                            .clickable { viewModel.toggleAnimeInCollection(collection.id) }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = collection.title,
+                                                color = TextPrimary,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            if (collection.description.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = collection.description,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Checkbox(
+                                            checked = isAdded,
+                                            onCheckedChange = { viewModel.toggleAnimeInCollection(collection.id) },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = ElectricViolet,
+                                                uncheckedColor = TextSecondary
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (sourceStatusId != null && uiState is DetailUiState.Success) {
                 val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: MaterialTheme.colorScheme.primary
                 var lastClickTime by remember { mutableLongStateOf(0L) }
@@ -722,7 +834,7 @@ fun DetailContent(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = strings.franchisesScreen.name,
+                                text = strings.libraryScreen.franchises,
                                 color = TextPrimary,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold

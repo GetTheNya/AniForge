@@ -35,9 +35,39 @@
       "Your anime list won't watch itself!"
     ]
   },
-  "franchisesScreen": {
-    "name": "Franchises",
-    "youAreHere": "You are here"
+  "libraryScreen": {
+    "name": "Library",
+    "franchises": "Franchises",
+    "collections": "Collections",
+    "youAreHere": "You are here",
+    "newCollection": "New Collection",
+    "title": "Title",
+    "description": "Description",
+    "descriptionOptional": "Description (Optional)",
+    "create": "Create",
+    "cancel": "Cancel",
+    "noDescription": "No description",
+    "editCollectionDetails": "Edit Collection Details",
+    "save": "Save",
+    "manageCollectionTitles": "Manage Collection Titles",
+    "searchCatalogOrTracked": "Search catalog or tracked anime...",
+    "done": "Done",
+    "collectionDeleted": "Collection deleted",
+    "addTitle": "Add Title",
+    "collectionIsEmpty": "Collection is empty.\nClick Add Title to populate it.",
+    "addToCollection": "Add to Collection",
+    "noCollectionsFound": "No collections found",
+    "deleteCollection": "Delete Collection",
+    "dragHandle": "Drag Handle",
+    "removeFromCollection": "Remove from Collection",
+    "titlesCount": {
+      "one": "%d title",
+      "many": "%d titles"
+    },
+    "itemsCount": {
+      "one": "%d item",
+      "many": "%d items"
+    }
   },
   "dashboardScreen": {
     "name": "Anime",

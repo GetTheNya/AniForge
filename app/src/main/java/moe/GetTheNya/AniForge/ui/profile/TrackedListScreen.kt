@@ -1,9 +1,12 @@
 package moe.GetTheNya.AniForge.ui.profile
 
 import android.widget.Toast
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -16,18 +19,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
@@ -35,6 +48,8 @@ import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.utils.disableSplitTouch
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
+import moe.GetTheNya.AniForge.core.model.Anime
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,17 +88,22 @@ fun TrackedListScreen(
     }
 
     LaunchedEffect(pagerState.currentPage) {
-        viewModel.setActiveTab(statusConfigs[pagerState.currentPage].id)
+        if (pagerState.currentPage in statusConfigs.indices) {
+            viewModel.setActiveTab(statusConfigs[pagerState.currentPage].id)
+        }
     }
 
     // Dynamic color interpolation for active tab elements (text, icon, indicator)
     val activeColor = remember(pagerState.currentPage, pagerState.currentPageOffsetFraction) {
-        val baseColor = statusConfigs[pagerState.currentPage].color
+        val getColor = { idx: Int ->
+            if (idx in statusConfigs.indices) statusConfigs[idx].color else Color.Gray
+        }
+        val baseColor = getColor(pagerState.currentPage)
         val offset = pagerState.currentPageOffsetFraction
         if (offset != 0f) {
             val targetPage = if (offset > 0) pagerState.currentPage + 1 else pagerState.currentPage - 1
             if (targetPage in statusConfigs.indices) {
-                val targetColor = statusConfigs[targetPage].color
+                val targetColor = getColor(targetPage)
                 lerp(baseColor, targetColor, kotlin.math.abs(offset))
             } else {
                 baseColor
@@ -256,13 +276,11 @@ fun TrackedListScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) { pageIndex ->
+            // Watch status pages
             val statusId = statusConfigs[pageIndex].id
             val allTrackedList by viewModel.allTrackedAnime.collectAsState()
-
             val trackingSnapshotMap by viewModel.trackingSnapshotMap.collectAsState()
 
-            // Calculate active list dynamically. For neighbor pages, compute standard filter 
-            // to allow smooth swipe transition without layout snapping.
             val items = remember(statusId, filteredAnime, searchQuery, allTrackedList, trackingSnapshotMap) {
                 if (statusId == viewModel.activeTab.value) {
                     filteredAnime

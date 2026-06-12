@@ -35,9 +35,41 @@
       "Твій аніме-список сам себе не подивиться!"
     ]
   },
-  "franchisesScreen": {
-    "name": "Франшизи",
-    "youAreHere": "Ви тут"
+  "libraryScreen": {
+    "name": "Бібліотека",
+    "franchises": "Франшизи",
+    "collections": "Колекції",
+    "youAreHere": "Ви тут",
+    "newCollection": "Нова колекція",
+    "title": "Назва",
+    "description": "Опис",
+    "descriptionOptional": "Опис (необов'язково)",
+    "create": "Створити",
+    "cancel": "Скасувати",
+    "noDescription": "Немає опису",
+    "editCollectionDetails": "Редагувати деталі колекції",
+    "save": "Зберегти",
+    "manageCollectionTitles": "Керувати назвами колекції",
+    "searchCatalogOrTracked": "Шукати в каталозі або відстежуваному аніме...",
+    "done": "Готово",
+    "collectionDeleted": "Колекцію видалено",
+    "addTitle": "Додати аніме",
+    "collectionIsEmpty": "Колекція порожня.\nНатисніть Додати аніме, щоб заповнити її.",
+    "addToCollection": "Додати до колекції",
+    "noCollectionsFound": "Колекцій не знайдено",
+    "deleteCollection": "Видалити колекцію",
+    "dragHandle": "Перетягнути",
+    "removeFromCollection": "Вилучити з колекції",
+    "titlesCount": {
+      "one": "%d тайтл",
+      "few": "%d тайтли",
+      "many": "%d тайтлів"
+    },
+    "itemsCount": {
+      "one": "%d елемент",
+      "few": "%d елементи",
+      "many": "%d елементів"
+    }
   },
   "dashboardScreen": {
     "name": "Аніме",

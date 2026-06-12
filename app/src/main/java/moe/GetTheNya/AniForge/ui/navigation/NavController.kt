@@ -36,6 +36,7 @@ sealed interface Screen {
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
     data class TrackedList(val initialStatusId: String) : Screen
     data class FranchiseTree(val franchiseId: Long) : Screen
+    data class CollectionDetail(val collectionId: Int) : Screen
 }
 
 class BackStackEntry(
@@ -67,6 +68,9 @@ class BackStackEntry(
                 is Screen.FranchiseTree -> {
                     put("franchiseId", s.franchiseId)
                 }
+                is Screen.CollectionDetail -> {
+                    put("collectionId", s.collectionId)
+                }
                 else -> {}
             }
         }
@@ -92,6 +96,9 @@ class BackStackEntry(
                 is Screen.FranchiseTree -> {
                     bundle.putLong("franchiseId", s.franchiseId)
                 }
+                is Screen.CollectionDetail -> {
+                    bundle.putInt("collectionId", s.collectionId)
+                }
                 else -> {}
             }
             extras[androidx.lifecycle.DEFAULT_ARGS_KEY] = bundle
@@ -110,6 +117,7 @@ class NavController(
     var rouletteExitMaxCount by mutableStateOf<Int?>(null)
     var composeCoroutineScope: kotlinx.coroutines.CoroutineScope? = null
     var onSelectTab: ((moe.GetTheNya.AniForge.TabScreen) -> Unit)? = null
+    var onLibraryClick: (() -> Unit)? = null
 
     val backStack: SnapshotStateList<BackStackEntry> = mutableStateListOf(
         BackStackEntry(screen = initialScreen, activity = activity)

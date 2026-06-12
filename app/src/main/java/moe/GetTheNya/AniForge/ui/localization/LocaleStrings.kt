@@ -11,7 +11,7 @@ data class LocaleStrings(
     val languageCode: String = "en",
     val misc: MiscStrings = MiscStrings(),
     val homeScreen: HomeScreenStrings = HomeScreenStrings(),
-    val franchisesScreen: FranchisesScreenStrings = FranchisesScreenStrings(),
+    val libraryScreen: LibraryScreenStrings = LibraryScreenStrings(),
     val dashboardScreen: DashboardScreenStrings = DashboardScreenStrings(),
     val detailScreen: DetailScreenStrings = DetailScreenStrings(),
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
@@ -55,9 +55,33 @@ data class HomeScreenStrings(
 )
 
 @Serializable
-data class FranchisesScreenStrings(
-    val name: String = "[franchisesScreen.name]",
-    val youAreHere: String = "[franchisesScreen.youAreHere]"
+data class LibraryScreenStrings(
+    val name: String = "[libraryScreen.name]",
+    val franchises: String = "[libraryScreen.franchises]",
+    val collections: String = "[libraryScreen.collections]",
+    val youAreHere: String = "[libraryScreen.youAreHere]",
+    val newCollection: String = "[libraryScreen.newCollection]",
+    val title: String = "[libraryScreen.title]",
+    val description: String = "[libraryScreen.description]",
+    val descriptionOptional: String = "[libraryScreen.descriptionOptional]",
+    val create: String = "[libraryScreen.create]",
+    val cancel: String = "[libraryScreen.cancel]",
+    val noDescription: String = "[libraryScreen.noDescription]",
+    val editCollectionDetails: String = "[libraryScreen.editCollectionDetails]",
+    val save: String = "[libraryScreen.save]",
+    val manageCollectionTitles: String = "[libraryScreen.manageCollectionTitles]",
+    val searchCatalogOrTracked: String = "[libraryScreen.searchCatalogOrTracked]",
+    val done: String = "[libraryScreen.done]",
+    val collectionDeleted: String = "[libraryScreen.collectionDeleted]",
+    val addTitle: String = "[libraryScreen.addTitle]",
+    val collectionIsEmpty: String = "[libraryScreen.collectionIsEmpty]",
+    val addToCollection: String = "[libraryScreen.addToCollection]",
+    val noCollectionsFound: String = "[libraryScreen.noCollectionsFound]",
+    val deleteCollection: String = "[libraryScreen.deleteCollection]",
+    val dragHandle: String = "[libraryScreen.dragHandle]",
+    val removeFromCollection: String = "[libraryScreen.removeFromCollection]",
+    val titlesCount: Map<String, String> = emptyMap(),
+    val itemsCount: Map<String, String> = emptyMap()
 )
 
 @Serializable
