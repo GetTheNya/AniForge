@@ -222,6 +222,12 @@
     "novel": "Novel",
     "oneShot": "One Shot"
   },
+  "seasons": {
+    "winter": "Winter",
+    "spring": "Spring",
+    "summer": "Summer",
+    "fall": "Fall"
+  },
   "relationTypes": {
     "ADAPTATION": "Adaptation",
     "PREQUEL": "Prequel",

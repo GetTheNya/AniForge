@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import moe.GetTheNya.AniForge.core.model.Anime
+import moe.GetTheNya.AniForge.ui.localization.getSeasonLabel
+import moe.GetTheNya.AniForge.ui.localization.getFormatLabel
 import moe.GetTheNya.AniForge.ui.theme.CardBorder
 import moe.GetTheNya.AniForge.ui.theme.NeonCoral
 import moe.GetTheNya.AniForge.ui.theme.SurfaceCardDark
@@ -228,8 +230,9 @@ fun AnimeBentoCard(
                     ) {
                         val format = anime.format
                         if (format != null) {
+                            val formatLabel = strings.formats.getFormatLabel(format)
                             Text(
-                                text = format.uppercase(),
+                                text = formatLabel.uppercase(),
                                 color = NeonCoral,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -267,8 +270,10 @@ fun AnimeBentoCard(
 
                     // Year & Season info
                     if (anime.seasonYear != null) {
+                        val seasonText = anime.season?.let { strings.seasons.getSeasonLabel(it) }
+                        val formattedSeason = if (seasonText != null) "$seasonText ${anime.seasonYear}" else "${anime.seasonYear}"
                         Text(
-                            text = "${anime.season ?: ""} ${anime.seasonYear}",
+                            text = formattedSeason,
                             color = TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

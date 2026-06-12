@@ -226,6 +226,12 @@
     "novel": "Ранобе",
     "oneShot": "Ваншот"
   },
+  "seasons": {
+    "winter": "Зима",
+    "spring": "Весна",
+    "summer": "Літо",
+    "fall": "Осінь"
+  },
   "relationTypes": {
     "ADAPTATION": "Адаптація",
     "PREQUEL": "Приквел",

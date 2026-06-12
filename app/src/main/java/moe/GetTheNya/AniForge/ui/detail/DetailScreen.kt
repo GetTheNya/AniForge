@@ -45,6 +45,8 @@ import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.style.TextOverflow
 import moe.GetTheNya.AniForge.ui.localization.getPlural
+import moe.GetTheNya.AniForge.ui.localization.getSeasonLabel
+import moe.GetTheNya.AniForge.ui.localization.getFormatLabel
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
@@ -627,7 +629,8 @@ fun DetailContent(
                                     fontWeight = FontWeight.Bold
                                 )
                                 val format = anime.format
-                                if (!format.isNullOrBlank()) {
+                                val formatLabel = format?.let { strings.formats.getFormatLabel(it) }
+                                if (!formatLabel.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "•",
@@ -637,8 +640,27 @@ fun DetailContent(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = format,
+                                        text = formatLabel,
                                         color = NeonCoral,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                val seasonText = anime.season?.let { strings.seasons.getSeasonLabel(it) }
+                                val seasonYear = anime.seasonYear
+                                if (seasonYear != null) {
+                                    val formattedSeason = if (seasonText != null) "$seasonText $seasonYear" else "$seasonYear"
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "•",
+                                        color = TextSecondary.copy(alpha = 0.6f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = formattedSeason,
+                                        color = TextPrimary.copy(alpha = 0.8f),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )

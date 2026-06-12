@@ -19,6 +19,7 @@ data class LocaleStrings(
     val devSettings: DevSettingsStrings = DevSettingsStrings(),
     val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings(),
     val formats: FormatStrings = FormatStrings(),
+    val seasons: SeasonStrings = SeasonStrings(),
     val relationTypes: Map<String, String> = emptyMap()
 )
 
@@ -273,4 +274,38 @@ data class FormatStrings(
     val novel: String = "[formats.novel]",
     val oneShot: String = "[formats.oneShot]"
 )
+
+@Serializable
+data class SeasonStrings(
+    val winter: String = "[seasons.winter]",
+    val spring: String = "[seasons.spring]",
+    val summer: String = "[seasons.summer]",
+    val fall: String = "[seasons.fall]"
+)
+
+fun SeasonStrings.getSeasonLabel(season: String): String {
+    return when (season.uppercase()) {
+        "WINTER" -> winter
+        "SPRING" -> spring
+        "SUMMER" -> summer
+        "FALL" -> fall
+        else -> season
+    }
+}
+
+fun FormatStrings.getFormatLabel(format: String): String {
+    return when (format.uppercase()) {
+        "TV" -> tv
+        "TV_SHORT" -> tvShort
+        "MOVIE" -> movie
+        "SPECIAL" -> special
+        "OVA" -> ova
+        "ONA" -> ona
+        "MUSIC" -> music
+        "MANGA" -> manga
+        "NOVEL" -> novel
+        "ONE_SHOT" -> oneShot
+        else -> format
+    }
+}
 
