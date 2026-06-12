@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.*
@@ -27,10 +26,13 @@ import androidx.compose.ui.unit.sp
 import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.Studio
-import moe.GetTheNya.AniForge.core.model.EpisodeGroup
 import moe.GetTheNya.AniForge.core.model.Staff
 import moe.GetTheNya.AniForge.core.model.SortOption
 import moe.GetTheNya.AniForge.core.model.AnimeFormat
+import moe.GetTheNya.AniForge.core.model.EpisodeGroup
+import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
+import moe.GetTheNya.AniForge.core.model.ListSortOption
+import moe.GetTheNya.AniForge.core.model.ListFilterState
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -54,21 +56,89 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.launch
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.platform.LocalView
 
 private enum class SortCategory {
     RELEVANCE, SCORE, POPULARITY, RELEASE_DATE, EPISODES, TITLE
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+private enum class ListSortCategory {
+    DATE_ADDED, SCORE, PROGRESS, ALPHABETICAL
+}
+
 @Composable
 fun FilterBottomSheet(
     viewModel: DashboardViewModel,
     onDismiss: () -> Unit
+) {
+    val genres by viewModel.allGenres.collectAsState()
+    val tags by viewModel.allTags.collectAsState()
+    val studios by viewModel.allStudios.collectAsState()
+    val staff by viewModel.allStaff.collectAsState()
+    val preferUkTitles by viewModel.preferUkTitles.collectAsState()
+    val filter by viewModel.searchFilter.collectAsState()
+    val count by viewModel.filteredCount.collectAsState()
+
+    FilterBottomSheet(
+        isCatalog = true,
+        onDismiss = onDismiss,
+        allGenres = genres,
+        allTags = tags,
+        allStudios = studios,
+        allStaff = staff,
+        preferUkTitles = preferUkTitles,
+        catalogFilter = filter,
+        filteredCount = count,
+        onClearAllFilters = { viewModel.clearAllFilters() },
+        onSortOptionSelected = { viewModel.updateSortOrder(it) },
+        onScoreRangeChanged = { min, max -> viewModel.updateScoreRange(min, max) },
+        onFormatToggled = { viewModel.toggleFormatType(it) },
+        onEpisodeGroupToggled = { viewModel.toggleEpisodeGroup(it) },
+        onTrackingStatusToggled = { viewModel.toggleTrackingStatus(it) },
+        onUkTranslationFilterToggled = { viewModel.toggleUkTranslationFilter() },
+        onStudioFilterToggled = { viewModel.toggleStudioFilter(it) },
+        onGenreFilterToggled = { viewModel.toggleGenreFilterState(it) },
+        onTagFilterToggled = { viewModel.toggleTagFilterState(it) },
+        onStaffFilterToggled = { viewModel.toggleStaffFilterState(it) },
+        onClearGenreFilters = { viewModel.clearGenreFilters() },
+        onClearTagFilters = { viewModel.clearTagFilters() },
+        onClearStudioFilters = { viewModel.clearStudioFilters() },
+        onClearStaffFilters = { viewModel.clearStaffFilters() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun FilterBottomSheet(
+    isCatalog: Boolean,
+    onDismiss: () -> Unit,
+    allGenres: List<Genre>,
+    allTags: List<Tag>,
+    allStudios: List<Studio>,
+    allStaff: List<Staff>,
+    preferUkTitles: Boolean,
+    catalogFilter: SearchFilterQuery? = null,
+    trackedListFilter: ListFilterState? = null,
+    filteredCount: Int,
+    onClearAllFilters: () -> Unit,
+    onSortOptionSelected: ((SortOption) -> Unit)? = null,
+    onListSortOptionSelected: ((ListSortOption) -> Unit)? = null,
+    onScoreRangeChanged: ((Double?, Double?) -> Unit)? = null,
+    onFormatToggled: (AnimeFormat) -> Unit,
+    onEpisodeGroupToggled: ((EpisodeGroup) -> Unit)? = null,
+    onTrackingStatusToggled: ((String) -> Unit)? = null,
+    onUkTranslationFilterToggled: (() -> Unit)? = null,
+    onStudioFilterToggled: ((Long) -> Unit)? = null,
+    onGenreFilterToggled: (String) -> Unit,
+    onTagFilterToggled: ((Long) -> Unit)? = null,
+    onStaffFilterToggled: ((Long) -> Unit)? = null,
+    onClearGenreFilters: () -> Unit,
+    onClearTagFilters: (() -> Unit)? = null,
+    onClearStudioFilters: (() -> Unit)? = null,
+    onClearStaffFilters: (() -> Unit)? = null
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val scope = rememberCoroutineScope()
@@ -80,36 +150,35 @@ fun FilterBottomSheet(
         skipPartiallyExpanded = true
     )
 
-    val filter by viewModel.searchFilter.collectAsState()
-    val count by viewModel.filteredCount.collectAsState()
-    val preferUkTitles by viewModel.preferUkTitles.collectAsState()
-    
-    val genres by viewModel.allGenres.collectAsState()
-    val tags by viewModel.allTags.collectAsState()
-    val studios by viewModel.allStudios.collectAsState()
-    val staff by viewModel.allStaff.collectAsState()
-
-    val inlineGenres = remember(filter.genres, filter.excludedGenres, genres) {
-        val selectedGenres = genres.filter { filter.genres.contains(it.slug) || filter.excludedGenres.contains(it.slug) }
-        val top8Genres = genres.take(8)
+    val genresList = if (isCatalog) catalogFilter?.genres.orEmpty() else trackedListFilter?.genres.orEmpty()
+    val excludedGenresList = if (isCatalog) catalogFilter?.excludedGenres.orEmpty() else trackedListFilter?.excludedGenres.orEmpty()
+    val inlineGenres = remember(genresList, excludedGenresList, allGenres) {
+        val selectedGenres = allGenres.filter { genresList.contains(it.slug) || excludedGenresList.contains(it.slug) }
+        val top8Genres = allGenres.take(8)
         (selectedGenres + top8Genres).distinct()
     }
 
-    val inlineTags = remember(filter.tags, filter.excludedTags, tags) {
-        val selectedTags = tags.filter { filter.tags.contains(it.tagId) || filter.excludedTags.contains(it.tagId) }
-        val top8Tags = tags.take(8)
+    val tagsList = if (isCatalog) catalogFilter?.tags.orEmpty() else emptyList()
+    val excludedTagsList = if (isCatalog) catalogFilter?.excludedTags.orEmpty() else emptyList()
+    val inlineTags = remember(tagsList, excludedTagsList, allTags) {
+        val selectedTags = allTags.filter { tagsList.contains(it.tagId) || excludedTagsList.contains(it.tagId) }
+        val top8Tags = allTags.take(8)
         (selectedTags + top8Tags).distinct()
     }
 
-    val inlineStudios = remember(filter.studios, filter.excludedStudios, studios) {
-        val selectedStudios = studios.filter { filter.studios.contains(it.studioId) || filter.excludedStudios.contains(it.studioId) }
-        val top8Studios = studios.take(8)
+    val studiosList = if (isCatalog) catalogFilter?.studios.orEmpty() else emptyList()
+    val excludedStudiosList = if (isCatalog) catalogFilter?.excludedStudios.orEmpty() else emptyList()
+    val inlineStudios = remember(studiosList, excludedStudiosList, allStudios) {
+        val selectedStudios = allStudios.filter { studiosList.contains(it.studioId) || excludedStudiosList.contains(it.studioId) }
+        val top8Studios = allStudios.take(8)
         (selectedStudios + top8Studios).distinct()
     }
 
-    val inlineStaff = remember(filter.staff, filter.excludedStaff, staff) {
-        val selectedStaff = staff.filter { filter.staff.contains(it.staffId) || filter.excludedStaff.contains(it.staffId) }
-        val top8Staff = staff.take(8)
+    val staffList = if (isCatalog) catalogFilter?.staff.orEmpty() else emptyList()
+    val excludedStaffList = if (isCatalog) catalogFilter?.excludedStaff.orEmpty() else emptyList()
+    val inlineStaff = remember(staffList, excludedStaffList, allStaff) {
+        val selectedStaff = allStaff.filter { staffList.contains(it.staffId) || excludedStaffList.contains(it.staffId) }
+        val top8Staff = allStaff.take(8)
         (selectedStaff + top8Staff).distinct()
     }
 
@@ -118,7 +187,7 @@ fun FilterBottomSheet(
     var showStudioDialog by remember { mutableStateOf(false) }
     var showStaffDialog by remember { mutableStateOf(false) }
 
-    val readyText = strings.dashboardScreen.readyWithCount.replace("{count}", count.toString())
+    val readyText = strings.dashboardScreen.readyWithCount.replace("{count}", filteredCount.toString())
 
     // Remember the lazy list state to track scroll position
     val lazyListState = rememberLazyListState()
@@ -235,7 +304,7 @@ fun FilterBottomSheet(
                 )
                 
                 TextButton(
-                    onClick = { viewModel.clearAllFilters() }
+                    onClick = onClearAllFilters
                 ) {
                     Text(
                         text = strings.dashboardScreen.clearAll,
@@ -261,187 +330,280 @@ fun FilterBottomSheet(
                         Text(text = strings.dashboardScreen.sortBy, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         
-                        val activeSort = filter.sortBy
-                        val (activeCategory, isDescending) = when (activeSort) {
-                            SortOption.RELEVANCE -> SortCategory.RELEVANCE to true
-                            SortOption.SCORE -> SortCategory.SCORE to true
-                            SortOption.SCORE_ASC -> SortCategory.SCORE to false
-                            SortOption.POPULARITY -> SortCategory.POPULARITY to true
-                            SortOption.POPULARITY_ASC -> SortCategory.POPULARITY to false
-                            SortOption.START_DATE_DESC, SortOption.YEAR_DESC -> SortCategory.RELEASE_DATE to true
-                            SortOption.START_DATE_ASC, SortOption.YEAR_ASC -> SortCategory.RELEASE_DATE to false
-                            SortOption.EPISODES_DESC -> SortCategory.EPISODES to true
-                            SortOption.EPISODES_ASC -> SortCategory.EPISODES to false
-                            SortOption.TITLE_DESC -> SortCategory.TITLE to true
-                            SortOption.TITLE -> SortCategory.TITLE to false
-                        }
-                        
-                        val onSortCategoryClick = { category: SortCategory ->
-                            val newSortOption = if (activeCategory == category) {
-                                if (category == SortCategory.RELEVANCE) {
-                                    SortOption.RELEVANCE
-                                } else if (isDescending) {
-                                    when (category) {
-                                        SortCategory.RELEVANCE -> SortOption.RELEVANCE
-                                        SortCategory.SCORE -> SortOption.SCORE_ASC
-                                        SortCategory.POPULARITY -> SortOption.POPULARITY_ASC
-                                        SortCategory.RELEASE_DATE -> SortOption.START_DATE_ASC
-                                        SortCategory.EPISODES -> SortOption.EPISODES_ASC
-                                        SortCategory.TITLE -> SortOption.TITLE
+                        if (isCatalog && catalogFilter != null) {
+                            val activeSort = catalogFilter.sortBy
+                            val (activeCategory, isDescending) = when (activeSort) {
+                                SortOption.RELEVANCE -> SortCategory.RELEVANCE to true
+                                SortOption.SCORE -> SortCategory.SCORE to true
+                                SortOption.SCORE_ASC -> SortCategory.SCORE to false
+                                SortOption.POPULARITY -> SortCategory.POPULARITY to true
+                                SortOption.POPULARITY_ASC -> SortCategory.POPULARITY to false
+                                SortOption.START_DATE_DESC, SortOption.YEAR_DESC -> SortCategory.RELEASE_DATE to true
+                                SortOption.START_DATE_ASC, SortOption.YEAR_ASC -> SortCategory.RELEASE_DATE to false
+                                SortOption.EPISODES_DESC -> SortCategory.EPISODES to true
+                                SortOption.EPISODES_ASC -> SortCategory.EPISODES to false
+                                SortOption.TITLE_DESC -> SortCategory.TITLE to true
+                                SortOption.TITLE -> SortCategory.TITLE to false
+                            }
+                            
+                            val onSortCategoryClick = { category: SortCategory ->
+                                val newSortOption = if (activeCategory == category) {
+                                    if (category == SortCategory.RELEVANCE) {
+                                        SortOption.RELEVANCE
+                                    } else if (isDescending) {
+                                        when (category) {
+                                            SortCategory.RELEVANCE -> SortOption.RELEVANCE
+                                            SortCategory.SCORE -> SortOption.SCORE_ASC
+                                            SortCategory.POPULARITY -> SortOption.POPULARITY_ASC
+                                            SortCategory.RELEASE_DATE -> SortOption.START_DATE_ASC
+                                            SortCategory.EPISODES -> SortOption.EPISODES_ASC
+                                            SortCategory.TITLE -> SortOption.TITLE
+                                        }
+                                    } else {
+                                        SortOption.SCORE
                                     }
                                 } else {
-                                    SortOption.SCORE
+                                    when (category) {
+                                        SortCategory.RELEVANCE -> SortOption.RELEVANCE
+                                        SortCategory.SCORE -> SortOption.SCORE
+                                        SortCategory.POPULARITY -> SortOption.POPULARITY
+                                        SortCategory.RELEASE_DATE -> SortOption.START_DATE_DESC
+                                        SortCategory.EPISODES -> SortOption.EPISODES_DESC
+                                        SortCategory.TITLE -> SortOption.TITLE_DESC
+                                    }
                                 }
-                            } else {
-                                when (category) {
-                                    SortCategory.RELEVANCE -> SortOption.RELEVANCE
-                                    SortCategory.SCORE -> SortOption.SCORE
-                                    SortCategory.POPULARITY -> SortOption.POPULARITY
-                                    SortCategory.RELEASE_DATE -> SortOption.START_DATE_DESC
-                                    SortCategory.EPISODES -> SortOption.EPISODES_DESC
-                                    SortCategory.TITLE -> SortOption.TITLE_DESC
-                                }
+                                onSortOptionSelected?.invoke(newSortOption)
                             }
-                            viewModel.updateSortOrder(newSortOption)
-                        }
 
-                        val sortCategories = listOf(
-                            SortCategory.SCORE to strings.dashboardScreen.scoreRange,
-                            SortCategory.POPULARITY to strings.dashboardScreen.popularity,
-                            SortCategory.RELEASE_DATE to strings.dashboardScreen.releaseDate,
-                            SortCategory.EPISODES to strings.dashboardScreen.episodeCount,
-                            SortCategory.TITLE to strings.dashboardScreen.alphabetical
-                        )
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (filter.textQuery.isNotBlank()) {
-                                val isRelevanceActive = activeSort == SortOption.RELEVANCE
-                                FilterChip(
-                                    selected = isRelevanceActive,
-                                    onClick = { onSortCategoryClick(SortCategory.RELEVANCE) },
-                                    label = { Text(strings.dashboardScreen.byRelevance, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = ElectricViolet,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = SurfaceDark,
-                                        labelColor = TextSecondary
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
+                            val sortCategories = listOf(
+                                SortCategory.SCORE to strings.dashboardScreen.scoreRange,
+                                SortCategory.POPULARITY to strings.dashboardScreen.popularity,
+                                SortCategory.RELEASE_DATE to strings.dashboardScreen.releaseDate,
+                                SortCategory.EPISODES to strings.dashboardScreen.episodeCount,
+                                SortCategory.TITLE to strings.dashboardScreen.alphabetical
+                            )
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (catalogFilter.textQuery.isNotBlank()) {
+                                    val isRelevanceActive = activeSort == SortOption.RELEVANCE
+                                    FilterChip(
                                         selected = isRelevanceActive,
-                                        borderColor = CardBorder,
-                                        selectedBorderColor = ElectricViolet,
-                                        borderWidth = 1.dp
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-                            for ((category, label) in sortCategories) {
-                                val isActive = activeCategory == category
-                                
-                                FilterChip(
-                                    selected = isActive,
-                                    onClick = { onSortCategoryClick(category) },
-                                    label = { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-                                    leadingIcon = if (isActive) {
-                                        {
-                                            Icon(
-                                                imageVector = if (isDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    } else null,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = ElectricViolet,
-                                        selectedLabelColor = Color.White,
-                                        selectedLeadingIconColor = Color.White,
-                                        containerColor = SurfaceDark,
-                                        labelColor = TextSecondary,
-                                        iconColor = TextSecondary
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
+                                        onClick = { onSortCategoryClick(SortCategory.RELEVANCE) },
+                                        label = { Text(strings.dashboardScreen.byRelevance, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = ElectricViolet,
+                                            selectedLabelColor = Color.White,
+                                            containerColor = SurfaceDark,
+                                            labelColor = TextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isRelevanceActive,
+                                            borderColor = CardBorder,
+                                            selectedBorderColor = ElectricViolet,
+                                            borderWidth = 1.dp
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
+                                for ((category, label) in sortCategories) {
+                                    val isActive = activeCategory == category
+                                    
+                                    FilterChip(
                                         selected = isActive,
-                                        borderColor = CardBorder,
-                                        selectedBorderColor = ElectricViolet,
-                                        borderWidth = 1.dp
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
+                                        onClick = { onSortCategoryClick(category) },
+                                        label = { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                                        leadingIcon = if (isActive) {
+                                            {
+                                                Icon(
+                                                    imageVector = if (isDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        } else null,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = ElectricViolet,
+                                            selectedLabelColor = Color.White,
+                                            selectedLeadingIconColor = Color.White,
+                                            containerColor = SurfaceDark,
+                                            labelColor = TextSecondary,
+                                            iconColor = TextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isActive,
+                                            borderColor = CardBorder,
+                                            selectedBorderColor = ElectricViolet,
+                                            borderWidth = 1.dp
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
+                            }
+                        } else if (!isCatalog && trackedListFilter != null) {
+                            val activeSort = trackedListFilter.sortBy
+                            val (activeCategory, isDescending) = when (activeSort) {
+                                ListSortOption.SCORE_DESC -> ListSortCategory.SCORE to true
+                                ListSortOption.SCORE_ASC -> ListSortCategory.SCORE to false
+                                ListSortOption.PROGRESS_DESC -> ListSortCategory.PROGRESS to true
+                                ListSortOption.PROGRESS_ASC -> ListSortCategory.PROGRESS to false
+                                ListSortOption.DATE_ADDED_DESC -> ListSortCategory.DATE_ADDED to true
+                                ListSortOption.DATE_ADDED_ASC -> ListSortCategory.DATE_ADDED to false
+                                ListSortOption.ALPHABETICAL_ASC -> ListSortCategory.ALPHABETICAL to false
+                                ListSortOption.ALPHABETICAL_DESC -> ListSortCategory.ALPHABETICAL to true
+                            }
+                            
+                            val onListSortCategoryClick = { category: ListSortCategory ->
+                                val newSortOption = if (activeCategory == category) {
+                                    if (isDescending) {
+                                        when (category) {
+                                            ListSortCategory.SCORE -> ListSortOption.SCORE_ASC
+                                            ListSortCategory.PROGRESS -> ListSortOption.PROGRESS_ASC
+                                            ListSortCategory.DATE_ADDED -> ListSortOption.DATE_ADDED_ASC
+                                            ListSortCategory.ALPHABETICAL -> ListSortOption.ALPHABETICAL_ASC
+                                        }
+                                    } else {
+                                        when (category) {
+                                            ListSortCategory.SCORE -> ListSortOption.SCORE_DESC
+                                            ListSortCategory.PROGRESS -> ListSortOption.PROGRESS_DESC
+                                            ListSortCategory.DATE_ADDED -> ListSortOption.DATE_ADDED_DESC
+                                            ListSortCategory.ALPHABETICAL -> ListSortOption.ALPHABETICAL_DESC
+                                        }
+                                    }
+                                } else {
+                                    when (category) {
+                                        ListSortCategory.SCORE -> ListSortOption.SCORE_DESC
+                                        ListSortCategory.PROGRESS -> ListSortOption.PROGRESS_DESC
+                                        ListSortCategory.DATE_ADDED -> ListSortOption.DATE_ADDED_DESC
+                                        ListSortCategory.ALPHABETICAL -> ListSortOption.ALPHABETICAL_ASC
+                                    }
+                                }
+                                onListSortOptionSelected?.invoke(newSortOption)
+                            }
+
+                            val sortCategories = listOf(
+                                ListSortCategory.DATE_ADDED to strings.trackedListScreen.sortByDateAdded,
+                                ListSortCategory.SCORE to strings.trackedListScreen.sortByPersonalScore,
+                                ListSortCategory.PROGRESS to strings.trackedListScreen.sortByProgress,
+                                ListSortCategory.ALPHABETICAL to strings.trackedListScreen.sortByAlphabetical
+                            )
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for ((category, label) in sortCategories) {
+                                    val isActive = activeCategory == category
+                                    
+                                    FilterChip(
+                                        selected = isActive,
+                                        onClick = { onListSortCategoryClick(category) },
+                                        label = { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                                        leadingIcon = if (isActive) {
+                                            {
+                                                Icon(
+                                                    imageVector = if (isDescending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        } else null,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = ElectricViolet,
+                                            selectedLabelColor = Color.White,
+                                            selectedLeadingIconColor = Color.White,
+                                            containerColor = SurfaceDark,
+                                            labelColor = TextSecondary,
+                                            iconColor = TextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isActive,
+                                            borderColor = CardBorder,
+                                            selectedBorderColor = ElectricViolet,
+                                            borderWidth = 1.dp
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                item {
-                    // 2. Score Range Slider
-                    Column {
-                        val currentMin = filter.minScore ?: 0.0
-                        val currentMax = filter.maxScore ?: 10.0
-                        var sliderPosition by remember(currentMin, currentMax) { 
-                            mutableStateOf(currentMin.toFloat()..currentMax.toFloat()) 
-                        }
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = strings.dashboardScreen.scoreRange, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                text = String.format(java.util.Locale.US, "%.1f - %.1f", sliderPosition.start, sliderPosition.endInclusive),
-                                color = NeonCoral,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        RangeSlider(
-                            value = sliderPosition,
-                            onValueChange = { range ->
-                                val startRounded = Math.round(range.start * 10f) / 10f
-                                val endRounded = Math.round(range.endInclusive * 10f) / 10f
-                                sliderPosition = startRounded..endRounded
-                            },
-                            valueRange = 0f..10f,
-                            onValueChangeFinished = {
-                                val min = if (sliderPosition.start <= 0.05f) null else sliderPosition.start.toDouble()
-                                val max = if (sliderPosition.endInclusive >= 9.95f) null else sliderPosition.endInclusive.toDouble()
-                                viewModel.updateScoreRange(min, max)
-                            },
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = ElectricViolet,
-                                inactiveTrackColor = CardBorder,
-                                thumbColor = ElectricViolet
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pointerInput(Unit) {
-                                    awaitEachGesture {
-                                        awaitFirstDown(requireUnconsumed = false)
-                                        view.parent?.requestDisallowInterceptTouchEvent(true)
-                                        isDraggingSlider = true
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val anyPressed = event.changes.any { it.pressed }
-                                            if (!anyPressed) break
-                                            
-                                            event.changes.forEach { change ->
-                                                if (change.positionChanged()) {
-                                                    change.consume()
+                if (isCatalog) {
+                    item {
+                        // 2. Score Range Slider
+                        Column {
+                            val currentMin = catalogFilter?.minScore ?: 0.0
+                            val currentMax = catalogFilter?.maxScore ?: 10.0
+                            var sliderPosition by remember(currentMin, currentMax) { 
+                                mutableStateOf(currentMin.toFloat()..currentMax.toFloat()) 
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = strings.dashboardScreen.scoreRange, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = String.format(java.util.Locale.US, "%.1f - %.1f", sliderPosition.start, sliderPosition.endInclusive),
+                                    color = NeonCoral,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            RangeSlider(
+                                value = sliderPosition,
+                                onValueChange = { range ->
+                                    val startRounded = Math.round(range.start * 10f) / 10f
+                                    val endRounded = Math.round(range.endInclusive * 10f) / 10f
+                                    sliderPosition = startRounded..endRounded
+                                },
+                                valueRange = 0f..10f,
+                                onValueChangeFinished = {
+                                    val min = if (sliderPosition.start <= 0.05f) null else sliderPosition.start.toDouble()
+                                    val max = if (sliderPosition.endInclusive >= 9.95f) null else sliderPosition.endInclusive.toDouble()
+                                    onScoreRangeChanged?.invoke(min, max)
+                                },
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = ElectricViolet,
+                                    inactiveTrackColor = CardBorder,
+                                    thumbColor = ElectricViolet
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pointerInput(Unit) {
+                                        awaitEachGesture {
+                                            awaitFirstDown(requireUnconsumed = false)
+                                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                                            isDraggingSlider = true
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val anyPressed = event.changes.any { it.pressed }
+                                                if (!anyPressed) break
+                                                
+                                                event.changes.forEach { change ->
+                                                    if (change.positionChanged()) {
+                                                        change.consume()
+                                                    }
                                                 }
                                             }
+                                            isDraggingSlider = false
                                         }
-                                        isDraggingSlider = false
                                     }
-                                }
-                        )
+                            )
+                        }
                     }
                 }
 
@@ -456,250 +618,174 @@ fun FilterBottomSheet(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            val activeFormats = if (isCatalog) catalogFilter?.formats.orEmpty() else trackedListFilter?.formats.orEmpty()
+                            val activeExcludedFormats = if (isCatalog) catalogFilter?.excludedFormats.orEmpty() else trackedListFilter?.excludedFormats.orEmpty()
                             for (format in AnimeFormat.entries) {
-                                val isIncluded = filter.formats.contains(format)
-                                val isExcluded = filter.excludedFormats.contains(format)
+                                val isIncluded = activeFormats.contains(format)
+                                val isExcluded = activeExcludedFormats.contains(format)
                                 TriStateChip(
                                     label = getAnimeFormatLabel(format),
                                     isIncluded = isIncluded,
                                     isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleFormatType(format) }
+                                    onClick = { onFormatToggled(format) }
                                 )
                             }
                         }
                     }
                 }
 
-                item {
-                    // 4. Episode Count groups
-                    Column {
-                        Text(text = strings.dashboardScreen.episodeCount, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            for (group in EpisodeGroup.entries) {
-                                val isIncluded = filter.episodeGroups.contains(group)
-                                val isExcluded = filter.excludedEpisodeGroups.contains(group)
-                                val label = getEpisodeGroupLabel(group)
-                                TriStateChip(
-                                    label = label,
-                                    isIncluded = isIncluded,
-                                    isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleEpisodeGroup(group) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    // 5. Active Lists status & Untracked
-                    Column {
-                        Text(text = strings.dashboardScreen.trackingStatus, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val statusOptions = listOf(
-                                "CURRENT" to strings.misc.watching,
-                                "PLANNING" to strings.misc.planning,
-                                "COMPLETED" to strings.misc.completed,
-                                "PAUSED" to strings.misc.paused,
-                                "DROPPED" to strings.misc.dropped
-                            )
-                            for ((statusId, label) in statusOptions) {
-                                val isIncluded = filter.trackingStatuses.contains(statusId)
-                                val isExcluded = filter.excludedTrackingStatuses.contains(statusId)
-                                TriStateChip(
-                                    label = label,
-                                    isIncluded = isIncluded,
-                                    isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleTrackingStatus(statusId) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (preferUkTitles) {
+                if (isCatalog) {
                     item {
-                        // 6. Localization toggle
+                        // 4. Episode Count groups
                         Column {
+                            Text(text = strings.dashboardScreen.episodeCount, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(SurfaceDark)
-                                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                                    .clickable { viewModel.toggleUkTranslationFilter() }
-                                    .padding(16.dp),
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val activeGroups = catalogFilter?.episodeGroups.orEmpty()
+                                val activeExcludedGroups = catalogFilter?.excludedEpisodeGroups.orEmpty()
+                                for (group in EpisodeGroup.entries) {
+                                    val isIncluded = activeGroups.contains(group)
+                                    val isExcluded = activeExcludedGroups.contains(group)
+                                    val label = getEpisodeGroupLabel(group)
+                                    TriStateChip(
+                                        label = label,
+                                        isIncluded = isIncluded,
+                                        isExcluded = isExcluded,
+                                        onClick = { onEpisodeGroupToggled?.invoke(group) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        // 5. Active Lists status & Untracked
+                        Column {
+                            Text(text = strings.dashboardScreen.trackingStatus, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val statusOptions = listOf(
+                                    "CURRENT" to strings.misc.watching,
+                                    "PLANNING" to strings.misc.planning,
+                                    "COMPLETED" to strings.misc.completed,
+                                    "PAUSED" to strings.misc.paused,
+                                    "DROPPED" to strings.misc.dropped
+                                )
+                                val activeStatuses = catalogFilter?.trackingStatuses.orEmpty()
+                                val activeExcludedStatuses = catalogFilter?.excludedTrackingStatuses.orEmpty()
+                                for ((statusId, label) in statusOptions) {
+                                    val isIncluded = activeStatuses.contains(statusId)
+                                    val isExcluded = activeExcludedStatuses.contains(statusId)
+                                    TriStateChip(
+                                        label = label,
+                                        isIncluded = isIncluded,
+                                        isExcluded = isExcluded,
+                                        onClick = { onTrackingStatusToggled?.invoke(statusId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (preferUkTitles) {
+                        item {
+                            // 6. Localization toggle
+                            Column {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(SurfaceDark)
+                                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                                        .clickable { onUkTranslationFilterToggled?.invoke() }
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = strings.dashboardScreen.hasTranslation, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text(text = strings.dashboardScreen.hasTranslationDesc, color = TextSecondary, fontSize = 11.sp)
+                                    }
+                                    Switch(
+                                        checked = catalogFilter?.hasUkTranslation == true,
+                                        onCheckedChange = { onUkTranslationFilterToggled?.invoke() },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = ElectricViolet,
+                                            checkedTrackColor = ElectricViolet.copy(alpha = 0.5f),
+                                            uncheckedThumbColor = TextSecondary,
+                                            uncheckedTrackColor = SurfaceDark
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        // 7. Production Studio selection
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = strings.dashboardScreen.hasTranslation, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                    Text(text = strings.dashboardScreen.hasTranslationDesc, color = TextSecondary, fontSize = 11.sp)
-                                }
-                                Switch(
-                                    checked = filter.hasUkTranslation == true,
-                                    onCheckedChange = { viewModel.toggleUkTranslationFilter() },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = ElectricViolet,
-                                        checkedTrackColor = ElectricViolet.copy(alpha = 0.5f),
-                                        uncheckedThumbColor = TextSecondary,
-                                        uncheckedTrackColor = SurfaceDark
+                                Text(text = strings.dashboardScreen.studios, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                TextButton(
+                                    onClick = { showStudioDialog = true }
+                                ) {
+                                    Text(
+                                        text = strings.dashboardScreen.viewAll,
+                                        color = ElectricViolet,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for (studio in inlineStudios) {
+                                    val isIncluded = catalogFilter?.studios?.contains(studio.studioId) == true
+                                    val isExcluded = catalogFilter?.excludedStudios?.contains(studio.studioId) == true
+                                    TriStateChip(
+                                        label = studio.name,
+                                        isIncluded = isIncluded,
+                                        isExcluded = isExcluded,
+                                        onClick = { onStudioFilterToggled?.invoke(studio.studioId) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 item {
-                    // 7. Production Studio selection
+                    // 8. Dual-state Genre Negation Filter
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = strings.dashboardScreen.studios, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = { showStudioDialog = true }
-                        ) {
-                            Text(
-                                text = strings.dashboardScreen.viewAll,
-                                color = ElectricViolet,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        for (studio in inlineStudios) {
-                            val isIncluded = filter.studios.contains(studio.studioId)
-                            val isExcluded = filter.excludedStudios.contains(studio.studioId)
-                            TriStateChip(
-                                label = studio.name,
-                                isIncluded = isIncluded,
-                                isExcluded = isExcluded,
-                                onClick = { viewModel.toggleStudioFilter(studio.studioId) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                // 8. Dual-state Genre Negation Filter
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = strings.dashboardScreen.genres, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = { showGenreDialog = true }
-                        ) {
-                            Text(
-                                text = strings.dashboardScreen.viewAll,
-                                color = ElectricViolet,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        for (genre in inlineGenres) {
-                            val isIncluded = filter.genres.contains(genre.slug)
-                            val isExcluded = filter.excludedGenres.contains(genre.slug)
-                            TriStateChip(
-                                label = genre.getDisplayName(preferUk = true),
-                                isIncluded = isIncluded,
-                                isExcluded = isExcluded,
-                                onClick = { viewModel.toggleGenreFilterState(genre.slug) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                // 9. Dual-state Tag Negation Filter
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = strings.dashboardScreen.tags, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = { showTagDialog = true }
-                        ) {
-                                Text(
-                                    text = strings.dashboardScreen.viewAll,
-                                    color = ElectricViolet,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            for (tag in inlineTags) {
-                                val isIncluded = filter.tags.contains(tag.tagId)
-                                val isExcluded = filter.excludedTags.contains(tag.tagId)
-                                TriStateChip(
-                                    label = tag.getDisplayName(preferUk = true),
-                                    isIncluded = isIncluded,
-                                    isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleTagFilterState(tag.tagId) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    // 10. Dual-state Staff Negation Filter
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = strings.detailScreen.staffTitle, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(text = strings.dashboardScreen.genres, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             TextButton(
-                                onClick = { showStaffDialog = true }
+                                onClick = { showGenreDialog = true }
                             ) {
                                 Text(
                                     text = strings.dashboardScreen.viewAll,
@@ -713,19 +799,105 @@ fun FilterBottomSheet(
                         
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            for (member in inlineStaff) {
-                                val isIncluded = filter.staff.contains(member.staffId)
-                                val isExcluded = filter.excludedStaff.contains(member.staffId)
+                            for (genre in inlineGenres) {
+                                val isIncluded = genresList.contains(genre.slug)
+                                val isExcluded = excludedGenresList.contains(genre.slug)
                                 TriStateChip(
-                                    label = member.fullName,
+                                    label = genre.getDisplayName(preferUk = true),
                                     isIncluded = isIncluded,
                                     isExcluded = isExcluded,
-                                    onClick = { viewModel.toggleStaffFilterState(member.staffId) }
+                                    onClick = { onGenreFilterToggled(genre.slug) }
                                 )
+                            }
+                        }
+                    }
+                }
+
+                if (isCatalog) {
+                    item {
+                        // 9. Dual-state Tag Negation Filter
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = strings.dashboardScreen.tags, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                TextButton(
+                                    onClick = { showTagDialog = true }
+                                ) {
+                                    Text(
+                                        text = strings.dashboardScreen.viewAll,
+                                        color = ElectricViolet,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for (tag in inlineTags) {
+                                    val isIncluded = catalogFilter?.tags?.contains(tag.tagId) == true
+                                    val isExcluded = catalogFilter?.excludedTags?.contains(tag.tagId) == true
+                                    TriStateChip(
+                                        label = tag.getDisplayName(preferUk = true),
+                                        isIncluded = isIncluded,
+                                        isExcluded = isExcluded,
+                                        onClick = { onTagFilterToggled?.invoke(tag.tagId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        // 10. Dual-state Staff Negation Filter
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = strings.detailScreen.staffTitle, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                TextButton(
+                                    onClick = { showStaffDialog = true }
+                                ) {
+                                    Text(
+                                        text = strings.dashboardScreen.viewAll,
+                                        color = ElectricViolet,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                for (member in inlineStaff) {
+                                    val isIncluded = catalogFilter?.staff?.contains(member.staffId) == true
+                                    val isExcluded = catalogFilter?.excludedStaff?.contains(member.staffId) == true
+                                    TriStateChip(
+                                        label = member.fullName,
+                                        isIncluded = isIncluded,
+                                        isExcluded = isExcluded,
+                                        onClick = { onStaffFilterToggled?.invoke(member.staffId) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -760,53 +932,53 @@ fun FilterBottomSheet(
     if (showGenreDialog) {
         TaxonomySelectionSheet<Genre>(
             title = strings.dashboardScreen.allGenres,
-            items = genres,
-            isIncluded = { filter.genres.contains(it.slug) },
-            isExcluded = { filter.excludedGenres.contains(it.slug) },
-            onClick = { viewModel.toggleGenreFilterState(it.slug) },
-            onClear = { viewModel.clearGenreFilters() },
+            items = allGenres,
+            isIncluded = { genre -> genresList.contains(genre.slug) },
+            isExcluded = { genre -> excludedGenresList.contains(genre.slug) },
+            onClick = { onGenreFilterToggled(it.slug) },
+            onClear = onClearGenreFilters,
             getLabel = { it.getDisplayName(preferUk = true) },
             getItemSearchText = { it.getDisplayName(preferUk = true) + " " + it.slug },
             onDismiss = { showGenreDialog = false }
         )
     }
 
-    if (showTagDialog) {
+    if (showTagDialog && onTagFilterToggled != null && onClearTagFilters != null) {
         TaxonomySelectionSheet<Tag>(
             title = strings.dashboardScreen.allTags,
-            items = tags,
-            isIncluded = { filter.tags.contains(it.tagId) },
-            isExcluded = { filter.excludedTags.contains(it.tagId) },
-            onClick = { viewModel.toggleTagFilterState(it.tagId) },
-            onClear = { viewModel.clearTagFilters() },
+            items = allTags,
+            isIncluded = { catalogFilter?.tags?.contains(it.tagId) == true },
+            isExcluded = { catalogFilter?.excludedTags?.contains(it.tagId) == true },
+            onClick = { onTagFilterToggled(it.tagId) },
+            onClear = onClearTagFilters,
             getLabel = { it.getDisplayName(preferUk = true) },
             getItemSearchText = { it.getDisplayName(preferUk = true) },
             onDismiss = { showTagDialog = false }
         )
     }
 
-    if (showStudioDialog) {
+    if (showStudioDialog && onStudioFilterToggled != null && onClearStudioFilters != null) {
         TaxonomySelectionSheet<Studio>(
             title = strings.dashboardScreen.allStudios,
-            items = studios,
-            isIncluded = { filter.studios.contains(it.studioId) },
-            isExcluded = { filter.excludedStudios.contains(it.studioId) },
-            onClick = { viewModel.toggleStudioFilter(it.studioId) },
-            onClear = { viewModel.clearStudioFilters() },
+            items = allStudios,
+            isIncluded = { catalogFilter?.studios?.contains(it.studioId) == true },
+            isExcluded = { catalogFilter?.excludedStudios?.contains(it.studioId) == true },
+            onClick = { onStudioFilterToggled(it.studioId) },
+            onClear = onClearStudioFilters,
             getLabel = { it.name },
             getItemSearchText = { it.name },
             onDismiss = { showStudioDialog = false }
         )
     }
 
-    if (showStaffDialog) {
+    if (showStaffDialog && onStaffFilterToggled != null && onClearStaffFilters != null) {
         TaxonomySelectionSheet<Staff>(
             title = strings.dashboardScreen.allStaff,
-            items = staff,
-            isIncluded = { filter.staff.contains(it.staffId) },
-            isExcluded = { filter.excludedStaff.contains(it.staffId) },
-            onClick = { viewModel.toggleStaffFilterState(it.staffId) },
-            onClear = { viewModel.clearStaffFilters() },
+            items = allStaff,
+            isIncluded = { catalogFilter?.staff?.contains(it.staffId) == true },
+            isExcluded = { catalogFilter?.excludedStaff?.contains(it.staffId) == true },
+            onClick = { onStaffFilterToggled(it.staffId) },
+            onClear = onClearStaffFilters,
             getLabel = { it.fullName },
             getItemSearchText = { it.fullName },
             onDismiss = { showStaffDialog = false }

@@ -212,7 +212,11 @@
     "searchPlaceholder": "Пошук за назвою...",
     "randomEmpty": "У цьому списку немає тайтлів!",
     "emptyState": "У цьому списку немає тайтлів",
-    "rouletteExhausted": "Рандомні аніме в цьому списку закінчились!"
+    "rouletteExhausted": "Рандомні аніме в цьому списку закінчились!",
+    "sortByPersonalScore": "Особиста оцінка",
+    "sortByProgress": "Прогрес серій",
+    "sortByDateAdded": "Дата додавання",
+    "sortByAlphabetical": "Алфавітний порядок"
   },
   "formats": {
     "tv": "ТВ",

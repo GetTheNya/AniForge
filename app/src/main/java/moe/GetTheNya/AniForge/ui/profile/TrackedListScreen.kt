@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FilterList
+import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +74,15 @@ fun TrackedListScreen(
     val preferUk by viewModel.preferUk.collectAsState()
     val trackingMap by viewModel.trackingMap.collectAsState()
     val trackingEntitiesMap by viewModel.trackingEntitiesMap.collectAsState()
+    val listFilterState by viewModel.listFilterState.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    val hasActiveFilters = remember(listFilterState) {
+        listFilterState.genres.isNotEmpty() ||
+        listFilterState.excludedGenres.isNotEmpty() ||
+        listFilterState.formats.isNotEmpty() ||
+        listFilterState.excludedFormats.isNotEmpty()
+    }
 
     val gestureCenter by viewModel.gestureCenter.collectAsState()
     val gestureUp by viewModel.gestureUp.collectAsState()
@@ -155,7 +166,7 @@ fun TrackedListScreen(
             )
         }
 
-        // Sleek Actions bar: Search Bar + Random Button
+        // Sleek Actions bar: Search Bar + Filter Button + Random Button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -183,6 +194,35 @@ fun TrackedListScreen(
                     .weight(1f)
                     .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
             )
+
+            Box {
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
+                    ),
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = strings.dashboardScreen.filterTooltip,
+                        tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                if (hasActiveFilters) {
+                    Badge(
+                        containerColor = NeonCoral,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(10.dp)
+                    )
+                }
+            }
 
             IconButton(
                 onClick = {
@@ -215,7 +255,6 @@ fun TrackedListScreen(
             }
         }
 
-        // Scrollable Tab Row with dynamic color indicator
         ScrollableTabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
@@ -383,5 +422,29 @@ fun TrackedListScreen(
                 }
             }
         }
+    }
+
+    if (showFilterSheet) {
+        val genres by viewModel.allGenres.collectAsState()
+        val tags by viewModel.allTags.collectAsState()
+        val studios by viewModel.allStudios.collectAsState()
+        val staff by viewModel.allStaff.collectAsState()
+
+        FilterBottomSheet(
+            isCatalog = false,
+            onDismiss = { showFilterSheet = false },
+            allGenres = genres,
+            allTags = tags,
+            allStudios = studios,
+            allStaff = staff,
+            preferUkTitles = preferUk,
+            trackedListFilter = listFilterState,
+            filteredCount = filteredAnime.size,
+            onClearAllFilters = { viewModel.clearAllFilters() },
+            onListSortOptionSelected = { viewModel.updateSortOrder(it) },
+            onFormatToggled = { viewModel.toggleFormatType(it) },
+            onGenreFilterToggled = { viewModel.toggleGenreFilterState(it) },
+            onClearGenreFilters = { viewModel.clearGenreFilters() }
+        )
     }
 }

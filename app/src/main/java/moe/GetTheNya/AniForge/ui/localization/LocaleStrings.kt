@@ -229,7 +229,11 @@ data class TrackedListScreenStrings(
     val searchPlaceholder: String = "[trackedListScreen.searchPlaceholder]",
     val randomEmpty: String = "[trackedListScreen.randomEmpty]",
     val emptyState: String = "[trackedListScreen.emptyState]",
-    val rouletteExhausted: String = "[trackedListScreen.rouletteExhausted]"
+    val rouletteExhausted: String = "[trackedListScreen.rouletteExhausted]",
+    val sortByPersonalScore: String = "[trackedListScreen.sortByPersonalScore]",
+    val sortByProgress: String = "[trackedListScreen.sortByProgress]",
+    val sortByDateAdded: String = "[trackedListScreen.sortByDateAdded]",
+    val sortByAlphabetical: String = "[trackedListScreen.sortByAlphabetical]"
 )
 
 fun DevSettingsStrings.getAnimationLabel(key: String): String {

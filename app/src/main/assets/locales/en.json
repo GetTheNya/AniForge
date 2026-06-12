@@ -208,7 +208,11 @@
     "searchPlaceholder": "Search by title...",
     "randomEmpty": "No anime to pick from!",
     "emptyState": "No titles found in this list",
-    "rouletteExhausted": "You've rolled through all anime in this list!"
+    "rouletteExhausted": "You've rolled through all anime in this list!",
+    "sortByPersonalScore": "Personal Score",
+    "sortByProgress": "Episode Progress",
+    "sortByDateAdded": "Date Added",
+    "sortByAlphabetical": "Alphabetical"
   },
   "formats": {
     "tv": "TV",

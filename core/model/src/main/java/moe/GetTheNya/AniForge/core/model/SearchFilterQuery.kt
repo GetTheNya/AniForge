@@ -50,3 +50,25 @@ enum class SortOption {
     EPISODES_DESC,
     EPISODES_ASC
 }
+
+@Immutable
+enum class ListSortOption {
+    SCORE_DESC,
+    SCORE_ASC,
+    PROGRESS_DESC,
+    PROGRESS_ASC,
+    DATE_ADDED_DESC,
+    DATE_ADDED_ASC,
+    ALPHABETICAL_ASC,
+    ALPHABETICAL_DESC
+}
+
+@Immutable
+data class ListFilterState(
+    val genres: List<String> = emptyList(),
+    val excludedGenres: List<String> = emptyList(),
+    val formats: List<AnimeFormat> = emptyList(),
+    val excludedFormats: List<AnimeFormat> = emptyList(),
+    val sortBy: ListSortOption = ListSortOption.DATE_ADDED_DESC
+)
+
