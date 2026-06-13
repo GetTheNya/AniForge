@@ -19,6 +19,18 @@ interface CollectionDao {
     @Query("DELETE FROM collections WHERE id = :id")
     suspend fun deleteCollectionById(id: Int)
 
+    @Query("DELETE FROM collection_anime_cross_ref WHERE collectionId IN (:collectionIds)")
+    suspend fun deleteCrossRefsForCollections(collectionIds: List<Int>)
+
+    @Query("DELETE FROM collections WHERE id IN (:ids)")
+    suspend fun deleteCollectionsByIds(ids: List<Int>)
+
+    @Transaction
+    suspend fun deleteCollectionsWithRefs(ids: List<Int>) {
+        deleteCrossRefsForCollections(ids)
+        deleteCollectionsByIds(ids)
+    }
+
     @Query("SELECT * FROM collections ORDER BY createdAt DESC")
     fun observeCollections(): Flow<List<CollectionEntity>>
 

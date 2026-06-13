@@ -77,7 +77,13 @@
     "itemsCount": {
       "one": "%d item",
       "many": "%d items"
-    }
+    },
+    "selectedCount": {
+      "one": "%d Selected",
+      "many": "%d Selected"
+    },
+    "deleteSelectedConfirm": "Delete selected collections?",
+    "deleteSelectedCollections": "Delete"
   },
   "dashboardScreen": {
     "name": "Anime",

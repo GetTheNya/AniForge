@@ -79,7 +79,14 @@
       "one": "%d елемент",
       "few": "%d елементи",
       "many": "%d елементів"
-    }
+    },
+    "selectedCount": {
+      "one": "Виділено: %d",
+      "few": "Виділено: %d",
+      "many": "Виділено: %d"
+    },
+    "deleteSelectedConfirm": "Видалити виділені колекції?",
+    "deleteSelectedCollections": "Видалити"
   },
   "dashboardScreen": {
     "name": "Аніме",

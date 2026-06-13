@@ -93,7 +93,10 @@ data class LibraryScreenStrings(
     val dragHandle: String = "[libraryScreen.dragHandle]",
     val removeFromCollection: String = "[libraryScreen.removeFromCollection]",
     val titlesCount: Map<String, String> = emptyMap(),
-    val itemsCount: Map<String, String> = emptyMap()
+    val itemsCount: Map<String, String> = emptyMap(),
+    val selectedCount: Map<String, String> = emptyMap(),
+    val deleteSelectedConfirm: String = "[libraryScreen.deleteSelectedConfirm]",
+    val deleteSelectedCollections: String = "[libraryScreen.deleteSelectedCollections]"
 )
 
 @Serializable

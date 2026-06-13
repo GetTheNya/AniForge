@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalFocusManager
@@ -77,9 +79,17 @@ fun LibraryScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    val selectedCollectionIds by viewModel.selectedCollectionIds.collectAsState()
+    val isInSelectionMode by viewModel.isInSelectionMode.collectAsState()
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
     val activeLibraryTab by viewModel.activeLibraryTab.collectAsState()
     val pagerState = rememberPagerState(initialPage = activeLibraryTab ?: 0) { 2 }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(pagerState.currentPage) {
+        viewModel.clearSelection()
+    }
 
     LaunchedEffect(activeLibraryTab) {
         activeLibraryTab?.let { tab ->
@@ -114,13 +124,62 @@ fun LibraryScreen(
                 .padding(horizontal = 20.dp)
         ) {
             // Screen Header
-            Text(
-                text = strings.libraryScreen.name,
-                color = TextPrimary,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 20.dp, bottom = 10.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp, bottom = 10.dp)
+                    .height(48.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (isInSelectionMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.clearSelection() },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = strings.libraryScreen.cancel,
+                                    tint = TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            val selectedText = strings.libraryScreen.selectedCount.getPlural(selectedCollectionIds.size)
+                            Text(
+                                text = selectedText,
+                                color = TextPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showDeleteConfirmation = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = strings.libraryScreen.deleteCollection,
+                                tint = NeonCoral
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = strings.libraryScreen.name,
+                        color = TextPrimary,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             // Premium minimalist Tab Switcher
             Row(
@@ -314,21 +373,59 @@ fun LibraryScreen(
                                 items = collectionsList,
                                 key = { it.collection.id }
                             ) { item ->
+                                val collectionId = item.collection.id.toLong()
+                                val isSelected = selectedCollectionIds.contains(collectionId)
                                 CollectionBentoCard(
                                     collection = item.collection,
                                     posters = item.posters,
                                     totalCount = item.totalCount,
                                     statusCounts = item.statusCounts,
+                                    isSelected = isSelected,
                                     onClick = {
-                                        navController.navigate(Screen.CollectionDetail(item.collection.id))
+                                        if (isInSelectionMode) {
+                                            viewModel.toggleCollectionSelection(collectionId)
+                                        } else {
+                                            navController.navigate(Screen.CollectionDetail(item.collection.id))
+                                        }
                                     },
-                                    onLongClick = {}
+                                    onLongClick = {
+                                        if (!isInSelectionMode) {
+                                            viewModel.toggleCollectionSelection(collectionId)
+                                        }
+                                    }
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text(strings.libraryScreen.deleteSelectedCollections, color = TextPrimary, fontWeight = FontWeight.Bold) },
+                text = { Text(strings.libraryScreen.deleteSelectedConfirm, color = TextSecondary) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteSelectedCollections()
+                            showDeleteConfirmation = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCoral),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(strings.libraryScreen.deleteSelectedCollections, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text(strings.libraryScreen.cancel, color = TextSecondary)
+                    }
+                },
+                containerColor = SurfaceCardDark,
+                shape = RoundedCornerShape(24.dp)
+            )
         }
     }
 }
@@ -643,22 +740,62 @@ fun CollectionBentoCard(
     posters: List<String>,
     totalCount: Int,
     statusCounts: Map<String, Int>,
+    isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val selectTintAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 0.12f else 0.0f,
+        label = "selectTintAlpha"
+    )
+    val borderThickness by animateDpAsState(
+        targetValue = if (isSelected) 2.dp else 1.dp,
+        label = "borderThickness"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isSelected) ElectricViolet else CardBorder,
+        label = "borderColor"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(240.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(SurfaceCardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            .border(borderThickness, borderColor, RoundedCornerShape(24.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
     ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(ElectricViolet.copy(alpha = selectTintAlpha))
+            )
+            
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(24.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(ElectricViolet)
+                    .border(1.5.dp, Color.White, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

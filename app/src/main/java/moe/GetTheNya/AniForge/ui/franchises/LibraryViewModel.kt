@@ -72,6 +72,37 @@ class LibraryViewModel @Inject constructor(
     // --- Collections Section ---
     val activeLibraryTab = MutableStateFlow<Int?>(null)
 
+    val selectedCollectionIds = MutableStateFlow<Set<Long>>(emptySet())
+    val isInSelectionMode: StateFlow<Boolean> = selectedCollectionIds.map { it.isNotEmpty() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
+    fun toggleCollectionSelection(collectionId: Long) {
+        val current = selectedCollectionIds.value
+        if (current.contains(collectionId)) {
+            selectedCollectionIds.value = current - collectionId
+        } else {
+            selectedCollectionIds.value = current + collectionId
+        }
+    }
+
+    fun clearSelection() {
+        selectedCollectionIds.value = emptySet()
+    }
+
+    fun deleteSelectedCollections() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val idsToDelete = selectedCollectionIds.value.map { it.toInt() }
+            if (idsToDelete.isNotEmpty()) {
+                collectionDao.deleteCollectionsWithRefs(idsToDelete)
+                clearSelection()
+            }
+        }
+    }
+
     val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
