@@ -70,7 +70,7 @@ fun AnimeBentoCard(
     initialEpisode: Int = 0,
     onDragStateChanged: ((Boolean) -> Unit)? = null,
     onSliderStateChanged: ((Boolean) -> Unit)? = null,
-    gestureCenter: QuickGestureAction = QuickGestureAction.Immediate.OpenDetails,
+    gestureCenter: QuickGestureAction = QuickGestureAction.Immediate.OpenWatchStatusPicker,
     gestureUp: QuickGestureAction = QuickGestureAction.Continuous.EpisodeSlider,
     gestureDown: QuickGestureAction = QuickGestureAction.Continuous.ScoreSlider,
     gestureLeft: QuickGestureAction = QuickGestureAction.Immediate.OpenWatchStatusPicker,
@@ -96,6 +96,7 @@ fun AnimeBentoCard(
 
     QuickGestureWrapper(
         anime = anime,
+        animeTitle = anime.getDisplayTitle(preferUk = preferUk),
         initialScore = initialScore,
         initialEpisode = initialEpisode,
         gestureCenter = gestureCenter,

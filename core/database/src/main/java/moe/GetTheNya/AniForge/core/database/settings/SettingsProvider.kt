@@ -67,12 +67,12 @@ class SettingsProvider @Inject constructor(
 
     val gestureCenterStr: StateFlow<String> = settingsRepository.getSettingFlow(
         SettingsKeys.GESTURE_CENTER,
-        "OpenDetails"
+        "OpenWatchStatusPicker"
     )
     .stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = "OpenDetails"
+        initialValue = "OpenWatchStatusPicker"
     )
 
     val gestureUpStr: StateFlow<String> = settingsRepository.getSettingFlow(
@@ -97,12 +97,12 @@ class SettingsProvider @Inject constructor(
 
     val gestureLeftStr: StateFlow<String> = settingsRepository.getSettingFlow(
         SettingsKeys.GESTURE_LEFT,
-        "OpenWatchStatusPicker"
+        "OpenDetails"
     )
     .stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = "OpenWatchStatusPicker"
+        initialValue = "OpenDetails"
     )
 
     val gestureRightStr: StateFlow<String> = settingsRepository.getSettingFlow(

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,6 +85,7 @@ sealed interface QuickGestureAction {
 @Composable
 fun QuickGestureWrapper(
     anime: Anime,
+    animeTitle: String,
     initialScore: Double?,
     initialEpisode: Int,
     gestureCenter: QuickGestureAction,
@@ -628,6 +630,19 @@ fun QuickGestureWrapper(
                             .background(Color.Black.copy(alpha = 0.75f)),
                         contentAlignment = Alignment.Center
                     ) {
+                        Text(
+                            text = animeTitle,
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 48.dp)
+                                .padding(horizontal = 24.dp)
+                        )
+
                         val innerTransitionState = remember {
                             MutableTransitionState(false).apply {
                                 targetState = true

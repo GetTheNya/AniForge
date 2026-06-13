@@ -153,7 +153,13 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val anime = animeRepository.getAnimeById(anilistId)
         val maxEpisodes = anime?.episodes ?: 0
-        val status = if (maxEpisodes in 1..progress) "COMPLETED" else currentTracking?.watchStatus ?: "CURRENT"
+        val status = if (maxEpisodes in 1..progress) {
+            "COMPLETED"
+        } else if (progress >= 1) {
+            "CURRENT"
+        } else {
+            currentTracking?.watchStatus ?: ""
+        }
 
         val oldProgress = currentTracking?.episodeProgress ?: 0
         val deltaEpisodes = progress - oldProgress

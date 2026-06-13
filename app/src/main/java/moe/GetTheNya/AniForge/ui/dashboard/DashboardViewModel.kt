@@ -36,7 +36,7 @@ class DashboardViewModel @Inject constructor(
     val preferUkTitles: StateFlow<Boolean> = settingsProvider.preferUkTitles
 
     val gestureCenter: StateFlow<QuickGestureAction> = userTrackingRepository.gestureCenter
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenDetails)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenWatchStatusPicker)
 
     val gestureUp: StateFlow<QuickGestureAction> = userTrackingRepository.gestureUp
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Continuous.EpisodeSlider)
@@ -45,7 +45,7 @@ class DashboardViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Continuous.ScoreSlider)
 
     val gestureLeft: StateFlow<QuickGestureAction> = userTrackingRepository.gestureLeft
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenWatchStatusPicker)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.OpenDetails)
 
     val gestureRight: StateFlow<QuickGestureAction> = userTrackingRepository.gestureRight
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.ShareLink)
