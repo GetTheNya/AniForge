@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.style.TextOverflow
@@ -1052,6 +1055,7 @@ fun DetailContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrackingWidget(
     tracking: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity?,
@@ -1064,6 +1068,14 @@ fun TrackingWidget(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
+
+    val focusManager = LocalFocusManager.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+    LaunchedEffect(isKeyboardVisible) {
+        if (!isKeyboardVisible) {
+            focusManager.clearFocus()
+        }
+    }
  
     Column(
         modifier = Modifier

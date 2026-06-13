@@ -81,6 +81,8 @@ data class LibraryScreenStrings(
     val save: String = "[libraryScreen.save]",
     val manageCollectionTitles: String = "[libraryScreen.manageCollectionTitles]",
     val searchCatalogOrTracked: String = "[libraryScreen.searchCatalogOrTracked]",
+    val searchFranchises: String = "[libraryScreen.searchFranchises]",
+    val searchCollections: String = "[libraryScreen.searchCollections]",
     val done: String = "[libraryScreen.done]",
     val collectionDeleted: String = "[libraryScreen.collectionDeleted]",
     val addTitle: String = "[libraryScreen.addTitle]",

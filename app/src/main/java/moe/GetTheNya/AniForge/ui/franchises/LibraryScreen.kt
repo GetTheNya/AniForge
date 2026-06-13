@@ -18,8 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +57,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
@@ -60,7 +66,15 @@ fun LibraryScreen(
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    val franchisesList by viewModel.franchises.collectAsState()
+    val focusManager = LocalFocusManager.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
+    LaunchedEffect(isKeyboardVisible) {
+        if (!isKeyboardVisible) {
+            focusManager.clearFocus()
+        }
+    }
+    val franchisesList by viewModel.filteredFranchises.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     val activeLibraryTab by viewModel.activeLibraryTab.collectAsState()
@@ -151,6 +165,19 @@ fun LibraryScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            val searchPlaceholder = if (pagerState.currentPage == 0) {
+                strings.libraryScreen.searchFranchises
+            } else {
+                strings.libraryScreen.searchCollections
+            }
+
+            LibrarySearchBar(
+                query = searchQuery,
+                onQueryChange = { viewModel.searchQuery.value = it },
+                placeholder = searchPlaceholder,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
             HorizontalPager(
                 state = pagerState,
@@ -820,4 +847,46 @@ fun CollectionBentoCard(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LibrarySearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text(placeholder, color = TextSecondary) },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = strings.misc.search, tint = TextSecondary) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = strings.misc.clear,
+                        tint = TextSecondary
+                    )
+                }
+            }
+        },
+        colors = TextFieldDefaults.colors(
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+            focusedContainerColor = SurfaceDark,
+            unfocusedContainerColor = SurfaceDark,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent
+        ),
+        shape = RoundedCornerShape(20.dp),
+        singleLine = true,
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+    )
 }

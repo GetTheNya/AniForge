@@ -37,14 +37,39 @@ class LibraryViewModel @Inject constructor(
 ) : ViewModel() {
 
     // --- Franchises Section ---
+    val searchQuery = MutableStateFlow("")
+
     private val _franchises = MutableStateFlow<List<FranchiseItem>>(emptyList())
     val franchises: StateFlow<List<FranchiseItem>> = _franchises.asStateFlow()
+
+    val filteredFranchises: StateFlow<List<FranchiseItem>> = combine(
+        _franchises,
+        searchQuery
+    ) { franchiseList, query ->
+        if (query.isBlank()) {
+            franchiseList
+        } else {
+            franchiseList.filter { item ->
+                val nameMatches = item.franchise.nameEn?.contains(query, ignoreCase = true) == true ||
+                        item.franchise.nameUk?.contains(query, ignoreCase = true) == true
+                val releaseMatches = item.releases.any { release ->
+                    release.titleUk?.contains(query, ignoreCase = true) == true ||
+                            release.titleEn?.contains(query, ignoreCase = true) == true ||
+                            release.titleRomaji.contains(query, ignoreCase = true)
+                }
+                nameMatches || releaseMatches
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     // --- Collections Section ---
-    val searchQuery = MutableStateFlow("")
     val activeLibraryTab = MutableStateFlow<Int?>(null)
 
     val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles.stateIn(
