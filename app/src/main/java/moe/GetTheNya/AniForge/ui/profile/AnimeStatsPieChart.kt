@@ -23,10 +23,12 @@ import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 fun AnimeStatsPieChart(
     stats: Map<String, Int>,
     modifier: Modifier = Modifier,
-    strokeWidth: Dp = 16.dp,
+    strokeWidth: Dp = 22.dp,
     configs: List<StatusItemConfig> = statusConfigs
 ) {
-    val totalAnime = remember(stats) { stats.values.sum() }
+    val totalAnime = remember(stats, configs) {
+        configs.sumOf { config -> stats[config.id] ?: 0 }
+    }
 
     // Isolate the animation progress state to avoid triggering recompositions on parent layout.
     val animationProgress = remember { Animatable(0f) }
@@ -53,11 +55,8 @@ fun AnimeStatsPieChart(
 
         if (totalAnime == 0) {
             // Draw a beautiful empty state circle
-            drawArc(
+            drawOval(
                 color = Color.White.copy(alpha = 0.15f),
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
                 style = Stroke(width = strokeWidthPx)

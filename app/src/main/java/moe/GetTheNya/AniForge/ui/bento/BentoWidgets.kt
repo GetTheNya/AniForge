@@ -675,7 +675,7 @@ fun BentoWatchStatusPieChart(
                 AnimeStatsPieChart(
                     stats = stats,
                     modifier = Modifier.size(130.dp),
-                    strokeWidth = 14.dp
+                    strokeWidth = 22.dp
                 )
 
                 // Right Side: Legend Column
