@@ -985,4 +985,111 @@ class AnimeRepository @Inject constructor(
         
         return SimpleSQLiteQuery(queryBuilder.toString(), args.toArray())
     }
+
+    suspend fun getGenreDistributions(trackedIds: List<Long>): List<moe.GetTheNya.AniForge.core.model.GenreDistribution> = withContext(Dispatchers.IO) {
+        if (trackedIds.isEmpty()) return@withContext emptyList()
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<moe.GetTheNya.AniForge.core.model.GenreDistribution>()
+        try {
+            val placeholders = trackedIds.joinToString(",") { "?" }
+            val args = trackedIds.map { it.toString() }.toTypedArray()
+            
+            var genresTableExists = false
+            db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='genres'").use { cursor ->
+                if (cursor.moveToNext()) {
+                    genresTableExists = true
+                }
+            }
+
+            val sql = if (genresTableExists) {
+                "SELECT g.slug, g.name_en, g.name_uk, COUNT(ag.anilist_id) as cnt " +
+                "FROM anime_genres ag " +
+                "LEFT JOIN genres g ON ag.genre_slug = g.slug " +
+                "WHERE ag.anilist_id IN ($placeholders) " +
+                "GROUP BY ag.genre_slug " +
+                "ORDER BY cnt DESC"
+            } else {
+                "SELECT genre_slug as slug, COUNT(anilist_id) as cnt " +
+                "FROM anime_genres " +
+                "WHERE anilist_id IN ($placeholders) " +
+                "GROUP BY genre_slug " +
+                "ORDER BY cnt DESC"
+            }
+
+            db.query(sql, args).use { cursor ->
+                val slugIdx = cursor.getColumnIndexOrThrow("slug")
+                val enIdx = if (genresTableExists) cursor.getColumnIndexOrThrow("name_en") else -1
+                val ukIdx = if (genresTableExists) cursor.getColumnIndexOrThrow("name_uk") else -1
+                val cntIdx = cursor.getColumnIndexOrThrow("cnt")
+                while (cursor.moveToNext()) {
+                    val slug = cursor.getString(slugIdx)
+                    val nameEn = if (enIdx != -1) cursor.getString(enIdx) else slug.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                    val nameUk = if (ukIdx != -1 && !cursor.isNull(ukIdx)) cursor.getString(ukIdx) else null
+                    
+                    val genre = Genre(slug = slug, nameEn = nameEn, nameUk = nameUk)
+                    val count = cursor.getInt(cntIdx)
+                    list.add(moe.GetTheNya.AniForge.core.model.GenreDistribution(genre, count))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    suspend fun getStudioDistributions(trackedIds: List<Long>): List<moe.GetTheNya.AniForge.core.model.StudioDistribution> = withContext(Dispatchers.IO) {
+        if (trackedIds.isEmpty()) return@withContext emptyList()
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<moe.GetTheNya.AniForge.core.model.StudioDistribution>()
+        try {
+            val placeholders = trackedIds.joinToString(",") { "?" }
+            val args = trackedIds.map { it.toString() }.toTypedArray()
+            db.query(
+                "SELECT s.studio_id, s.name, COUNT(ast.anilist_id) as cnt " +
+                "FROM anime_studios ast " +
+                "LEFT JOIN studios s ON ast.studio_id = s.studio_id " +
+                "WHERE ast.anilist_id IN ($placeholders) " +
+                "GROUP BY ast.studio_id " +
+                "ORDER BY cnt DESC",
+                args
+            ).use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("studio_id")
+                val nameIdx = cursor.getColumnIndexOrThrow("name")
+                val cntIdx = cursor.getColumnIndexOrThrow("cnt")
+                while (cursor.moveToNext()) {
+                    val studioId = cursor.getLong(idIdx)
+                    val name = cursor.getString(nameIdx)
+                    val studio = Studio(studioId = studioId, name = name)
+                    val count = cursor.getInt(cntIdx)
+                    list.add(moe.GetTheNya.AniForge.core.model.StudioDistribution(studio, count))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    suspend fun getFranchisesForAnimeIds(ids: List<Long>): List<Pair<Long, Long>> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Pair<Long, Long>>()
+        try {
+            val placeholders = ids.joinToString(",") { "?" }
+            val args = ids.map { it.toString() }.toTypedArray()
+            db.query(
+                "SELECT anilist_id, franchise_id FROM anime_franchises WHERE anilist_id IN ($placeholders)",
+                args
+            ).use { cursor ->
+                val animeIdx = cursor.getColumnIndexOrThrow("anilist_id")
+                val franchiseIdx = cursor.getColumnIndexOrThrow("franchise_id")
+                while (cursor.moveToNext()) {
+                    list.add(Pair(cursor.getLong(animeIdx), cursor.getLong(franchiseIdx)))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
 }

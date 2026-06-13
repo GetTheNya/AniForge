@@ -20,7 +20,8 @@ data class LocaleStrings(
     val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings(),
     val formats: FormatStrings = FormatStrings(),
     val seasons: SeasonStrings = SeasonStrings(),
-    val relationTypes: Map<String, String> = emptyMap()
+    val relationTypes: Map<String, String> = emptyMap(),
+    val bentoWidgets: BentoWidgetStrings = BentoWidgetStrings()
 )
 
 @Serializable
@@ -221,7 +222,11 @@ data class DevSettingsStrings(
     val animSubtitleTypewriter: String = "[devSettings.animSubtitleTypewriter]",
     val animContentPowerUp: String = "[devSettings.animContentPowerUp]",
     val animContentSlideUp: String = "[devSettings.animContentSlideUp]",
-    val animContentFlip3d: String = "[devSettings.animContentFlip3d]"
+    val animContentFlip3d: String = "[devSettings.animContentFlip3d]",
+    val recalculateWatchTime: String = "[devSettings.recalculateWatchTime]",
+    val recalculateWatchTimeDesc: String = "[devSettings.recalculateWatchTimeDesc]",
+    val recalculateButton: String = "[devSettings.recalculateButton]",
+    val watchTimeCacheRebuilt: String = "[devSettings.watchTimeCacheRebuilt]"
 )
 
 @Serializable
@@ -312,4 +317,17 @@ fun FormatStrings.getFormatLabel(format: String): String {
         else -> format
     }
 }
+
+@Serializable
+data class BentoWidgetStrings(
+    val chaosMeter: String = "[bentoWidgets.chaosMeter]",
+    val watchTimeDays: Map<String, String> = emptyMap(),
+    val watchTimeHours: Map<String, String> = emptyMap(),
+    val watchTimeMinutes: Map<String, String> = emptyMap(),
+    val mostWatchedUniverse: String = "[bentoWidgets.mostWatchedUniverse]",
+    val activeCollections: String = "[bentoWidgets.activeCollections]",
+    val episodesTotal: Map<String, String> = emptyMap(),
+    val watchTimeTitle: String = "[bentoWidgets.watchTimeTitle]",
+    val watchStatusTitle: String = "[bentoWidgets.watchStatusTitle]"
+)
 

@@ -48,4 +48,7 @@ interface CollectionDao {
 
     @Query("SELECT collectionId FROM collection_anime_cross_ref WHERE animeId = :animeId")
     fun observeCollectionIdsForAnime(animeId: Long): Flow<List<Int>>
+
+    @Query("SELECT * FROM collection_anime_cross_ref")
+    fun observeAllCrossRefs(): Flow<List<CollectionAnimeCrossRef>>
 }

@@ -102,6 +102,7 @@ import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeScreen
 import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeViewModel
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardScreen
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardViewModel
+import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 import moe.GetTheNya.AniForge.ui.detail.DetailScreen
 import moe.GetTheNya.AniForge.ui.detail.DetailViewModel
 import moe.GetTheNya.AniForge.ui.detail.ImageViewerScreen
@@ -146,6 +147,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var localizationService: moe.GetTheNya.AniForge.ui.localization.LocalizationService
+
+    @Inject
+    lateinit var userTrackingRepository: UserTrackingRepository
 
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()
@@ -488,7 +492,25 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                         3 -> ProfileScreen(
                                                             viewModel = profileViewModel,
-                                                            navController = navController
+                                                            navController = navController,
+                                                            onGenreClick = { genreSlug ->
+                                                                dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                }
+                                                            },
+                                                            onStudioClick = { studioId ->
+                                                                dashboardViewModel.selectStudioOnly(studioId)
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                }
+                                                            },
+                                                            onCollectionClick = {
+                                                                libraryViewModel.activeLibraryTab.value = 1
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                }
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -742,6 +764,7 @@ class MainActivity : ComponentActivity() {
                                                     }
                                                     is Screen.DevSettings -> {
                                                          DevSettingsScreen(
+                                                            userTrackingRepository = userTrackingRepository,
                                                             settingsProvider = settingsProvider,
                                                             navController = navController,
                                                             modifier = Modifier.padding(innerPadding),

@@ -202,7 +202,11 @@
     "animSubtitleTypewriter": "Terminal Typewriter Effect",
     "animContentPowerUp": "Digital Power-Up (Scale/Alpha)",
     "animContentSlideUp": "Solid Block Slide-Up",
-    "animContentFlip3d": "3D Tile Flip Over"
+    "animContentFlip3d": "3D Tile Flip Over",
+    "recalculateWatchTime": "Recalculate Watch Time Stats",
+    "recalculateWatchTimeDesc": "Rebuilds watch time statistics cache.",
+    "recalculateButton": "Recalculate",
+    "watchTimeCacheRebuilt": "Watch time cache successfully rebuilt!"
   },
   "trackedListScreen": {
     "searchPlaceholder": "Search by title...",
@@ -246,5 +250,28 @@
     "SOURCE": "Source",
     "COMPILATION": "Compilation",
     "CONTAINS": "Contains"
+  },
+  "bentoWidgets": {
+    "chaosMeter": "Chaos Meter",
+    "watchTimeDays": {
+      "one": "Day",
+      "many": "Days"
+    },
+    "watchTimeHours": {
+      "one": "Hour",
+      "many": "Hours"
+    },
+    "watchTimeMinutes": {
+      "one": "Minute",
+      "many": "Minutes"
+    },
+    "mostWatchedUniverse": "Most Watched Universe",
+    "activeCollections": "Active Collections",
+    "episodesTotal": {
+      "one": "%d episode total",
+      "many": "%d episodes total"
+    },
+    "watchTimeTitle": "Time Watched",
+    "watchStatusTitle": "Library Status"
   }
 }

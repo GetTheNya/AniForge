@@ -31,7 +31,8 @@ class DetailViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: moe.GetTheNya.AniForge.core.database.dao.CollectionDao,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val userTrackingRepository: moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 ) : ViewModel() {
 
     val collections = collectionDao.observeCollections()
@@ -102,6 +103,7 @@ class DetailViewModel @Inject constructor(
                     } else {
                         "$visitedIds,$nextRandomId"
                     }
+                    userTrackingRepository.incrementChaosMeter()
                     _uiEvent.emit(
                         DetailUiEvent.Navigate(
                             Screen.Detail(
@@ -180,43 +182,8 @@ class DetailViewModel @Inject constructor(
     }
 
     fun updateWatchStatus(status: String) {
-        val state = _uiState.value as? DetailUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
-            val currentTracking = state.tracking
-            if (currentTracking != null && currentTracking.watchStatus == status) {
-                val updated = currentTracking.copy(
-                    watchStatus = "",
-                    episodeProgress = 0,
-                    lastModified = System.currentTimeMillis()
-                )
-                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
-                    userTrackingDao.delete(currentTracking)
-                } else {
-                    userTrackingDao.insertOrUpdate(updated)
-                }
-            } else {
-                // New Selection
-                val maxEpisodes = state.anime.episodes ?: 0
-                val progress = if (status == "COMPLETED") {
-                    maxEpisodes
-                } else {
-                    currentTracking?.episodeProgress ?: 0
-                }
-
-                val updated = currentTracking?.copy(
-                    watchStatus = status,
-                    episodeProgress = progress,
-                    lastModified = System.currentTimeMillis()
-                ) ?: UserTrackingEntity(
-                    anilistId = currentAnimeId,
-                    watchStatus = status,
-                    episodeProgress = progress,
-                    score = null,
-                    notes = null,
-                    lastModified = System.currentTimeMillis()
-                )
-                userTrackingDao.insertOrUpdate(updated)
-            }
+            userTrackingRepository.updateWatchStatus(currentAnimeId, status)
         }
     }
 
@@ -227,116 +194,32 @@ class DetailViewModel @Inject constructor(
             val currentTracking = state.tracking
             val currentProgress = currentTracking?.episodeProgress ?: 0
             if (currentProgress < maxEpisodes) {
-                val newProgress = currentProgress + 1
-                val newStatus = if (newProgress == maxEpisodes) {
-                    "COMPLETED"
-                } else if (currentTracking == null || currentTracking.watchStatus == "PLANNING") {
-                    "CURRENT"
-                } else {
-                    currentTracking.watchStatus
-                }
-
-                val updated = currentTracking?.copy(
-                    episodeProgress = newProgress,
-                    watchStatus = newStatus,
-                    lastModified = System.currentTimeMillis()
-                ) ?: UserTrackingEntity(
-                    anilistId = currentAnimeId,
-                    watchStatus = newStatus,
-                    episodeProgress = newProgress,
-                    score = null,
-                    notes = null,
-                    lastModified = System.currentTimeMillis()
-                )
-                userTrackingDao.insertOrUpdate(updated)
+                userTrackingRepository.updateEpisodeProgress(currentAnimeId, currentProgress + 1)
             }
         }
     }
 
     fun decrementEpisodeProgress() {
         val state = _uiState.value as? DetailUiState.Success ?: return
-        val maxEpisodes = state.anime.episodes ?: Int.MAX_VALUE
         viewModelScope.launch(Dispatchers.IO) {
             val currentTracking = state.tracking ?: return@launch
             if (currentTracking.episodeProgress > 0) {
-                val newProgress = currentTracking.episodeProgress - 1
-                val newStatus = if (currentTracking.watchStatus == "COMPLETED" && newProgress < maxEpisodes) {
-                    "CURRENT"
-                } else {
-                    currentTracking.watchStatus
-                }
-
-                val updated = currentTracking.copy(
-                    episodeProgress = newProgress,
-                    watchStatus = newStatus,
-                    lastModified = System.currentTimeMillis()
-                )
-                userTrackingDao.insertOrUpdate(updated)
+                userTrackingRepository.updateEpisodeProgress(currentAnimeId, currentTracking.episodeProgress - 1)
             }
         }
     }
 
     fun saveNotes(notes: String) {
-        val state = _uiState.value as? DetailUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val dbNotes = if (notes.isBlank()) null else notes
-            val currentTracking = state.tracking
-            
-            if (currentTracking == null) {
-                if (dbNotes != null) {
-                    val newTracking = UserTrackingEntity(
-                        anilistId = currentAnimeId,
-                        watchStatus = "",
-                        episodeProgress = 0,
-                        score = null,
-                        notes = dbNotes,
-                        lastModified = System.currentTimeMillis()
-                    )
-                    userTrackingDao.insertOrUpdate(newTracking)
-                }
-            } else {
-                val updated = currentTracking.copy(
-                    notes = dbNotes,
-                    lastModified = System.currentTimeMillis()
-                )
-                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
-                    userTrackingDao.delete(currentTracking)
-                } else {
-                    userTrackingDao.insertOrUpdate(updated)
-                }
-            }
+            userTrackingRepository.saveNotes(currentAnimeId, dbNotes)
         }
     }
 
     fun updateScore(score: Double?) {
-        val state = _uiState.value as? DetailUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val dbScore = if (score == null || score == 0.0) null else score
-            val currentTracking = state.tracking
-            
-            if (currentTracking == null) {
-                if (dbScore != null) {
-                    val newTracking = UserTrackingEntity(
-                        anilistId = currentAnimeId,
-                        watchStatus = "",
-                        episodeProgress = 0,
-                        score = dbScore,
-                        notes = null,
-                        lastModified = System.currentTimeMillis()
-                    )
-                    userTrackingDao.insertOrUpdate(newTracking)
-                }
-            } else {
-                val updated = currentTracking.copy(
-                    score = dbScore,
-                    lastModified = System.currentTimeMillis()
-                )
-                if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
-                    userTrackingDao.delete(currentTracking)
-                } else {
-                    userTrackingDao.insertOrUpdate(updated)
-                }
-            }
+            userTrackingRepository.updateScore(currentAnimeId, dbScore)
         }
     }
 }

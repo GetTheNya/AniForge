@@ -54,4 +54,12 @@ object DatabaseModule {
     ): moe.GetTheNya.AniForge.core.database.dao.CollectionDao {
         return userDatabase.collectionDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideUserStatsDao(
+        userDatabase: UserDatabase
+    ): moe.GetTheNya.AniForge.core.database.dao.UserStatsDao {
+        return userDatabase.userStatsDao()
+    }
 }

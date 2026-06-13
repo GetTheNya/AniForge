@@ -27,11 +27,18 @@ import moe.GetTheNya.AniForge.ui.localization.getAnimationLabel
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
+import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalContext
+import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 
 @Composable
 fun DevSettingsScreen(
     navController: NavController,
     settingsProvider: SettingsProvider,
+    userTrackingRepository: UserTrackingRepository,
     modifier: Modifier = Modifier,
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
@@ -126,6 +133,87 @@ fun DevSettingsScreen(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // 2. Recalculate Watch Time Stats row
+            var isRecalculating by remember { mutableStateOf(false) }
+            val context = LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        text = strings.devSettings.recalculateWatchTime,
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = strings.devSettings.recalculateWatchTimeDesc,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+                Button(
+                    onClick = {
+                        isRecalculating = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            try {
+                                userTrackingRepository.recalculateTotalWatchTime()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        context,
+                                        strings.devSettings.watchTimeCacheRebuilt,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } catch (e: Exception) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        context,
+                                        "Error: ${e.localizedMessage}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } finally {
+                                withContext(Dispatchers.Main) {
+                                    isRecalculating = false
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isRecalculating,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CyberTeal,
+                        contentColor = BackgroundDark,
+                        disabledContainerColor = CyberTeal.copy(alpha = 0.5f),
+                        disabledContentColor = BackgroundDark.copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isRecalculating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = BackgroundDark,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = strings.devSettings.recalculateButton,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

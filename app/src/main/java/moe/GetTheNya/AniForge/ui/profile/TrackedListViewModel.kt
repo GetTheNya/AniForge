@@ -283,7 +283,13 @@ class TrackedListViewModel @Inject constructor(
     }
 
     fun getRandomAnimeIdForCurrentTab(): Long? {
-        return filteredAnime.value.randomOrNull()?.anilistId
+        val pickedId = filteredAnime.value.randomOrNull()?.anilistId
+        if (pickedId != null) {
+            viewModelScope.launch {
+                userTrackingRepository.incrementChaosMeter()
+            }
+        }
+        return pickedId
     }
 
     fun updateWatchStatus(anilistId: Long, status: String) {

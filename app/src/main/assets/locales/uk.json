@@ -27,7 +27,7 @@
     "gestureRightDir": "Праворуч",
     "setScore": "ВСТАНОВИТИ ОЦІНКУ",
     "setEpisodes": "ВСТАНОВИТИ СЕРІЮ",
-    "episodeLabel": "Сер."
+    "episodeLabel": "Еп."
   },
   "homeScreen": {
     "name": "Головна",
@@ -206,7 +206,11 @@
     "animSubtitleTypewriter": "Ефект друкарської машинки",
     "animContentPowerUp": "Цифрове ввімкнення (Масштаб/Альфа)",
     "animContentSlideUp": "Монолітний зсув знизу",
-    "animContentFlip3d": "3D-переворот плиток"
+    "animContentFlip3d": "3D-переворот плиток",
+    "recalculateWatchTime": "Перерахувати час перегляду",
+    "recalculateWatchTimeDesc": "Перебудувати кеш загального часу перегляду.",
+    "recalculateButton": "Перерахувати",
+    "watchTimeCacheRebuilt": "Кеш часу перегляду успішно перебудовано!"
   },
   "trackedListScreen": {
     "searchPlaceholder": "Пошук за назвою...",
@@ -250,5 +254,32 @@
     "SOURCE": "Першоджерело",
     "COMPILATION": "Компіляція",
     "CONTAINS": "Включає в себе"
+  },
+  "bentoWidgets": {
+    "chaosMeter": "Лічильник хаосу",
+    "watchTimeDays": {
+      "one": "день",
+      "few": "дні",
+      "many": "днів"
+    },
+    "watchTimeHours": {
+      "one": "година",
+      "few": "години",
+      "many": "годин"
+    },
+    "watchTimeMinutes": {
+      "one": "хвилина",
+      "few": "хвилини",
+      "many": "хвилин"
+    },
+    "mostWatchedUniverse": "Найбільший всесвіт",
+    "activeCollections": "Активні колекції",
+    "episodesTotal": {
+      "one": "%d епізод всього",
+      "few": "%d епізоди всього",
+      "many": "%d епізодів всього"
+    },
+    "watchTimeTitle": "Час за переглядом",
+    "watchStatusTitle": "Статус медіатеки"
   }
 }

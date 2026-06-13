@@ -30,4 +30,7 @@ interface UserTrackingDao {
 
     @Query("SELECT anilist_id FROM user_tracking WHERE watch_status = :statusId")
     suspend fun getAnimeIdsByStatus(statusId: String): List<Long>
+
+    @Query("SELECT * FROM user_tracking")
+    suspend fun getAllTrackingSync(): List<UserTrackingEntity>
 }

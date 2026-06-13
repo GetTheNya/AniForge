@@ -63,8 +63,18 @@ fun LibraryScreen(
     val franchisesList by viewModel.franchises.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    val pagerState = rememberPagerState(initialPage = 0) { 2 }
+    val activeLibraryTab by viewModel.activeLibraryTab.collectAsState()
+    val pagerState = rememberPagerState(initialPage = activeLibraryTab ?: 0) { 2 }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(activeLibraryTab) {
+        activeLibraryTab?.let { tab ->
+            if (pagerState.currentPage != tab) {
+                pagerState.animateScrollToPage(tab)
+            }
+            viewModel.activeLibraryTab.value = null
+        }
+    }
 
     DisposableEffect(navController, pagerState) {
         navController.onLibraryClick = {

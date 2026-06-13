@@ -45,6 +45,7 @@ class LibraryViewModel @Inject constructor(
 
     // --- Collections Section ---
     val searchQuery = MutableStateFlow("")
+    val activeLibraryTab = MutableStateFlow<Int?>(null)
 
     val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles.stateIn(
         scope = viewModelScope,
