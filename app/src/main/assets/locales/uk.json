@@ -141,6 +141,7 @@
     "staffTitle": "Персонал",
     "episodeSuffix": "еп.",
     "durationSuffix": "хв.",
+    "newCollection": "Нова колекція",
     "releasesCount": {
       "one": "%d реліз",
       "few": "%d релізи",

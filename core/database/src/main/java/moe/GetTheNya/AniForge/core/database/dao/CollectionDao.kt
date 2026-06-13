@@ -51,4 +51,23 @@ interface CollectionDao {
 
     @Query("SELECT * FROM collection_anime_cross_ref")
     fun observeAllCrossRefs(): Flow<List<CollectionAnimeCrossRef>>
+
+    @Transaction
+    suspend fun createNewCollectionWithAnime(title: String, description: String, animeId: Long): Long {
+        val collectionId = insertCollection(
+            CollectionEntity(
+                title = title,
+                description = description,
+                createdAt = System.currentTimeMillis()
+            )
+        ).toInt()
+        val maxIndex = getMaxOrderIndex(collectionId) ?: -1
+        val ref = CollectionAnimeCrossRef(
+            collectionId = collectionId,
+            animeId = animeId,
+            orderIndex = maxIndex + 1
+        )
+        insertCrossRef(ref)
+        return collectionId.toLong()
+    }
 }

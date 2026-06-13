@@ -71,6 +71,13 @@ class DetailViewModel @Inject constructor(
         }
     }
 
+    fun createNewCollectionWithAnime(title: String, description: String) {
+        val animeId = currentAnimeId
+        viewModelScope.launch(Dispatchers.IO) {
+            collectionDao.createNewCollectionWithAnime(title, description, animeId)
+        }
+    }
+
     var sourceStatusId: String? = savedStateHandle.get<String>("sourceStatusId")
     var rouletteCount: Int = savedStateHandle.get<Int>("rouletteCount") ?: 0
     var visitedIds: String = savedStateHandle.get<String>("visitedIds") ?: ""

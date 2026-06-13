@@ -139,6 +139,7 @@
     "staffTitle": "Staff",
     "episodeSuffix": "ep",
     "durationSuffix": "min",
+    "newCollection": "New Collection",
     "releasesCount": {
       "one": "%d release",
       "many": "%d releases"

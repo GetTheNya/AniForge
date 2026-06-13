@@ -159,6 +159,7 @@ data class DetailScreenStrings(
     val staffTitle: String = "[detailScreen.staffTitle]",
     val episodeSuffix: String = "[detailScreen.episodeSuffix]",
     val durationSuffix: String = "[detailScreen.durationSuffix]",
+    val newCollection: String = "[detailScreen.newCollection]",
     val releasesCount: Map<String, String> = emptyMap()
 )
 

@@ -225,6 +225,7 @@ fun DetailScreen(
             }
 
             var showCollectionSheet by remember { mutableStateOf(false) }
+            var showCreateDialog by remember { mutableStateOf(false) }
 
             // Top Add to Collection Button
             IconButton(
@@ -247,6 +248,67 @@ fun DetailScreen(
                 val collections by viewModel.collections.collectAsState()
                 val animeCollectionIds by viewModel.animeCollectionIds.collectAsState()
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val collectionsLazyListState = rememberLazyListState()
+                var gestureStartedAtTop by remember { mutableStateOf(true) }
+                LaunchedEffect(collectionsLazyListState.isScrollInProgress) {
+                    if (collectionsLazyListState.isScrollInProgress) {
+                        gestureStartedAtTop = collectionsLazyListState.firstVisibleItemIndex == 0 &&
+                                collectionsLazyListState.firstVisibleItemScrollOffset == 0
+                    }
+                }
+
+                val coroutineScope = rememberCoroutineScope()
+                val bottomSheetScrollConnection = remember(collectionsLazyListState, coroutineScope) {
+                    object : NestedScrollConnection {
+                        override fun onPostScroll(
+                            consumed: Offset,
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            var consumedY = 0f
+                            if (available.y < 0f) {
+                                consumedY = available.y
+                                if (source == NestedScrollSource.SideEffect) {
+                                    coroutineScope.launch {
+                                        try {
+                                            collectionsLazyListState.scrollToItem(
+                                                collectionsLazyListState.firstVisibleItemIndex,
+                                                collectionsLazyListState.firstVisibleItemScrollOffset
+                                            )
+                                        } catch (e: Exception) {
+                                            // ignore
+                                        }
+                                    }
+                                }
+                            } else if (available.y > 0f && !gestureStartedAtTop) {
+                                consumedY = available.y
+                                if (source == NestedScrollSource.SideEffect) {
+                                    coroutineScope.launch {
+                                        try {
+                                            collectionsLazyListState.scrollToItem(
+                                                collectionsLazyListState.firstVisibleItemIndex,
+                                                collectionsLazyListState.firstVisibleItemScrollOffset
+                                            )
+                                        } catch (e: Exception) {
+                                            // ignore
+                                        }
+                                    }
+                                }
+                            }
+                            return Offset(x = 0f, y = consumedY)
+                        }
+
+                        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                            var consumedY = 0f
+                            if (available.y < 0f) {
+                                consumedY = available.y
+                            } else if (available.y > 0f && !gestureStartedAtTop) {
+                                consumedY = available.y
+                            }
+                            return Velocity(x = 0f, y = consumedY)
+                        }
+                    }
+                }
 
                 ModalBottomSheet(
                     onDismissRequest = { showCollectionSheet = false },
@@ -258,7 +320,9 @@ fun DetailScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .fillMaxHeight(0.9f)
                             .navigationBarsPadding()
+                            .nestedScroll(bottomSheetScrollConnection)
                             .padding(horizontal = 24.dp)
                             .padding(bottom = 24.dp)
                     ) {
@@ -269,6 +333,35 @@ fun DetailScreen(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
+
+                        // Prominent "New Collection" action button
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                                .clickable { showCreateDialog = true }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = strings.detailScreen.newCollection,
+                                tint = ElectricViolet,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.detailScreen.newCollection,
+                                color = ElectricViolet,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         if (collections.isEmpty()) {
                             Box(
@@ -285,6 +378,7 @@ fun DetailScreen(
                             }
                         } else {
                             LazyColumn(
+                                state = collectionsLazyListState,
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -334,6 +428,80 @@ fun DetailScreen(
                         }
                     }
                 }
+            }
+
+            if (showCreateDialog) {
+                var title by remember { mutableStateOf("") }
+                var description by remember { mutableStateOf("") }
+
+                AlertDialog(
+                    onDismissRequest = { showCreateDialog = false },
+                    title = { Text(strings.libraryScreen.newCollection, color = TextPrimary, fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = title,
+                                onValueChange = { title = it },
+                                label = { Text(strings.libraryScreen.title, color = TextSecondary) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = ElectricViolet,
+                                    unfocusedBorderColor = CardBorder,
+                                    focusedContainerColor = SurfaceDark,
+                                    unfocusedContainerColor = SurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = description,
+                                onValueChange = { description = it },
+                                label = { Text(strings.libraryScreen.descriptionOptional, color = TextSecondary) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = ElectricViolet,
+                                    unfocusedBorderColor = CardBorder,
+                                    focusedContainerColor = SurfaceDark,
+                                    unfocusedContainerColor = SurfaceDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (title.isNotBlank()) {
+                                    viewModel.createNewCollectionWithAnime(title, description)
+                                    showCreateDialog = false
+                                }
+                            },
+                            enabled = title.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ElectricViolet,
+                                disabledContainerColor = ElectricViolet.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(strings.libraryScreen.create, color = BackgroundDark, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCreateDialog = false }) {
+                            Text(strings.libraryScreen.cancel, color = TextSecondary)
+                        }
+                    },
+                    containerColor = SurfaceCardDark,
+                    shape = RoundedCornerShape(24.dp)
+                )
             }
 
             if (sourceStatusId != null && uiState is DetailUiState.Success) {
