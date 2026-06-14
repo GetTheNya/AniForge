@@ -61,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
@@ -507,6 +509,50 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     val lazyGridState = rememberLazyGridState()
 
+    val density = LocalDensity.current
+    var expandedHeaderHeightPx by remember { mutableStateOf(0f) }
+    val collapsedHeaderHeightPx = remember { with(density) { 64.dp.toPx() } }
+
+    val scrollOffset = remember {
+        derivedStateOf {
+            if (lazyGridState.firstVisibleItemIndex == 0) {
+                lazyGridState.firstVisibleItemScrollOffset
+            } else {
+                100000
+            }
+        }
+    }
+
+    val maxScrollPx = remember {
+        derivedStateOf {
+            (expandedHeaderHeightPx - collapsedHeaderHeightPx).coerceAtLeast(1f)
+        }
+    }
+
+    val collapseFraction = remember {
+        derivedStateOf {
+            if (expandedHeaderHeightPx > 0f) {
+                (scrollOffset.value.toFloat() / maxScrollPx.value).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    }
+
+    val currentHeaderHeightDp = remember {
+        derivedStateOf {
+            if (isEditMode) {
+                64.dp
+            } else if (expandedHeaderHeightPx == 0f) {
+                Dp.Unspecified
+            } else {
+                val expandedDp = with(density) { expandedHeaderHeightPx.toDp() }
+                val scrolledDp = with(density) { scrollOffset.value.toDp() }
+                (expandedDp - scrolledDp).coerceIn(64.dp, expandedDp)
+            }
+        }
+    }
+
     val hapticFeedback = LocalHapticFeedback.current
     val dragGridState = rememberDragGridState(
         lazyGridState = lazyGridState,
@@ -525,7 +571,7 @@ fun HomeScreen(
                 val toIdx = visibleConfigs.indexOfFirst { it.widgetId == toId }
                 
                 if (fromIdx != -1 && toIdx != -1) {
-                    dragGridStateHolder.value?.expectedDraggedIndex = toIdx
+                    dragGridStateHolder.value?.expectedDraggedIndex = toIdx + 1
                 }
             }
             
@@ -610,15 +656,124 @@ fun HomeScreen(
         }
     }
 
+    val stateType = when (uiState) {
+        is HomeUiState.Loading -> "loading"
+        is HomeUiState.Error -> "error"
+        is HomeUiState.Success -> "success"
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(BackgroundDark)
             .onGloballyPositioned { rootBoxCoordinates = it }
     ) {
+        Crossfade(
+            targetState = stateType,
+            modifier = Modifier.fillMaxSize(),
+            label = "homeCrossfade"
+        ) { type ->
+            when (type) {
+                "loading" -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = NeonCoral)
+                    }
+                }
+                "error" -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val errorState = uiState as? HomeUiState.Error
+                        val errorMessage = when (errorState?.message) {
+                            "Unknown error" -> strings.dashboardScreen.unknownError
+                            else -> errorState?.message ?: ""
+                        }
+                        Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
+                    }
+                }
+                "success" -> {
+                    val successState = uiState as? HomeUiState.Success
+                    if (successState != null) {
+                        HomeScreenGrid(
+                            state = successState,
+                            viewModel = viewModel,
+                            isEditMode = isEditMode,
+                            dragGridState = dragGridState,
+                            topBarBottomInWindow = topBarBottomInWindow,
+                            dismissingWidgetId = dismissingWidgetId,
+                            placingWidgetId = placingWidgetId,
+                            widgetCoordinates = widgetCoordinates,
+                            lazyGridState = lazyGridState,
+                            expandedHeaderHeightPx = expandedHeaderHeightPx,
+                            onAnimeClick = onAnimeClick,
+                            onGenreClick = onGenreClick,
+                            onStudioClick = onStudioClick,
+                            onCollectionClick = onCollectionClick,
+                            onStatusClick = onStatusClick,
+                            onAddWidgetsClick = {
+                                viewModel.enterEditMode()
+                                showRestorationSheet = true
+                            },
+                            onDragRelease = { widgetId, initialItemWindowPos, dragOffset, width, height, isOverDeleteZone ->
+                                if (!isOverDeleteZone && rootBoxCoordinates != null && rootBoxCoordinates!!.isAttached) {
+                                    coroutineScope.launch {
+                                        placingProgress.snapTo(0f)
+                                    }
+                                    placingWidgetId = widgetId
+                                    placingStartOffset = rootBoxCoordinates!!.windowToLocal(initialItemWindowPos + dragOffset)
+                                    placingWidth = width
+                                    placingHeight = height
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val progress = contentProgress.value
+                                    alpha = progress
+                                    when (currentContentStyle) {
+                                        ContentAnimStyle.NONE -> {
+                                            alpha = 1f
+                                            scaleX = 1f
+                                            scaleY = 1f
+                                            translationY = 0f
+                                            rotationX = 0f
+                                        }
+                                        ContentAnimStyle.POWER_UP -> {
+                                            val scale = 0.95f + 0.05f * progress
+                                            scaleX = scale
+                                            scaleY = scale
+                                            translationY = 0f
+                                            rotationX = 0f
+                                        }
+                                        ContentAnimStyle.SLIDE_UP -> {
+                                            scaleX = 1f
+                                            scaleY = 1f
+                                            translationY = 80.dp.toPx() * (1f - progress)
+                                            rotationX = 0f
+                                        }
+                                        ContentAnimStyle.FLIP_3D -> {
+                                            scaleX = 1f
+                                            scaleY = 1f
+                                            translationY = 0f
+                                            rotationX = 90f * (1f - progress)
+                                            cameraDistance = 12f * this.density
+                                        }
+                                    }
+                                }
+                        )
+                    }
+                }
+            }
+        }
+
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(BackgroundDark)
+            modifier = Modifier
+                .fillMaxWidth()
+                .zIndex(5f)
         ) {
             Spacer(
                 modifier = Modifier
@@ -626,12 +781,27 @@ fun HomeScreen(
                     .windowInsetsTopHeight(WindowInsets.statusBars)
                     .background(animatedStatusBarColor)
             )
-            
-            // Sticky Top Header / Drop Zone App Bar
+
+            val heightModifier = if (currentHeaderHeightDp.value != Dp.Unspecified) {
+                Modifier.height(currentHeaderHeightDp.value)
+            } else {
+                Modifier.wrapContentHeight()
+            }
+
+            val headerBgColor = if (isEditMode) {
+                BackgroundDark
+            } else {
+                androidx.compose.ui.graphics.lerp(Color.Transparent, BackgroundDark, collapseFraction.value)
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(heightModifier)
                     .onGloballyPositioned { coords ->
+                        if (coords.isAttached && scrollOffset.value == 0 && !isEditMode) {
+                            expandedHeaderHeightPx = coords.size.height.toFloat()
+                        }
                         if (coords.isAttached) {
                             topBarBottomInWindow = coords.localToWindow(Offset.Zero).y + coords.size.height
                         }
@@ -640,268 +810,286 @@ fun HomeScreen(
                         Brush.verticalGradient(
                             colors = listOf(
                                 animateColorAsState(
-                                    targetValue = if (isOverDeleteZone) Color(0xFFD32F2F).copy(alpha = 0.9f) else Color.Transparent,
+                                    targetValue = if (isOverDeleteZone) Color(0xFFD32F2F).copy(alpha = 0.9f) else headerBgColor,
                                     animationSpec = tween(350, easing = FastOutSlowInEasing),
                                     label = "topBarBg"
-                               ).value,
+                                ).value,
                                 Color.Transparent
                             )
                         )
                     )
-                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 32.dp),
+                    .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-            val contentAlpha by animateFloatAsState(
-                targetValue = if (isOverDeleteZone) 0f else 1f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "contentAlpha"
-            )
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { alpha = contentAlpha }
-            ) {
-                if (!isEditMode) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = decodedTitle,
-                            fontSize = 56.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = (-1.5).sp,
-                            color = Color.White,
-                            modifier = Modifier.graphicsLayer {
-                                if (!isAnimationPlayed) {
-                                    when (currentTitleStyle) {
-                                        TitleAnimStyle.NONE -> { alpha = 1f; translationX = 0f; rotationY = 0f }
-                                        TitleAnimStyle.SLIDE_SIDE -> {
-                                            val progress = titleProgress.value
-                                            alpha = progress
-                                            translationX = -100f * (1f - progress)
-                                            rotationY = 0f
+                val contentAlpha by animateFloatAsState(
+                    targetValue = if (isOverDeleteZone) 0f else 1f,
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                    label = "contentAlpha"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = contentAlpha }
+                ) {
+                    if (!isEditMode) {
+                        val fraction = collapseFraction.value
+                        val titleSize = (56 - (56 - 20) * fraction).sp
+                        val metadataAlpha = (1f - fraction * 3f).coerceIn(0f, 1f)
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    top = lerp(24.dp, 18.dp, fraction),
+                                    bottom = lerp(32.dp, 18.dp, fraction)
+                                )
+                        ) {
+                            Text(
+                                text = decodedTitle,
+                                fontSize = titleSize,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-1.5).sp,
+                                color = Color.White,
+                                modifier = Modifier.graphicsLayer {
+                                    if (!isAnimationPlayed) {
+                                        when (currentTitleStyle) {
+                                            TitleAnimStyle.NONE -> { alpha = 1f; translationX = 0f; rotationY = 0f }
+                                            TitleAnimStyle.SLIDE_SIDE -> {
+                                                val progress = titleProgress.value
+                                                alpha = progress
+                                                translationX = -100f * (1f - progress)
+                                                rotationY = 0f
+                                            }
+                                            TitleAnimStyle.TURNSTILE_3D -> {
+                                                val progress = titleProgress.value
+                                                alpha = progress
+                                                rotationY = 25f * (1f - progress)
+                                                translationX = 0f
+                                            }
+                                            TitleAnimStyle.DECODING -> { alpha = 1f; translationX = 0f; rotationY = 0f }
+                                            TitleAnimStyle.GLITCH -> {
+                                                alpha = titleGlitchAlpha
+                                                translationX = titleGlitchTranslationX
+                                                rotationY = 0f
+                                            }
                                         }
-                                        TitleAnimStyle.TURNSTILE_3D -> {
-                                            val progress = titleProgress.value
-                                            alpha = progress
-                                            rotationY = 25f * (1f - progress)
-                                            translationX = 0f
-                                        }
-                                        TitleAnimStyle.DECODING -> { alpha = 1f; translationX = 0f; rotationY = 0f }
-                                        TitleAnimStyle.GLITCH -> {
-                                            alpha = titleGlitchAlpha
-                                            translationX = titleGlitchTranslationX
-                                            rotationY = 0f
-                                        }
-                                    }
-                                } else {
-                                    alpha = 1f; translationX = 0f; rotationY = 0f
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(0.dp))
-                        
-                        when (currentSubtitleStyle) {
-                            SubtitleAnimStyle.NONE -> {
-                                Column {
-                                    Text(
-                                        text = strings.homeScreen.welcomeBack.replace("!", ""),
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Light,
-                                        color = TextSecondary
-                                    )
-                                    if (cleanSubtitle.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            text = cleanSubtitle,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = TextSecondary.copy(alpha = 0.5f)
-                                        )
+                                    } else {
+                                        alpha = 1f; translationX = 0f; rotationY = 0f
                                     }
                                 }
-                            }
-                            SubtitleAnimStyle.BLUR_FADE -> {
+                            )
+
+                            if (metadataAlpha > 0f) {
                                 Column(
-                                    modifier = Modifier.graphicsLayer {
-                                        val progress = headerProgress.value
-                                        alpha = progress
-                                        val blurRadius = 15f * (1f - progress)
-                                        if (blurRadius > 0.1f) {
-                                            renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                                                blurRadius,
-                                                blurRadius,
-                                                android.graphics.Shader.TileMode.CLAMP
-                                            ).asComposeRenderEffect()
-                                        } else {
-                                            renderEffect = null
-                                        }
-                                    }
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .graphicsLayer { alpha = metadataAlpha }
                                 ) {
-                                    Text(
-                                        text = strings.homeScreen.welcomeBack.replace("!", ""),
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Light,
-                                        color = TextSecondary
-                                    )
-                                    if (cleanSubtitle.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            text = cleanSubtitle,
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = TextSecondary.copy(alpha = 0.5f)
-                                        )
-                                    }
-                                }
-                            }
-                            SubtitleAnimStyle.WORD_BY_WORD -> {
-                                Column {
-                                    WordByWordText(
-                                        text = strings.homeScreen.welcomeBack.replace("!", ""),
-                                        animProgress = { headerProgress.value },
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Light,
-                                        color = TextSecondary
-                                    )
-                                    if (cleanSubtitle.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        WordByWordText(
-                                            text = cleanSubtitle,
-                                            animProgress = { headerProgress.value },
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            color = TextSecondary.copy(alpha = 0.5f)
-                                        )
-                                    }
-                                }
-                            }
-                            SubtitleAnimStyle.TYPEWRITER -> {
-                                val fullGreeting = strings.homeScreen.welcomeBack.replace("!", "")
-                                Column {
-                                    Box(contentAlignment = Alignment.TopStart) {
-                                        Text(
-                                            text = fullGreeting,
-                                            fontSize = 28.sp,
-                                            fontWeight = FontWeight.Light,
-                                            color = Color.Transparent,
-                                            modifier = Modifier.alpha(0f)
-                                        )
-                                        Text(
-                                            text = if (cursorPosition == 1 && cursorBlink) typedGreeting + "▎" else typedGreeting,
-                                            fontSize = 28.sp,
-                                            fontWeight = FontWeight.Light,
-                                            color = TextSecondary
-                                        )
-                                    }
-                                    if (cleanSubtitle.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Box(contentAlignment = Alignment.TopStart) {
-                                            Text(
-                                                text = cleanSubtitle,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Normal,
-                                                color = Color.Transparent,
-                                                modifier = Modifier.alpha(0f)
-                                            )
-                                            Text(
-                                                text = if (cursorPosition == 2 && cursorBlink) typedSubtitle + "▎" else typedSubtitle,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.Normal,
-                                                color = TextSecondary.copy(alpha = 0.5f)
-                                            )
+                                    Spacer(modifier = Modifier.height(0.dp))
+                                    when (currentSubtitleStyle) {
+                                        SubtitleAnimStyle.NONE -> {
+                                            Column {
+                                                Text(
+                                                    text = strings.homeScreen.welcomeBack.replace("!", ""),
+                                                    fontSize = 28.sp,
+                                                    fontWeight = FontWeight.Light,
+                                                    color = TextSecondary
+                                                )
+                                                if (cleanSubtitle.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Text(
+                                                        text = cleanSubtitle,
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = TextSecondary.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        SubtitleAnimStyle.BLUR_FADE -> {
+                                            Column(
+                                                modifier = Modifier.graphicsLayer {
+                                                    val progress = headerProgress.value
+                                                    alpha = progress
+                                                    val blurRadius = 15f * (1f - progress)
+                                                    if (blurRadius > 0.1f) {
+                                                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                                                            blurRadius,
+                                                            blurRadius,
+                                                            android.graphics.Shader.TileMode.CLAMP
+                                                        ).asComposeRenderEffect()
+                                                    } else {
+                                                        renderEffect = null
+                                                    }
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = strings.homeScreen.welcomeBack.replace("!", ""),
+                                                    fontSize = 28.sp,
+                                                    fontWeight = FontWeight.Light,
+                                                    color = TextSecondary
+                                                )
+                                                if (cleanSubtitle.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Text(
+                                                        text = cleanSubtitle,
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = TextSecondary.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        SubtitleAnimStyle.WORD_BY_WORD -> {
+                                            Column {
+                                                WordByWordText(
+                                                    text = strings.homeScreen.welcomeBack.replace("!", ""),
+                                                    animProgress = { headerProgress.value },
+                                                    fontSize = 28.sp,
+                                                    fontWeight = FontWeight.Light,
+                                                    color = TextSecondary
+                                                )
+                                                if (cleanSubtitle.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    WordByWordText(
+                                                        text = cleanSubtitle,
+                                                        animProgress = { headerProgress.value },
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = TextSecondary.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        SubtitleAnimStyle.TYPEWRITER -> {
+                                            val fullGreeting = strings.homeScreen.welcomeBack.replace("!", "")
+                                            Column {
+                                                Box(contentAlignment = Alignment.TopStart) {
+                                                    Text(
+                                                        text = fullGreeting,
+                                                        fontSize = 28.sp,
+                                                        fontWeight = FontWeight.Light,
+                                                        color = Color.Transparent,
+                                                        modifier = Modifier.alpha(0f)
+                                                    )
+                                                    Text(
+                                                        text = if (cursorPosition == 1 && cursorBlink) typedGreeting + "▎" else typedGreeting,
+                                                        fontSize = 28.sp,
+                                                        fontWeight = FontWeight.Light,
+                                                        color = TextSecondary
+                                                    )
+                                                }
+                                                if (cleanSubtitle.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Box(contentAlignment = Alignment.TopStart) {
+                                                        Text(
+                                                            text = cleanSubtitle,
+                                                            fontSize = 16.sp,
+                                                            fontWeight = FontWeight.Normal,
+                                                            color = Color.Transparent,
+                                                            modifier = Modifier.alpha(0f)
+                                                        )
+                                                        Text(
+                                                            text = if (cursorPosition == 2 && cursorBlink) typedSubtitle + "▎" else typedSubtitle,
+                                                            fontSize = 16.sp,
+                                                            fontWeight = FontWeight.Normal,
+                                                            color = TextSecondary.copy(alpha = 0.5f)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.homeScreen.editWorkspace,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
+                    } else {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                onClick = { showRestorationSheet = true },
-                                colors = IconButtonDefaults.iconButtonColors(containerColor = SurfaceDark),
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                            Text(
+                                text = strings.homeScreen.editWorkspace,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = strings.homeScreen.addWidgets,
-                                    tint = ElectricViolet
-                                )
-                            }
-                            Button(
-                                onClick = { viewModel.exitEditMode() },
-                                colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
-                                shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-                            ) {
-                                Text(
-                                    text = strings.libraryScreen.done,
-                                    color = BackgroundDark,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                IconButton(
+                                    onClick = { showRestorationSheet = true },
+                                    colors = IconButtonDefaults.iconButtonColors(containerColor = SurfaceDark),
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = strings.homeScreen.addWidgets,
+                                        tint = ElectricViolet
+                                    )
+                                }
+                                Button(
+                                    onClick = { viewModel.exitEditMode() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
+                                    shape = RoundedCornerShape(14.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                                ) {
+                                    Text(
+                                        text = strings.libraryScreen.done,
+                                        color = BackgroundDark,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
-            
-            val deleteAlpha by animateFloatAsState(
-                targetValue = if (isOverDeleteZone) 1f else 0f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "deleteAlpha"
-            )
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { alpha = deleteAlpha },
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+
+                val deleteAlpha by animateFloatAsState(
+                    targetValue = if (isOverDeleteZone) 1f else 0f,
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                    label = "deleteAlpha"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = deleteAlpha },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = strings.homeScreen.releaseToDelete,
-                        tint = NeonCoral,
-                        modifier = Modifier.size(40.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = strings.homeScreen.releaseToDelete,
-                        color = NeonCoral,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = strings.homeScreen.releaseToDelete,
+                            tint = NeonCoral,
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = strings.homeScreen.releaseToDelete,
+                            color = NeonCoral,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
-        }
-
-        // Restoration Bottom Sheet
+        }    // Restoration Bottom Sheet
         if (showRestorationSheet) {
             val sheetLazyListState = rememberLazyListState()
             val sheetScope = rememberCoroutineScope()
@@ -1074,109 +1262,7 @@ fun HomeScreen(
             }
         }
 
-        val stateType = when (uiState) {
-            is HomeUiState.Loading -> "loading"
-            is HomeUiState.Error -> "error"
-            is HomeUiState.Success -> "success"
-        }
 
-        Crossfade(targetState = stateType, label = "homeCrossfade") { type ->
-            when (type) {
-                "loading" -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = NeonCoral)
-                    }
-                }
-                "error" -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val errorState = uiState as? HomeUiState.Error
-                        val errorMessage = when (errorState?.message) {
-                            "Unknown error" -> strings.dashboardScreen.unknownError
-                            else -> errorState?.message ?: ""
-                        }
-                        Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
-                    }
-                }
-                "success" -> {
-                    val successState = uiState as? HomeUiState.Success
-                    if (successState != null) {
-                        HomeScreenGrid(
-                            state = successState,
-                            viewModel = viewModel,
-                            isEditMode = isEditMode,
-                            dragGridState = dragGridState,
-                            topBarBottomInWindow = topBarBottomInWindow,
-                            dismissingWidgetId = dismissingWidgetId,
-                            placingWidgetId = placingWidgetId,
-                            widgetCoordinates = widgetCoordinates,
-                            lazyGridState = lazyGridState,
-                            onAnimeClick = onAnimeClick,
-                            onGenreClick = onGenreClick,
-                            onStudioClick = onStudioClick,
-                            onCollectionClick = onCollectionClick,
-                            onStatusClick = onStatusClick,
-                            onAddWidgetsClick = {
-                                viewModel.enterEditMode()
-                                showRestorationSheet = true
-                            },
-                            onDragRelease = { widgetId, initialItemWindowPos, dragOffset, width, height, isOverDeleteZone ->
-                                if (!isOverDeleteZone && rootBoxCoordinates != null && rootBoxCoordinates!!.isAttached) {
-                                    coroutineScope.launch {
-                                        placingProgress.snapTo(0f)
-                                    }
-                                    placingWidgetId = widgetId
-                                    placingStartOffset = rootBoxCoordinates!!.windowToLocal(initialItemWindowPos + dragOffset)
-                                    placingWidth = width
-                                    placingHeight = height
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    val progress = contentProgress.value
-                                    alpha = progress
-                                    when (currentContentStyle) {
-                                        ContentAnimStyle.NONE -> {
-                                            alpha = 1f
-                                            scaleX = 1f
-                                            scaleY = 1f
-                                            translationY = 0f
-                                            rotationX = 0f
-                                        }
-                                        ContentAnimStyle.POWER_UP -> {
-                                            val scale = 0.95f + 0.05f * progress
-                                            scaleX = scale
-                                            scaleY = scale
-                                            translationY = 0f
-                                            rotationX = 0f
-                                        }
-                                        ContentAnimStyle.SLIDE_UP -> {
-                                            scaleX = 1f
-                                            scaleY = 1f
-                                            translationY = 80.dp.toPx() * (1f - progress)
-                                            rotationX = 0f
-                                        }
-                                        ContentAnimStyle.FLIP_3D -> {
-                                            scaleX = 1f
-                                            scaleY = 1f
-                                            translationY = 0f
-                                            rotationX = 90f * (1f - progress)
-                                            cameraDistance = 12f * this.density
-                                        }
-                                    }
-                                }
-                        )
-                    }
-                }
-            }
-        }
-        }
         
         // Root-level overlay for dragged card or dismissing card
         val successState = uiState as? HomeUiState.Success
@@ -1425,6 +1511,7 @@ fun HomeScreenGrid(
     placingWidgetId: String?,
     widgetCoordinates: MutableMap<String, LayoutCoordinates>,
     lazyGridState: LazyGridState,
+    expandedHeaderHeightPx: Float,
     onAnimeClick: (Long) -> Unit,
     onGenreClick: (String) -> Unit,
     onStudioClick: (Long) -> Unit,
@@ -1444,6 +1531,19 @@ fun HomeScreenGrid(
     }
 
     var gridScrollEnabled by remember { mutableStateOf(true) }
+
+    val density = LocalDensity.current
+    val topSpacerHeight = remember(isEditMode, expandedHeaderHeightPx) {
+        derivedStateOf {
+            if (isEditMode) {
+                64.dp
+            } else if (expandedHeaderHeightPx == 0f) {
+                220.dp
+            } else {
+                with(density) { expandedHeaderHeightPx.toDp() }
+            }
+        }
+    }
 
     LaunchedEffect(dragGridState.draggedWidgetId) {
         if (dragGridState.draggedWidgetId != null) {
@@ -1504,7 +1604,7 @@ fun HomeScreenGrid(
                                         (item.offset.x + item.size.width).toFloat(),
                                         (item.offset.y + item.size.height).toFloat()
                                     )
-                                    rect.contains(offset) && item.key != "spotlight_header" && item.key != "spotlight_card" && item.key != "spotlight_spacer" && item.key != "workspace_header" && item.key != "empty_workspace_placeholder"
+                                    rect.contains(offset) && item.key != "header_spacer" && item.key != "spotlight_header" && item.key != "spotlight_card" && item.key != "spotlight_spacer" && item.key != "workspace_header" && item.key != "empty_workspace_placeholder"
                                 }
                                 if (clickedItem != null) {
                                     val widgetId = clickedItem.key as? String
@@ -1571,6 +1671,12 @@ fun HomeScreenGrid(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        item(span = { GridItemSpan(2) }, key = "header_spacer") {
+            Column {
+                Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+                Spacer(modifier = Modifier.height(topSpacerHeight.value))
+            }
+        }
         // Spotlight Section (only visible when NOT in Edit Mode)
         if (!isEditMode && state.featuredAnime != null) {
             item(span = { GridItemSpan(2) }, key = "spotlight_header") {

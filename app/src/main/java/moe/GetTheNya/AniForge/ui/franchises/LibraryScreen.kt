@@ -10,8 +10,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,7 +57,9 @@ import moe.GetTheNya.AniForge.ui.utils.disableSplitTouch
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
@@ -86,6 +90,42 @@ fun LibraryScreen(
     val activeLibraryTab by viewModel.activeLibraryTab.collectAsState()
     val pagerState = rememberPagerState(initialPage = activeLibraryTab ?: 0) { 2 }
     val coroutineScope = rememberCoroutineScope()
+
+    val franchisesLazyListState = rememberLazyListState()
+    val collectionsLazyGridState = rememberLazyGridState()
+
+    val scrollOffset = remember {
+        derivedStateOf {
+            if (pagerState.currentPage == 0) {
+                if (franchisesLazyListState.firstVisibleItemIndex == 0) {
+                    franchisesLazyListState.firstVisibleItemScrollOffset
+                } else {
+                    100000
+                }
+            } else {
+                if (collectionsLazyGridState.firstVisibleItemIndex == 0) {
+                    collectionsLazyGridState.firstVisibleItemScrollOffset
+                } else {
+                    100000
+                }
+            }
+        }
+    }
+
+    val density = LocalDensity.current
+    val expandedTitleHeightPx = remember { with(density) { 78.dp.toPx() } }
+    val collapsedTitleHeightPx = remember { with(density) { 56.dp.toPx() } }
+    val maxScrollPx = remember { (expandedTitleHeightPx - collapsedTitleHeightPx).coerceAtLeast(1f) }
+
+    val collapseFraction = remember {
+        derivedStateOf {
+            if (isInSelectionMode) {
+                1f
+            } else {
+                (scrollOffset.value.toFloat() / maxScrollPx).coerceIn(0f, 1f)
+            }
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
         viewModel.clearSelection()
@@ -118,133 +158,11 @@ fun LibraryScreen(
             .background(BackgroundDark)
             .statusBarsPadding()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp)
-        ) {
-            // Screen Header
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp, bottom = 10.dp)
-                    .height(48.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (isInSelectionMode) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = { viewModel.clearSelection() },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = strings.libraryScreen.cancel,
-                                    tint = TextPrimary
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            val selectedText = strings.libraryScreen.selectedCount.getPlural(selectedCollectionIds.size)
-                            Text(
-                                text = selectedText,
-                                color = TextPrimary,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { showDeleteConfirmation = true },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = strings.libraryScreen.deleteCollection,
-                                tint = NeonCoral
-                            )
-                        }
-                    }
-                } else {
-                    Text(
-                        text = strings.libraryScreen.name,
-                        color = TextPrimary,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Premium minimalist Tab Switcher
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(SurfaceDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val tabTitles = listOf(strings.libraryScreen.franchises, strings.libraryScreen.collections)
-                tabTitles.forEachIndexed { index, title ->
-                    val pageOffset = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                    val fraction = (1f - kotlin.math.abs(pageOffset - index)).coerceIn(0f, 1f)
-                    
-                    val bgColor = lerp(Color.Transparent, ElectricViolet, fraction)
-                    val textColor = lerp(TextSecondary, BackgroundDark, fraction)
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(bgColor)
-                            .clickable {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = title,
-                            color = textColor,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val searchPlaceholder = if (pagerState.currentPage == 0) {
-                strings.libraryScreen.searchFranchises
-            } else {
-                strings.libraryScreen.searchCollections
-            }
-
-            LibrarySearchBar(
-                query = searchQuery,
-                onQueryChange = { viewModel.searchQuery.value = it },
-                placeholder = searchPlaceholder,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            HorizontalPager(
-                state = pagerState,
-                userScrollEnabled = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) { page ->
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = false,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
                 when (page) {
                     0 -> {
                         // Franchises Page
@@ -257,10 +175,16 @@ fun LibraryScreen(
                             }
                         } else {
                             LazyColumn(
+                                state = franchisesLazyListState,
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 contentPadding = PaddingValues(bottom = 100.dp), // Space for bottom navigation
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 20.dp)
                             ) {
+                                item(key = "header_spacer") {
+                                    Spacer(modifier = Modifier.height(220.dp))
+                                }
                                 items(
                                     items = franchisesList,
                                     key = { it.franchise.franchiseId }
@@ -355,7 +279,6 @@ fun LibraryScreen(
                             )
                         }
 
-                        val collectionsLazyGridState = rememberLazyGridState()
                         LazyVerticalGrid(
                             state = collectionsLazyGridState,
                             columns = GridCells.Fixed(2),
@@ -364,8 +287,12 @@ fun LibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier
                                 .fillMaxSize()
+                                .padding(horizontal = 20.dp)
                                 .disableSplitTouch()
                         ) {
+                            item(span = { GridItemSpan(2) }, key = "header_spacer") {
+                                Spacer(modifier = Modifier.height(220.dp))
+                            }
                             item {
                                 CreationSlotCard(onClick = { showCreateDialog = true })
                             }
@@ -399,6 +326,132 @@ fun LibraryScreen(
                     }
                 }
             }
+
+        // Floating Header Overlay Column
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(BackgroundDark)
+                .padding(horizontal = 20.dp)
+                .zIndex(5f)
+        ) {
+            val topPadding = lerp(20.dp, 0.dp, collapseFraction.value)
+            val bottomPadding = lerp(10.dp, 0.dp, collapseFraction.value)
+            val contentHeight = lerp(48.dp, 56.dp, collapseFraction.value)
+            val titleSize = (28 - (28 - 20) * collapseFraction.value).sp
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = topPadding, bottom = bottomPadding)
+                    .height(contentHeight),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (isInSelectionMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.clearSelection() },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = strings.libraryScreen.cancel,
+                                    tint = TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            val selectedText = strings.libraryScreen.selectedCount.getPlural(selectedCollectionIds.size)
+                            Text(
+                                text = selectedText,
+                                color = TextPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showDeleteConfirmation = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = strings.libraryScreen.deleteCollection,
+                                tint = NeonCoral
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = strings.libraryScreen.name,
+                        color = TextPrimary,
+                        fontSize = titleSize,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(SurfaceDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val tabTitles = listOf(strings.libraryScreen.franchises, strings.libraryScreen.collections)
+                tabTitles.forEachIndexed { index, title ->
+                    val pageOffset = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                    val fraction = (1f - kotlin.math.abs(pageOffset - index)).coerceIn(0f, 1f)
+                    
+                    val bgColor = androidx.compose.ui.graphics.lerp(Color.Transparent, ElectricViolet, fraction)
+                    val textColor = androidx.compose.ui.graphics.lerp(TextSecondary, BackgroundDark, fraction)
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(bgColor)
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = textColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val searchPlaceholder = if (pagerState.currentPage == 0) {
+                strings.libraryScreen.searchFranchises
+            } else {
+                strings.libraryScreen.searchCollections
+            }
+
+            LibrarySearchBar(
+                query = searchQuery,
+                onQueryChange = { viewModel.searchQuery.value = it },
+                placeholder = searchPlaceholder,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
         }
 
         if (showDeleteConfirmation) {

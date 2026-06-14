@@ -15,11 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -40,25 +43,66 @@ fun ProfileScreen(
     val bentoStats by viewModel.bentoStats.collectAsState()
     val trackingStats by viewModel.stats.collectAsState()
 
-    Column(
+    val scrollState = rememberScrollState()
+    val scrollOffset = scrollState.value
+
+    val density = LocalDensity.current
+    val expandedHeight = 80.dp
+    val collapsedHeight = 56.dp
+    val maxScrollPx = remember { with(density) { (expandedHeight - collapsedHeight).toPx() } }
+    val collapseFraction = (scrollOffset.toFloat() / maxScrollPx).coerceIn(0f, 1f)
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(BackgroundDark)
             .statusBarsPadding()
-            .padding(horizontal = 24.dp)
     ) {
-        // Sticky Top Header
+        // Scrollable Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(96.dp))
+
+            moe.GetTheNya.AniForge.ui.bento.BentoDashboardGrid(
+                stats = userStats,
+                bentoData = bentoStats,
+                trackingStats = trackingStats,
+                onStudioClick = onStudioClick,
+                onGenreClick = onGenreClick,
+                onCollectionClick = onCollectionClick,
+                onStatusClick = { statusId ->
+                    navController.navigate(Screen.TrackedList(statusId))
+                }
+            )
+
+            Spacer(modifier = Modifier.height(110.dp))
+        }
+
+        // Floating Header Overlay
+        val headerHeight = lerp(expandedHeight, collapsedHeight, collapseFraction)
+        val verticalPadding = lerp(16.dp, 0.dp, collapseFraction)
+        val titleSize = (28 - (28 - 20) * collapseFraction).sp
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .height(headerHeight)
+                .background(BackgroundDark)
+                .padding(horizontal = 24.dp)
+                .padding(vertical = verticalPadding)
+                .zIndex(5f),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = strings.profileScreen.userProfile,
                 color = TextPrimary,
-                fontSize = 28.sp,
+                fontSize = titleSize,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp
             )
@@ -75,31 +119,6 @@ fun ProfileScreen(
                     tint = TextPrimary
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val scrollState = rememberScrollState()
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            moe.GetTheNya.AniForge.ui.bento.BentoDashboardGrid(
-                stats = userStats,
-                bentoData = bentoStats,
-                trackingStats = trackingStats,
-                onStudioClick = onStudioClick,
-                onGenreClick = onGenreClick,
-                onCollectionClick = onCollectionClick,
-                onStatusClick = { statusId ->
-                    navController.navigate(Screen.TrackedList(statusId))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(110.dp))
         }
     }
 }
