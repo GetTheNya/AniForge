@@ -13,7 +13,8 @@ import moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity
         UserSettingEntity::class,
         moe.GetTheNya.AniForge.core.database.entity.CollectionEntity::class,
         moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef::class,
-        moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity::class
+        moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity::class,
+        moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity::class
     ],
     version = 1,
     exportSchema = false
@@ -23,4 +24,5 @@ abstract class UserDatabase : RoomDatabase() {
     abstract fun userSettingDao(): UserSettingDao
     abstract fun collectionDao(): moe.GetTheNya.AniForge.core.database.dao.CollectionDao
     abstract fun userStatsDao(): moe.GetTheNya.AniForge.core.database.dao.UserStatsDao
+    abstract fun widgetConfigDao(): moe.GetTheNya.AniForge.core.database.dao.WidgetConfigDao
 }

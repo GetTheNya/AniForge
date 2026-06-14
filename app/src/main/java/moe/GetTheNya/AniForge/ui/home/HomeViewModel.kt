@@ -1,13 +1,18 @@
 package moe.GetTheNya.AniForge.ui.home
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
-import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
+import moe.GetTheNya.AniForge.core.database.repository.BentoWidgetRepository
+import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.UserStats
 import moe.GetTheNya.AniForge.ui.localization.LocalizationService
@@ -18,7 +23,8 @@ class HomeViewModel @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val settingsProvider: SettingsProvider,
     private val animeRepository: AnimeRepository,
-    private val localizationService: LocalizationService
+    private val localizationService: LocalizationService,
+    private val bentoWidgetRepository: BentoWidgetRepository
 ) : ViewModel() {
 
     private var cachedPhrase: Pair<String, String?>? = null
@@ -81,17 +87,32 @@ class HomeViewModel @Inject constructor(
     val homeUiState: StateFlow<HomeUiState> = combine(
         userTrackingDao.observeAllTracking(),
         settingsProvider.preferUkTitles,
-        animeRepository.queryAnimeFlow(moe.GetTheNya.AniForge.core.model.SearchFilterQuery())
-    ) { trackingList, preferUk, animeList ->
+        animeRepository.queryAnimeFlow(moe.GetTheNya.AniForge.core.model.SearchFilterQuery()),
+        bentoWidgetRepository.observeWidgetConfigs,
+        bentoWidgetRepository.observeUserStats,
+        bentoWidgetRepository.bentoStatsFlow
+    ) { array ->
+        val trackingList = array[0] as List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>
+        val preferUk = array[1] as Boolean
+        val animeList = array[2] as List<moe.GetTheNya.AniForge.core.model.Anime>
+        val widgetConfigs = array[3] as List<moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity>
+        val userStats = array[4] as moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
+        val bentoStats = array[5] as moe.GetTheNya.AniForge.core.model.BentoStatsData
+
         val stats = calculateStats(trackingList)
         val featured = animeList.firstOrNull {
             val score = it.scoreMal
             score != null && score >= 8.5
         }
+        val trackingStats = trackingList.groupBy { it.watchStatus }.mapValues { it.value.size }
         HomeUiState.Success(
             stats = stats,
             featuredAnime = featured,
-            preferUk = preferUk
+            preferUk = preferUk,
+            widgetConfigs = widgetConfigs,
+            userStats = userStats,
+            bentoStats = bentoStats,
+            trackingStats = trackingStats
         ) as HomeUiState
     }
     .catch { e ->
@@ -102,6 +123,70 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeUiState.Loading
     )
+
+    val isEditMode = MutableStateFlow(false)
+    val editableWidgetConfigs = mutableStateListOf<WidgetConfigEntity>()
+
+    fun enterEditMode() {
+        val successState = homeUiState.value as? HomeUiState.Success ?: return
+        editableWidgetConfigs.clear()
+        editableWidgetConfigs.addAll(successState.widgetConfigs)
+        isEditMode.value = true
+    }
+
+    fun exitEditMode() {
+        isEditMode.value = false
+        saveWidgetOrder()
+    }
+
+    fun moveWidget(fromId: String, toId: String) {
+        val fromIndex = editableWidgetConfigs.indexOfFirst { it.widgetId == fromId }
+        val toIndex = editableWidgetConfigs.indexOfFirst { it.widgetId == toId }
+        if (fromIndex != -1 && toIndex != -1) {
+            val item = editableWidgetConfigs.removeAt(fromIndex)
+            editableWidgetConfigs.add(toIndex, item)
+            val updated = editableWidgetConfigs.mapIndexed { idx, entity ->
+                entity.copy(orderIndex = idx)
+            }
+            editableWidgetConfigs.clear()
+            editableWidgetConfigs.addAll(updated)
+        }
+    }
+
+    fun deleteWidget(widgetId: String) {
+        val index = editableWidgetConfigs.indexOfFirst { it.widgetId == widgetId }
+        if (index != -1) {
+            editableWidgetConfigs[index] = editableWidgetConfigs[index].copy(isVisible = false)
+            val updated = editableWidgetConfigs.mapIndexed { idx, entity ->
+                entity.copy(orderIndex = idx)
+            }
+            editableWidgetConfigs.clear()
+            editableWidgetConfigs.addAll(updated)
+            saveWidgetOrder()
+        }
+    }
+
+    fun restoreWidget(widgetId: String) {
+        val index = editableWidgetConfigs.indexOfFirst { it.widgetId == widgetId }
+        if (index != -1) {
+            val item = editableWidgetConfigs.removeAt(index)
+            val visibleCount = editableWidgetConfigs.count { it.isVisible }
+            editableWidgetConfigs.add(visibleCount, item.copy(isVisible = true))
+            val updated = editableWidgetConfigs.mapIndexed { idx, entity ->
+                entity.copy(orderIndex = idx)
+            }
+            editableWidgetConfigs.clear()
+            editableWidgetConfigs.addAll(updated)
+            saveWidgetOrder()
+        }
+    }
+
+    fun saveWidgetOrder() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val configsToSave = editableWidgetConfigs.toList()
+            bentoWidgetRepository.updateWidgetConfigs(configsToSave)
+        }
+    }
 
     private fun calculateStats(trackingList: List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>): UserStats {
         val totalEpisodes = trackingList.sumOf { it.episodeProgress }
@@ -123,7 +208,11 @@ sealed interface HomeUiState {
     data class Success(
         val stats: UserStats,
         val featuredAnime: Anime?,
-        val preferUk: Boolean
+        val preferUk: Boolean,
+        val widgetConfigs: List<WidgetConfigEntity> = emptyList(),
+        val userStats: moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity = moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity(),
+        val bentoStats: moe.GetTheNya.AniForge.core.model.BentoStatsData = moe.GetTheNya.AniForge.core.model.BentoStatsData(),
+        val trackingStats: Map<String, Int> = emptyMap()
     ) : HomeUiState
     @Immutable
     data class Error(val message: String) : HomeUiState

@@ -61,7 +61,12 @@ data class HomeScreenStrings(
     val appName: String = "[homeScreen.appName]",
     val trackingProgress: String = "[homeScreen.trackingProgress]",
     val spotlight: String = "[homeScreen.spotlight]",
-    val welcomePhrases: List<String> = emptyList()
+    val welcomePhrases: List<String> = emptyList(),
+    val editWorkspace: String = "[homeScreen.editWorkspace]",
+    val addWidgets: String = "[homeScreen.addWidgets]",
+    val releaseToDelete: String = "[homeScreen.releaseToDelete]",
+    val noHiddenWidgets: String = "[homeScreen.noHiddenWidgets]",
+    val emptyWorkspace: String = "[homeScreen.emptyWorkspace]"
 )
 
 @Serializable

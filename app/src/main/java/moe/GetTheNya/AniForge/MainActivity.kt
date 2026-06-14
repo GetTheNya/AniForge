@@ -478,7 +478,28 @@ class MainActivity : ComponentActivity() {
                                                     when (page) {
                                                         0 -> HomeScreen(
                                                             viewModel = homeViewModel,
-                                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
+                                                            onGenreClick = { genreSlug ->
+                                                                dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                }
+                                                            },
+                                                            onStudioClick = { studioId ->
+                                                                dashboardViewModel.selectStudioOnly(studioId)
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                }
+                                                            },
+                                                            onCollectionClick = {
+                                                                libraryViewModel.activeLibraryTab.value = 1
+                                                                coroutineScope.launch {
+                                                                    pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                }
+                                                            },
+                                                            onStatusClick = { statusId ->
+                                                                navController.navigate(Screen.TrackedList(statusId))
+                                                            }
                                                         )
                                                         1 -> DashboardScreen(
                                                             viewModel = dashboardViewModel,

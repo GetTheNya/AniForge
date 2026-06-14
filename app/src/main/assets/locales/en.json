@@ -41,7 +41,12 @@
       "Time to clear some backlog! 😅",
       "Ready for a new dose of emotions?",
       "Your anime list won't watch itself!"
-    ]
+    ],
+    "editWorkspace": "Setup",
+    "addWidgets": "Add Widgets",
+    "releaseToDelete": "Release to Delete",
+    "noHiddenWidgets": "All widgets are currently visible",
+    "emptyWorkspace": "So empty..."
   },
   "libraryScreen": {
     "name": "Library",

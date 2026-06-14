@@ -6,6 +6,7 @@ import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.dao.CollectionDao
 import moe.GetTheNya.AniForge.core.database.dao.UserStatsDao
 import moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
+import moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity
 import moe.GetTheNya.AniForge.core.model.BentoStatsData
 import moe.GetTheNya.AniForge.core.model.FranchiseGiantInfo
 import javax.inject.Inject
@@ -16,8 +17,31 @@ class BentoWidgetRepository @Inject constructor(
     private val userStatsDao: UserStatsDao,
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: CollectionDao,
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val widgetConfigDao: moe.GetTheNya.AniForge.core.database.dao.WidgetConfigDao
 ) {
+    val observeWidgetConfigs: Flow<List<WidgetConfigEntity>> = widgetConfigDao.observeWidgetConfigs()
+        .onStart {
+            val current = widgetConfigDao.getWidgetConfigsSync()
+            if (current.isEmpty()) {
+                val defaults = listOf(
+                     WidgetConfigEntity("watch_time", false, 0),
+                     WidgetConfigEntity("watch_status_chart", false, 1),
+                     WidgetConfigEntity("chaos_meter", false, 2),
+                     WidgetConfigEntity("personal_collections", false, 3),
+                     WidgetConfigEntity("top_studios", false, 4),
+                     WidgetConfigEntity("top_genres", false, 5),
+                     WidgetConfigEntity("franchise_giant", false, 6)
+                )
+                widgetConfigDao.insertOrUpdate(defaults)
+            }
+        }
+        .flowOn(Dispatchers.IO)
+
+    suspend fun updateWidgetConfigs(configs: List<WidgetConfigEntity>) {
+        widgetConfigDao.insertOrUpdate(configs)
+    }
+
     val observeUserStats: Flow<UserStatsEntity> = userStatsDao.observeUserStats()
         .onStart {
             val current = userStatsDao.getUserStatsSync()

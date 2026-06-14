@@ -1,9 +1,11 @@
 package moe.GetTheNya.AniForge.ui.bento
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,20 +41,27 @@ import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 
 val BentoCardShape = RoundedCornerShape(24.dp)
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BentoCard(
     modifier: Modifier = Modifier,
     backgroundColor: Color = SurfaceCardDark,
     borderColor: Color = CardBorder,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val modifierWithClick = if (onClick != null) {
+    val modifierWithClick = if (onClick != null || onLongClick != null) {
         modifier
             .clip(BentoCardShape)
             .background(backgroundColor)
             .border(1.dp, borderColor, BentoCardShape)
-            .clickable { onClick() }
+            .combinedClickable(
+                enabled = !isEditMode,
+                onClick = { onClick?.invoke() },
+                onLongClick = { onLongClick?.invoke() }
+            )
     } else {
         modifier
             .clip(BentoCardShape)
@@ -69,6 +78,8 @@ fun BentoCard(
 @Composable
 fun WatchTimeWidget(
     totalMinutes: Long,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.bentoWidgets
@@ -115,7 +126,9 @@ fun WatchTimeWidget(
 
     BentoCard(
         modifier = modifier.fillMaxWidth(),
-        backgroundColor = SurfaceCardDark.copy(alpha = 0.9f)
+        backgroundColor = SurfaceCardDark.copy(alpha = 0.9f),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "hourglass_spin")
         val rotationAngle by infiniteTransition.animateFloat(
@@ -213,6 +226,8 @@ private fun TimeBlock(
 @Composable
 fun ChaosMeterWidget(
     count: Int,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.bentoWidgets
@@ -232,7 +247,9 @@ fun ChaosMeterWidget(
     )
 
     BentoCard(
-        modifier = modifier.height(115.dp)
+        modifier = modifier.height(115.dp),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Icon(
             imageVector = Icons.Default.Casino,
@@ -274,6 +291,8 @@ fun CollectionsBridgeWidget(
     activeCollections: Int,
     covers: List<String>,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.bentoWidgets
@@ -294,7 +313,9 @@ fun CollectionsBridgeWidget(
 
     BentoCard(
         modifier = modifier.height(115.dp),
-        onClick = onClick
+        onClick = onClick,
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -361,16 +382,21 @@ fun CollectionsBridgeWidget(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TopStudiosWidget(
     studios: List<StudioDistribution>,
     onStudioClick: (Long) -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.dashboardScreen
 
     BentoCard(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -412,7 +438,11 @@ fun TopStudiosWidget(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onStudioClick(dist.studio.studioId) }
+                            .combinedClickable(
+                                enabled = !isEditMode,
+                                onClick = { onStudioClick(dist.studio.studioId) },
+                                onLongClick = { onLongClick?.invoke() }
+                            )
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -462,17 +492,22 @@ fun TopStudiosWidget(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TopGenresWidget(
     genres: List<GenreDistribution>,
     onGenreClick: (String) -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.dashboardScreen
     val preferUk = LocalLocaleStrings.current.languageCode == "uk"
 
     BentoCard(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -515,7 +550,11 @@ fun TopGenresWidget(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onGenreClick(dist.genre.slug) }
+                            .combinedClickable(
+                                enabled = !isEditMode,
+                                onClick = { onGenreClick(dist.genre.slug) },
+                                onLongClick = { onLongClick?.invoke() }
+                            )
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -568,13 +607,17 @@ fun TopGenresWidget(
 @Composable
 fun FranchiseGiantWidget(
     info: FranchiseGiantInfo?,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current.bentoWidgets
     val preferUk = LocalLocaleStrings.current.languageCode == "uk"
 
     BentoCard(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Icon(
             imageVector = Icons.Default.AutoAwesome,
@@ -644,16 +687,21 @@ fun FranchiseGiantWidget(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BentoWatchStatusPieChart(
     stats: Map<String, Int>,
     onStatusClick: (String) -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalLocaleStrings.current
 
     BentoCard(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        onLongClick = onLongClick,
+        isEditMode = isEditMode
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -691,9 +739,11 @@ fun BentoWatchStatusPieChart(
                           modifier = Modifier
                               .fillMaxWidth()
                               .clip(RoundedCornerShape(8.dp))
-                              .clickable {
-                                  onStatusClick(config.id)
-                              }
+                              .combinedClickable(
+                                  enabled = !isEditMode,
+                                  onClick = { onStatusClick(config.id) },
+                                  onLongClick = { onLongClick?.invoke() }
+                              )
                               .padding(vertical = 4.dp, horizontal = 6.dp),
                           verticalAlignment = Alignment.CenterVertically
                         ) {
