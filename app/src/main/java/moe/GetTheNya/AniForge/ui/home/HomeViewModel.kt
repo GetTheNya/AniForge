@@ -60,6 +60,8 @@ class HomeViewModel @Inject constructor(
         )
 
     var isHomeAnimationPlayed: Boolean = false
+    var expandedHeaderHeightPx: Float = 0f
+    var metadataHeightPx: Float = 0f
 
     val randomWelcomeSubtitle: StateFlow<String?> = localizationService.activeLocaleStrings
         .map { locale ->

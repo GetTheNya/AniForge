@@ -510,7 +510,8 @@ fun HomeScreen(
     val lazyGridState = rememberLazyGridState()
 
     val density = LocalDensity.current
-    var expandedHeaderHeightPx by remember { mutableStateOf(0f) }
+    var expandedHeaderHeightPx by remember { mutableStateOf(viewModel.expandedHeaderHeightPx) }
+    var metadataHeightPx by remember { mutableStateOf(viewModel.metadataHeightPx) }
     val collapsedHeaderHeightPx = remember { with(density) { 64.dp.toPx() } }
 
     val scrollOffset = remember {
@@ -543,7 +544,7 @@ fun HomeScreen(
         derivedStateOf {
             if (isEditMode) {
                 64.dp
-            } else if (expandedHeaderHeightPx == 0f) {
+            } else if (expandedHeaderHeightPx == 0f || scrollOffset.value == 0) {
                 Dp.Unspecified
             } else {
                 val expandedDp = with(density) { expandedHeaderHeightPx.toDp() }
@@ -800,7 +801,9 @@ fun HomeScreen(
                     .then(heightModifier)
                     .onGloballyPositioned { coords ->
                         if (coords.isAttached && scrollOffset.value == 0 && !isEditMode) {
-                            expandedHeaderHeightPx = coords.size.height.toFloat()
+                            val height = coords.size.height.toFloat()
+                            expandedHeaderHeightPx = height
+                            viewModel.expandedHeaderHeightPx = height
                         }
                         if (coords.isAttached) {
                             topBarBottomInWindow = coords.localToWindow(Offset.Zero).y + coords.size.height
@@ -880,12 +883,37 @@ fun HomeScreen(
                                 }
                             )
 
-                            if (metadataAlpha > 0f) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer { alpha = metadataAlpha }
-                                ) {
+                            val metadataHeightDp = with(density) { metadataHeightPx.toDp() }
+                            val animHeight = if (metadataHeightPx > 0f && fraction > 0f) {
+                                val f = (fraction / 0.33f).coerceIn(0f, 1f)
+                                metadataHeightDp * (1f - f)
+                            } else {
+                                androidx.compose.ui.unit.Dp.Unspecified
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (animHeight != androidx.compose.ui.unit.Dp.Unspecified) {
+                                            Modifier.height(animHeight)
+                                        } else {
+                                            Modifier.wrapContentHeight()
+                                        }
+                                    )
+                                    .graphicsLayer { 
+                                        alpha = metadataAlpha
+                                        clip = true
+                                    }
+                                    .onGloballyPositioned { coords ->
+                                        if (coords.isAttached && scrollOffset.value == 0) {
+                                            val height = coords.size.height.toFloat()
+                                            metadataHeightPx = height
+                                            viewModel.metadataHeightPx = height
+                                        }
+                                    }
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
                                     Spacer(modifier = Modifier.height(0.dp))
                                     when (currentSubtitleStyle) {
                                         SubtitleAnimStyle.NONE -> {
