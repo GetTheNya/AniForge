@@ -174,6 +174,8 @@ data class DetailScreenStrings(
     val durationSuffix: String = "[detailScreen.durationSuffix]",
     val newCollection: String = "[detailScreen.newCollection]",
     val trailer: String = "[detailScreen.trailer]",
+    val recommendations: String = "[detailScreen.recommendations]",
+    val providedByAnilist: String = "[detailScreen.providedByAnilist]",
     val releasesCount: Map<String, String> = emptyMap()
 )
 

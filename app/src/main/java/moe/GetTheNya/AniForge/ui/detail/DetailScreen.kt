@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -66,6 +67,10 @@ import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.core.model.Studio
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -88,6 +93,10 @@ fun DetailScreen(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val uiState by viewModel.uiState.collectAsState()
+
+    var showCollectionSheet by remember { mutableStateOf(false) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var showRecommendationsSheet by remember { mutableStateOf(false) }
 
     // Trigger load on startup
     LaunchedEffect(anilistId) {
@@ -190,6 +199,7 @@ fun DetailScreen(
                         tags = state.tags,
                         staffList = state.staff,
                         studios = state.studios,
+                        recommendations = state.recommendations,
                         onStatusChange = viewModel::updateWatchStatus,
                         onIncrementProgress = viewModel::incrementEpisodeProgress,
                         onDecrementProgress = viewModel::decrementEpisodeProgress,
@@ -210,6 +220,7 @@ fun DetailScreen(
                         onStudioClick = onStudioClick,
                         onStatusClick = onStatusClick,
                         onSourceClick = onSourceClick,
+                        onRecommendationsClick = { showRecommendationsSheet = true },
                         preferUk = preferUk,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -232,8 +243,7 @@ fun DetailScreen(
                 )
             }
 
-            var showCollectionSheet by remember { mutableStateOf(false) }
-            var showCreateDialog by remember { mutableStateOf(false) }
+
 
             // Top Add to Collection Button
             IconButton(
@@ -512,6 +522,83 @@ fun DetailScreen(
                 )
             }
 
+            if (showRecommendationsSheet && uiState is DetailUiState.Success) {
+                val state = uiState as DetailUiState.Success
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ModalBottomSheet(
+                    onDismissRequest = { showRecommendationsSheet = false },
+                    sheetState = sheetState,
+                    containerColor = BackgroundDark,
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary.copy(alpha = 0.5f)) },
+                    contentWindowInsets = { WindowInsets(0.dp) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.9f)
+                            .navigationBarsPadding()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = strings.detailScreen.recommendations,
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+
+                        if (state.recommendations.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(150.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No recommendations found",
+                                    color = TextSecondary,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            ) {
+                                gridItemsIndexed(
+                                    items = state.recommendations,
+                                    key = { _, recAnime -> recAnime.anilistId }
+                                ) { index, recAnime ->
+                                    Box(modifier = Modifier.fillMaxWidth()) {
+                                        AnimeBentoCard(
+                                            anime = recAnime,
+                                            status = state.trackingMap[recAnime.anilistId],
+                                            preferUk = preferUk,
+                                            onGestureActionTriggered = { action, _ ->
+                                                if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                    showRecommendationsSheet = false
+                                                    navController.navigate(Screen.Detail(recAnime.anilistId))
+                                                }
+                                            },
+                                            gestureCenter = QuickGestureAction.Immediate.None,
+                                            gestureUp = QuickGestureAction.Immediate.None,
+                                            gestureDown = QuickGestureAction.Immediate.None,
+                                            gestureLeft = QuickGestureAction.Immediate.None,
+                                            gestureRight = QuickGestureAction.Immediate.None,
+                                            clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                            enableGestures = false
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if (sourceStatusId != null && uiState is DetailUiState.Success) {
                 val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: MaterialTheme.colorScheme.primary
                 var lastClickTime by remember { mutableLongStateOf(0L) }
@@ -583,6 +670,7 @@ fun DetailContent(
     tags: List<Tag>,
     staffList: List<AnimeStaff>,
     studios: List<Studio> = emptyList(),
+    recommendations: List<Anime> = emptyList(),
     onStatusChange: (String) -> Unit,
     onIncrementProgress: () -> Unit,
     onDecrementProgress: () -> Unit,
@@ -597,6 +685,7 @@ fun DetailContent(
     onStudioClick: (Long) -> Unit,
     onStatusClick: (String) -> Unit,
     onSourceClick: (String) -> Unit,
+    onRecommendationsClick: () -> Unit,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -1375,6 +1464,84 @@ fun DetailContent(
                                     tint = TextSecondary,
                                     modifier = Modifier.size(24.dp)
                                 )
+                            }
+                        }
+                    }
+
+                    // Recommendations Section
+                    if (recommendations.isNotEmpty()) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Header Row Layout
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Text(
+                                        text = strings.detailScreen.recommendations,
+                                        color = TextPrimary,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = strings.detailScreen.providedByAnilist,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+
+                                IconButton(onClick = onRecommendationsClick) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "View all recommendations",
+                                        tint = TextPrimary
+                                    )
+                                }
+                            }
+
+                            // Content Scroll Engine (LazyRow)
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                itemsIndexed(
+                                    items = recommendations,
+                                    key = { _, recAnime -> recAnime.anilistId }
+                                ) { index, recAnime ->
+                                    Box(
+                                        modifier = Modifier
+                                            .width(150.dp)
+                                    ) {
+                                        AnimeBentoCard(
+                                            anime = recAnime,
+                                            status = trackingMap[recAnime.anilistId],
+                                            preferUk = preferUk,
+                                            onGestureActionTriggered = { action, _ ->
+                                                if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                    onAnimeClick(recAnime.anilistId)
+                                                }
+                                            },
+                                            gestureCenter = QuickGestureAction.Immediate.None,
+                                            gestureUp = QuickGestureAction.Immediate.None,
+                                            gestureDown = QuickGestureAction.Immediate.None,
+                                            gestureLeft = QuickGestureAction.Immediate.None,
+                                            gestureRight = QuickGestureAction.Immediate.None,
+                                            clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                            enableGestures = false
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

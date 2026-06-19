@@ -75,7 +75,8 @@ fun AnimeBentoCard(
     gestureDown: QuickGestureAction = QuickGestureAction.Continuous.ScoreSlider,
     gestureLeft: QuickGestureAction = QuickGestureAction.Immediate.OpenWatchStatusPicker,
     gestureRight: QuickGestureAction = QuickGestureAction.Immediate.ShareLink,
-    clickAction: QuickGestureAction = QuickGestureAction.Immediate.OpenDetails
+    clickAction: QuickGestureAction = QuickGestureAction.Immediate.OpenDetails,
+    enableGestures: Boolean = true
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
 
@@ -94,6 +95,14 @@ fun AnimeBentoCard(
         label = "blurRadius"
     )
 
+    val cardModifier = if (enableGestures) {
+        modifier
+    } else {
+        modifier.clickable {
+            onGestureActionTriggered(clickAction, null)
+        }
+    }
+
     QuickGestureWrapper(
         anime = anime,
         animeTitle = anime.getDisplayTitle(preferUk = preferUk),
@@ -108,8 +117,8 @@ fun AnimeBentoCard(
         onDragStateChanged = { onDragStateChanged?.invoke(it) },
         onSliderStateChanged = { onSliderStateChanged?.invoke(it) },
         clickAction = clickAction,
-        modifier = modifier,
-        enabled = !isMenuVisible
+        modifier = cardModifier,
+        enabled = enableGestures && !isMenuVisible
     ) {
         Box(
             modifier = Modifier

@@ -158,7 +158,9 @@
     "releasesCount": {
       "one": "%d release",
       "many": "%d releases"
-    }
+    },
+    "recommendations": "Recommendations",
+    "providedByAnilist": "Provided by AniList"
   },
   "profileScreen": {
     "name": "Profile",

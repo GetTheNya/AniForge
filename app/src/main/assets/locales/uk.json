@@ -162,7 +162,9 @@
       "one": "%d реліз",
       "few": "%d релізи",
       "many": "%d релізів"
-    }
+    },
+    "recommendations": "Рекомендації",
+    "providedByAnilist": "Надано AniList"
   },
   "profileScreen": {
     "name": "Профіль",

@@ -160,6 +160,7 @@ class DetailViewModel @Inject constructor(
                 val tags = animeRepository.getTagsForAnime(anilistId)
                 val staff = animeRepository.getStaffForAnime(anilistId)
                 val studios = animeRepository.getStudiosForAnime(anilistId)
+                val recommendations = animeRepository.getRecommendationsForAnime(anilistId)
 
                 combine(
                     userTrackingDao.observeTrackingForAnime(anilistId),
@@ -177,7 +178,8 @@ class DetailViewModel @Inject constructor(
                         genres = genres,
                         tags = tags,
                         staff = staff,
-                        studios = studios
+                        studios = studios,
+                        recommendations = recommendations
                     )
                 }.collect { successState ->
                     _uiState.value = successState
@@ -247,7 +249,8 @@ sealed interface DetailUiState {
         val genres: List<Genre> = emptyList(),
         val tags: List<Tag> = emptyList(),
         val staff: List<AnimeStaff> = emptyList(),
-        val studios: List<Studio> = emptyList()
+        val studios: List<Studio> = emptyList(),
+        val recommendations: List<Anime> = emptyList()
     ) : DetailUiState
     @Immutable
     data class Error(val message: String) : DetailUiState
