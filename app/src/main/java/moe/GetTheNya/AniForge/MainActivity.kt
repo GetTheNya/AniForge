@@ -731,6 +731,46 @@ class MainActivity : ComponentActivity() {
                                                                      )
                                                                      navController.popBackStack()
                                                                  }
+                                                            },
+                                                            onStatusClick = { status ->
+                                                                dashboardViewModel.selectStatusOnly(status)
+                                                                navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                coroutineScope.launch {
+                                                                    val stack = navController.backStack
+                                                                    if (stack.size > 2) {
+                                                                        val top = stack.last()
+                                                                        val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                        stack.removeAll(toRemove)
+                                                                        toRemove.forEach { it.clear() }
+                                                                    }
+                                                                    entry.isDragging = false
+                                                                    entry.animatableOffset.snapTo(0f)
+                                                                    entry.animatableOffset.animateTo(
+                                                                        targetValue = screenWidthPx,
+                                                                        animationSpec = tween(durationMillis = 300)
+                                                                    )
+                                                                    navController.popBackStack()
+                                                                }
+                                                            },
+                                                            onSourceClick = { source ->
+                                                                dashboardViewModel.selectSourceOnly(source)
+                                                                navController.onSelectTab?.invoke(TabScreen.Anime)
+                                                                coroutineScope.launch {
+                                                                    val stack = navController.backStack
+                                                                    if (stack.size > 2) {
+                                                                        val top = stack.last()
+                                                                        val toRemove = stack.filter { it != top && it.screen != Screen.Tabs }
+                                                                        stack.removeAll(toRemove)
+                                                                        toRemove.forEach { it.clear() }
+                                                                    }
+                                                                    entry.isDragging = false
+                                                                    entry.animatableOffset.snapTo(0f)
+                                                                    entry.animatableOffset.animateTo(
+                                                                        targetValue = screenWidthPx,
+                                                                        animationSpec = tween(durationMillis = 300)
+                                                                    )
+                                                                    navController.popBackStack()
+                                                                }
                                                             }
                                                         )
                                                     }

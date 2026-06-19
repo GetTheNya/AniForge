@@ -95,7 +95,11 @@ fun DashboardScreen(
         searchFilter.excludedFormats.isNotEmpty() ||
         searchFilter.hasUkTranslation == true ||
         searchFilter.trackingStatuses.isNotEmpty() ||
-        searchFilter.excludedTrackingStatuses.isNotEmpty()
+        searchFilter.excludedTrackingStatuses.isNotEmpty() ||
+        searchFilter.mediaStatuses.isNotEmpty() ||
+        searchFilter.excludedMediaStatuses.isNotEmpty() ||
+        searchFilter.mediaSources.isNotEmpty() ||
+        searchFilter.excludedMediaSources.isNotEmpty()
     }
 
     Column(

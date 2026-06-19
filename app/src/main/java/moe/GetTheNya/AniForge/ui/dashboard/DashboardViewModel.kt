@@ -247,6 +247,72 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
+    fun toggleMediaStatus(status: String) {
+        val currentIncluded = _searchFilter.value.mediaStatuses.toMutableList()
+        val currentExcluded = _searchFilter.value.excludedMediaStatuses.toMutableList()
+        
+        if (currentIncluded.contains(status)) {
+            currentIncluded.remove(status)
+            currentExcluded.add(status)
+        } else if (currentExcluded.contains(status)) {
+            currentExcluded.remove(status)
+        } else {
+            currentIncluded.add(status)
+        }
+        
+        _searchFilter.value = _searchFilter.value.copy(
+            mediaStatuses = currentIncluded,
+            excludedMediaStatuses = currentExcluded
+        )
+    }
+
+    fun toggleMediaSource(source: String) {
+        val currentIncluded = _searchFilter.value.mediaSources.toMutableList()
+        val currentExcluded = _searchFilter.value.excludedMediaSources.toMutableList()
+        
+        if (currentIncluded.contains(source)) {
+            currentIncluded.remove(source)
+            currentExcluded.add(source)
+        } else if (currentExcluded.contains(source)) {
+            currentExcluded.remove(source)
+        } else {
+            currentIncluded.add(source)
+        }
+        
+        _searchFilter.value = _searchFilter.value.copy(
+            mediaSources = currentIncluded,
+            excludedMediaSources = currentExcluded
+        )
+    }
+
+    fun selectStatusOnly(status: String) {
+        _searchFilter.value = SearchFilterQuery(
+            mediaStatuses = listOf(status),
+            sortBy = SortOption.SCORE
+        )
+    }
+
+    fun selectSourceOnly(source: String) {
+        _searchFilter.value = SearchFilterQuery(
+            mediaSources = listOf(source),
+            sortBy = SortOption.SCORE
+        )
+    }
+
+    fun clearMediaStatusFilters() {
+        _searchFilter.value = _searchFilter.value.copy(
+            mediaStatuses = emptyList(),
+            excludedMediaStatuses = emptyList()
+        )
+    }
+
+    fun clearMediaSourceFilters() {
+        _searchFilter.value = _searchFilter.value.copy(
+            mediaSources = emptyList(),
+            excludedMediaSources = emptyList()
+        )
+    }
+
     fun toggleUkTranslationFilter() {
         val current = _searchFilter.value.hasUkTranslation
         val newVal = if (current == true) null else true

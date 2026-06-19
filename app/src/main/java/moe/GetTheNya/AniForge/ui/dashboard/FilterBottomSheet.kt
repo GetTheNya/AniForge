@@ -33,6 +33,8 @@ import moe.GetTheNya.AniForge.core.model.EpisodeGroup
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.ListSortOption
 import moe.GetTheNya.AniForge.core.model.ListFilterState
+import moe.GetTheNya.AniForge.ui.localization.getMediaStatusLabel
+import moe.GetTheNya.AniForge.ui.localization.getMediaSourceLabel
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -98,6 +100,10 @@ fun FilterBottomSheet(
         onFormatToggled = { viewModel.toggleFormatType(it) },
         onEpisodeGroupToggled = { viewModel.toggleEpisodeGroup(it) },
         onTrackingStatusToggled = { viewModel.toggleTrackingStatus(it) },
+        onMediaStatusToggled = { viewModel.toggleMediaStatus(it) },
+        onMediaSourceToggled = { viewModel.toggleMediaSource(it) },
+        onClearMediaStatusFilters = { viewModel.clearMediaStatusFilters() },
+        onClearMediaSourceFilters = { viewModel.clearMediaSourceFilters() },
         onUkTranslationFilterToggled = { viewModel.toggleUkTranslationFilter() },
         onStudioFilterToggled = { viewModel.toggleStudioFilter(it) },
         onGenreFilterToggled = { viewModel.toggleGenreFilterState(it) },
@@ -130,6 +136,10 @@ fun FilterBottomSheet(
     onFormatToggled: (AnimeFormat) -> Unit,
     onEpisodeGroupToggled: ((EpisodeGroup) -> Unit)? = null,
     onTrackingStatusToggled: ((String) -> Unit)? = null,
+    onMediaStatusToggled: ((String) -> Unit)? = null,
+    onMediaSourceToggled: ((String) -> Unit)? = null,
+    onClearMediaStatusFilters: (() -> Unit)? = null,
+    onClearMediaSourceFilters: (() -> Unit)? = null,
     onUkTranslationFilterToggled: (() -> Unit)? = null,
     onStudioFilterToggled: ((Long) -> Unit)? = null,
     onGenreFilterToggled: (String) -> Unit,
@@ -694,6 +704,120 @@ fun FilterBottomSheet(
                                         onClick = { onTrackingStatusToggled?.invoke(statusId) }
                                     )
                                 }
+                            }
+                        }
+                    }
+
+                    if (isCatalog && catalogFilter != null) {
+                        // 5.1 Media release status selection
+                        item {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = strings.dashboardScreen.releaseStatus, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val statusOptions = listOf(
+                                        "RELEASING",
+                                        "FINISHED",
+                                        "HIATUS",
+                                        "NOT_YET_RELEASED",
+                                        "CANCELLED"
+                                    )
+                                    val activeStatuses = catalogFilter.mediaStatuses
+                                    val activeExcludedStatuses = catalogFilter.excludedMediaStatuses
+                                    for (status in statusOptions) {
+                                        val isIncluded = activeStatuses.contains(status)
+                                        val isExcluded = activeExcludedStatuses.contains(status)
+                                        val label = strings.mediaStatuses.getMediaStatusLabel(status)
+                                        TriStateChip(
+                                            label = label,
+                                            isIncluded = isIncluded,
+                                            isExcluded = isExcluded,
+                                            onClick = { onMediaStatusToggled?.invoke(status) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 5.2 Media source selection
+                        item {
+                            var showSourceDialog by remember { mutableStateOf(false) }
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = strings.dashboardScreen.sourceMaterial, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    TextButton(
+                                        onClick = { showSourceDialog = true }
+                                    ) {
+                                        Text(
+                                            text = strings.dashboardScreen.viewAll,
+                                            color = ElectricViolet,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val inlineSources = listOf(
+                                        "MANGA",
+                                        "LIGHT_NOVEL",
+                                        "ORIGINAL",
+                                        "VISUAL_NOVEL"
+                                    )
+                                    val activeSources = catalogFilter.mediaSources
+                                    val activeExcludedSources = catalogFilter.excludedMediaSources
+                                    for (source in inlineSources) {
+                                        val isIncluded = activeSources.contains(source)
+                                        val isExcluded = activeExcludedSources.contains(source)
+                                        val label = strings.mediaSources.getMediaSourceLabel(source)
+                                        TriStateChip(
+                                            label = label,
+                                            isIncluded = isIncluded,
+                                            isExcluded = isExcluded,
+                                            onClick = { onMediaSourceToggled?.invoke(source) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (showSourceDialog) {
+                                val allSources = listOf(
+                                    "MANGA", "LIGHT_NOVEL", "ORIGINAL", "VISUAL_NOVEL",
+                                    "VIDEO_GAME", "OTHER", "NOVEL", "DOUJINSHI", "ANIME",
+                                    "WEB_NOVEL", "LIVE_ACTION", "GAME", "COMIC", "MULTIMEDIA_PROJECT",
+                                    "PICTURE_BOOK"
+                                )
+                                TaxonomySelectionSheet<String>(
+                                    title = strings.dashboardScreen.allSources,
+                                    items = allSources,
+                                    isIncluded = { catalogFilter.mediaSources.contains(it) },
+                                    isExcluded = { catalogFilter.excludedMediaSources.contains(it) },
+                                    onClick = { onMediaSourceToggled?.invoke(it) },
+                                    onClear = { onClearMediaSourceFilters?.invoke() },
+                                    getLabel = { strings.mediaSources.getMediaSourceLabel(it) },
+                                    getItemSearchText = { it + " " + strings.mediaSources.getMediaSourceLabel(it) },
+                                    onDismiss = { showSourceDialog = false }
+                                )
                             }
                         }
                     }

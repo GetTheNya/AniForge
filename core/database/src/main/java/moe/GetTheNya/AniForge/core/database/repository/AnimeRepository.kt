@@ -947,6 +947,30 @@ class AnimeRepository @Inject constructor(
             whereClauses.add("anime.anilist_id NOT IN (SELECT anilist_id FROM anime_staff WHERE staff_id IN ($placeholders))")
             args.addAll(filter.excludedStaff)
         }
+
+        // Media status selection
+        if (filter.mediaStatuses.isNotEmpty()) {
+            val placeholders = filter.mediaStatuses.joinToString(",") { "?" }
+            whereClauses.add("anime.status IN ($placeholders)")
+            args.addAll(filter.mediaStatuses)
+        }
+        if (filter.excludedMediaStatuses.isNotEmpty()) {
+            val placeholders = filter.excludedMediaStatuses.joinToString(",") { "?" }
+            whereClauses.add("anime.status NOT IN ($placeholders)")
+            args.addAll(filter.excludedMediaStatuses)
+        }
+
+        // Media source selection
+        if (filter.mediaSources.isNotEmpty()) {
+            val placeholders = filter.mediaSources.joinToString(",") { "?" }
+            whereClauses.add("anime.source IN ($placeholders)")
+            args.addAll(filter.mediaSources)
+        }
+        if (filter.excludedMediaSources.isNotEmpty()) {
+            val placeholders = filter.excludedMediaSources.joinToString(",") { "?" }
+            whereClauses.add("anime.source NOT IN ($placeholders)")
+            args.addAll(filter.excludedMediaSources)
+        }
         
         if (whereClauses.isNotEmpty()) {
             queryBuilder.append(" WHERE ")

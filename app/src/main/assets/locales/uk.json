@@ -109,6 +109,8 @@
     "studios": "Студії",
     "genres": "Жанри",
     "tags": "Теги",
+    "releaseStatus": "Статус випуску",
+    "sourceMaterial": "Джерело",
     "trackingStatus": "Статус у списку",
     "foundCount": "Знайдено: {count}",
     "viewAll": "Всі ›",
@@ -122,6 +124,7 @@
     "allTags": "Всі Теги",
     "allStudios": "Всі Студії",
     "allStaff": "Весь персонал",
+    "allSources": "Всі Джерела",
     "sortScoreDesc": "Найвищий рейтинг MAL",
     "sortScoreAsc": "Найнижчий рейтинг MAL",
     "sortTitleAsc": "Назва (А-Я)",
@@ -154,6 +157,7 @@
     "episodeSuffix": "еп.",
     "durationSuffix": "хв.",
     "newCollection": "Нова колекція",
+    "trailer": "Трейлер",
     "releasesCount": {
       "one": "%d реліз",
       "few": "%d релізи",
@@ -296,5 +300,29 @@
     },
     "watchTimeTitle": "Час за переглядом",
     "watchStatusTitle": "Статус медіатеки"
+  },
+  "mediaStatuses": {
+    "finished": "Завершено",
+    "releasing": "Виходить",
+    "notYetReleased": "Ще не вийшло",
+    "cancelled": "Скасовано",
+    "hiatus": "Призупинено"
+  },
+  "mediaSources": {
+    "original": "Оригінал",
+    "manga": "Манґа",
+    "lightNovel": "Лайт-новела",
+    "visualNovel": "Візуальна новела",
+    "videoGame": "Відеогра",
+    "other": "Інше",
+    "novel": "Роман",
+    "doujinshi": "Додзінсі",
+    "anime": "Аніме",
+    "webNovel": "Веб-новела",
+    "liveAction": "Лайв-екшн",
+    "game": "Гра",
+    "comic": "Комікс",
+    "multimediaProject": "Мультимедійний проєкт",
+    "pictureBook": "Книжка з картинками"
   }
 }

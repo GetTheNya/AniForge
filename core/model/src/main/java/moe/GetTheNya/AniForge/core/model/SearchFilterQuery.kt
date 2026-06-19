@@ -32,6 +32,10 @@ data class SearchFilterQuery(
     val excludedTrackingStatusIds: List<Long> = emptyList(),
     val staff: List<Long> = emptyList(),
     val excludedStaff: List<Long> = emptyList(),
+    val mediaStatuses: List<String> = emptyList(),
+    val excludedMediaStatuses: List<String> = emptyList(),
+    val mediaSources: List<String> = emptyList(),
+    val excludedMediaSources: List<String> = emptyList(),
     val sortBy: SortOption = SortOption.SCORE
 )
 

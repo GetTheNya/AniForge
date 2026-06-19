@@ -106,6 +106,8 @@
     "studios": "Studios",
     "genres": "Genres",
     "tags": "Tags",
+    "releaseStatus": "Release Status",
+    "sourceMaterial": "Source Material",
     "popularity": "Popularity",
     "releaseDate": "Release Date",
     "alphabetical": "Alphabetical",
@@ -119,6 +121,7 @@
     "allTags": "All Tags",
     "allStudios": "All Studios",
     "allStaff": "All Staff",
+    "allSources": "All Source Materials",
     "sortScoreDesc": "Highest MAL Score",
     "sortScoreAsc": "Lowest MAL Score",
     "sortTitleAsc": "Alphabetical (A-Z)",
@@ -151,6 +154,7 @@
     "episodeSuffix": "ep",
     "durationSuffix": "min",
     "newCollection": "New Collection",
+    "trailer": "Trailer",
     "releasesCount": {
       "one": "%d release",
       "many": "%d releases"
@@ -287,5 +291,29 @@
     },
     "watchTimeTitle": "Time Watched",
     "watchStatusTitle": "Library Status"
+  },
+  "mediaStatuses": {
+    "finished": "Finished",
+    "releasing": "Releasing",
+    "notYetReleased": "Not Yet Released",
+    "cancelled": "Cancelled",
+    "hiatus": "Hiatus"
+  },
+  "mediaSources": {
+    "original": "Original",
+    "manga": "Manga",
+    "lightNovel": "Light Novel",
+    "visualNovel": "Visual Novel",
+    "videoGame": "Video Game",
+    "other": "Other",
+    "novel": "Novel",
+    "doujinshi": "Doujinshi",
+    "anime": "Anime",
+    "webNovel": "Web Novel",
+    "liveAction": "Live Action",
+    "game": "Game",
+    "comic": "Comic",
+    "multimediaProject": "Multimedia Project",
+    "pictureBook": "Picture Book"
   }
 }

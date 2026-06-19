@@ -21,7 +21,9 @@ data class LocaleStrings(
     val formats: FormatStrings = FormatStrings(),
     val seasons: SeasonStrings = SeasonStrings(),
     val relationTypes: Map<String, String> = emptyMap(),
-    val bentoWidgets: BentoWidgetStrings = BentoWidgetStrings()
+    val bentoWidgets: BentoWidgetStrings = BentoWidgetStrings(),
+    val mediaStatuses: MediaStatusStrings = MediaStatusStrings(),
+    val mediaSources: MediaSourceStrings = MediaSourceStrings()
 )
 
 @Serializable
@@ -121,6 +123,8 @@ data class DashboardScreenStrings(
     val studios: String = "[dashboardScreen.studios]",
     val genres: String = "[dashboardScreen.genres]",
     val tags: String = "[dashboardScreen.tags]",
+    val releaseStatus: String = "[dashboardScreen.releaseStatus]",
+    val sourceMaterial: String = "[dashboardScreen.sourceMaterial]",
     val trackingStatus: String = "[dashboardScreen.trackingStatus]",
     val foundCount: String = "[dashboardScreen.foundCount]",
     val viewAll: String = "[dashboardScreen.viewAll]",
@@ -134,6 +138,7 @@ data class DashboardScreenStrings(
     val allTags: String = "[dashboardScreen.allTags]",
     val allStudios: String = "[dashboardScreen.allStudios]",
     val allStaff: String = "[dashboardScreen.allStaff]",
+    val allSources: String = "[dashboardScreen.allSources]",
     val sortScoreDesc: String = "[dashboardScreen.sortScoreDesc]",
     val sortScoreAsc: String = "[dashboardScreen.sortScoreAsc]",
     val sortTitleAsc: String = "[dashboardScreen.sortTitleAsc]",
@@ -168,6 +173,7 @@ data class DetailScreenStrings(
     val episodeSuffix: String = "[detailScreen.episodeSuffix]",
     val durationSuffix: String = "[detailScreen.durationSuffix]",
     val newCollection: String = "[detailScreen.newCollection]",
+    val trailer: String = "[detailScreen.trailer]",
     val releasesCount: Map<String, String> = emptyMap()
 )
 
@@ -341,4 +347,64 @@ data class BentoWidgetStrings(
     val watchTimeTitle: String = "[bentoWidgets.watchTimeTitle]",
     val watchStatusTitle: String = "[bentoWidgets.watchStatusTitle]"
 )
+
+@Serializable
+data class MediaStatusStrings(
+    val finished: String = "[mediaStatuses.finished]",
+    val releasing: String = "[mediaStatuses.releasing]",
+    val notYetReleased: String = "[mediaStatuses.notYetReleased]",
+    val cancelled: String = "[mediaStatuses.cancelled]",
+    val hiatus: String = "[mediaStatuses.hiatus]"
+)
+
+@Serializable
+data class MediaSourceStrings(
+    val original: String = "[mediaSources.original]",
+    val manga: String = "[mediaSources.manga]",
+    val lightNovel: String = "[mediaSources.lightNovel]",
+    val visualNovel: String = "[mediaSources.visualNovel]",
+    val videoGame: String = "[mediaSources.videoGame]",
+    val other: String = "[mediaSources.other]",
+    val novel: String = "[mediaSources.novel]",
+    val doujinshi: String = "[mediaSources.doujinshi]",
+    val anime: String = "[mediaSources.anime]",
+    val webNovel: String = "[mediaSources.webNovel]",
+    val liveAction: String = "[mediaSources.liveAction]",
+    val game: String = "[mediaSources.game]",
+    val comic: String = "[mediaSources.comic]",
+    val multimediaProject: String = "[mediaSources.multimediaProject]",
+    val pictureBook: String = "[mediaSources.pictureBook]"
+)
+
+fun MediaStatusStrings.getMediaStatusLabel(status: String): String {
+    return when (status.uppercase()) {
+        "FINISHED" -> finished
+        "RELEASING" -> releasing
+        "NOT_YET_RELEASED" -> notYetReleased
+        "CANCELLED" -> cancelled
+        "HIATUS" -> hiatus
+        else -> status
+    }
+}
+
+fun MediaSourceStrings.getMediaSourceLabel(source: String): String {
+    return when (source.uppercase()) {
+        "ORIGINAL" -> original
+        "MANGA" -> manga
+        "LIGHT_NOVEL" -> lightNovel
+        "VISUAL_NOVEL" -> visualNovel
+        "VIDEO_GAME" -> videoGame
+        "OTHER" -> other
+        "NOVEL" -> novel
+        "DOUJINSHI" -> doujinshi
+        "ANIME" -> anime
+        "WEB_NOVEL" -> webNovel
+        "LIVE_ACTION" -> liveAction
+        "GAME" -> game
+        "COMIC" -> comic
+        "MULTIMEDIA_PROJECT" -> multimediaProject
+        "PICTURE_BOOK" -> pictureBook
+        else -> source
+    }
+}
 

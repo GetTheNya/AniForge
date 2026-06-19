@@ -50,7 +50,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import moe.GetTheNya.AniForge.ui.localization.getPlural
 import moe.GetTheNya.AniForge.ui.localization.getSeasonLabel
 import moe.GetTheNya.AniForge.ui.localization.getFormatLabel
+import moe.GetTheNya.AniForge.ui.localization.getMediaStatusLabel
+import moe.GetTheNya.AniForge.ui.localization.getMediaSourceLabel
 import moe.GetTheNya.AniForge.core.model.Anime
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import moe.GetTheNya.AniForge.core.model.Genre
 import moe.GetTheNya.AniForge.core.model.Tag
 import moe.GetTheNya.AniForge.core.model.AnimeStaff
@@ -76,6 +80,8 @@ fun DetailScreen(
     onTagClick: (Long) -> Unit,
     onStaffClick: (Long) -> Unit,
     onStudioClick: (Long) -> Unit,
+    onStatusClick: (String) -> Unit,
+    onSourceClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     preferUk: Boolean = true,
     onBack: () -> Unit = { navController.popBackStack() }
@@ -202,6 +208,8 @@ fun DetailScreen(
                         onTagClick = onTagClick,
                         onStaffClick = onStaffClick,
                         onStudioClick = onStudioClick,
+                        onStatusClick = onStatusClick,
+                        onSourceClick = onSourceClick,
                         preferUk = preferUk,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -587,6 +595,8 @@ fun DetailContent(
     onTagClick: (Long) -> Unit,
     onStaffClick: (Long) -> Unit,
     onStudioClick: (Long) -> Unit,
+    onStatusClick: (String) -> Unit,
+    onSourceClick: (String) -> Unit,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -717,14 +727,19 @@ fun DetailContent(
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(radius = 16.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0x66000000), BackgroundDark)
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.surface
+                            )
                         )
                     )
             )
@@ -924,8 +939,10 @@ fun DetailContent(
                             }
                         }
 
-                        // Second Row: Episodes and Duration
-                        if (anime.episodes != null || anime.duration != null) {
+                        // Second Row: Episodes, Duration, Source and Status Badges
+                        val source = anime.source
+                        val status = anime.status
+                        if (anime.episodes != null || anime.duration != null || source != null || status != null) {
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -986,6 +1003,74 @@ fun DetailContent(
                                         }
                                     }
                                 }
+
+                                if (source != null) {
+                                    val sourceLabel = strings.mediaSources.getMediaSourceLabel(source)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(NeonCoral.copy(alpha = 0.15f))
+                                            .border(1.dp, NeonCoral.copy(alpha = 0.3f), RoundedCornerShape(50.dp))
+                                            .clickable { onSourceClick(source) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Book,
+                                                contentDescription = null,
+                                                tint = NeonCoral,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = sourceLabel,
+                                                color = NeonCoral,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (status != null) {
+                                    val statusLabel = strings.mediaStatuses.getMediaStatusLabel(status)
+                                    val (statusColor, statusBgColor) = when (status.uppercase()) {
+                                        "RELEASING" -> Color(0xFF81C784) to Color(0xFF2E7D32).copy(alpha = 0.2f)
+                                        "FINISHED" -> TextSecondary to TextSecondary.copy(alpha = 0.15f)
+                                        "HIATUS" -> Color(0xFFFFB74D) to Color(0xFFF59E0B).copy(alpha = 0.2f)
+                                        "NOT_YET_RELEASED" -> Color(0xFF64B5F6) to Color(0xFF1976D2).copy(alpha = 0.2f)
+                                        "CANCELLED" -> Color(0xFFE57373) to Color(0xFFC62828).copy(alpha = 0.2f)
+                                        else -> TextSecondary to TextSecondary.copy(alpha = 0.15f)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50.dp))
+                                            .background(statusBgColor)
+                                            .border(1.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(50.dp))
+                                            .clickable { onStatusClick(status) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Info,
+                                                contentDescription = null,
+                                                tint = statusColor,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = statusLabel,
+                                                color = statusColor,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1005,6 +1090,82 @@ fun DetailContent(
                             fontSize = 14.sp,
                             lineHeight = 22.sp
                         )
+                    }
+
+                    // Video Trailer Player Block
+                    val trailerId = anime.trailerId
+                    val trailerSite = anime.trailerSite
+                    if (!trailerId.isNullOrBlank() && !trailerSite.isNullOrBlank()) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = strings.detailScreen.trailer,
+                                color = TextPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        if (trailerSite.lowercase() == "youtube") {
+                                            val intent = android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse("https://www.youtube.com/watch?v=" + trailerId)
+                                            )
+                                            context.startActivity(intent)
+                                        }
+                                    }
+                            ) {
+                                if (!anime.trailerThumbnail.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = coil.request.ImageRequest.Builder(context)
+                                            .data(anime.trailerThumbnail)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Trailer Thumbnail",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(SurfaceCardDark)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.4f))
+                                            )
+                                        )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color.White.copy(alpha = 0.7f))
+                                        .align(Alignment.Center),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play Trailer",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Genres & Tags
