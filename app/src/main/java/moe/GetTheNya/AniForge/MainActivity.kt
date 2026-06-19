@@ -1,6 +1,7 @@
 package moe.GetTheNya.AniForge
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -157,7 +158,12 @@ class MainActivity : ComponentActivity() {
     private val libraryViewModel: LibraryViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        
+        splashScreen.setKeepOnScreenCondition {
+            homeViewModel.isInitializing.value
+        }
         
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)

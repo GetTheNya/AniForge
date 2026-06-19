@@ -682,11 +682,8 @@ fun HomeScreen(
             when (type) {
                 "loading" -> {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = NeonCoral)
-                    }
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
                 "error" -> {
                     Box(

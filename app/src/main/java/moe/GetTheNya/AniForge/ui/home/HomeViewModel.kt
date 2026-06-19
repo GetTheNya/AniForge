@@ -153,6 +153,14 @@ class HomeViewModel @Inject constructor(
         initialValue = HomeUiState.Loading
     )
 
+    val isInitializing: StateFlow<Boolean> = homeUiState
+        .map { it is HomeUiState.Loading }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = true
+        )
+
     val isEditMode = MutableStateFlow(false)
     val editableWidgetConfigs = mutableStateListOf<WidgetConfigEntity>()
 
