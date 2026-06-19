@@ -198,7 +198,15 @@
     "actionEpisodeSlider": "Episode Slider (Progress)",
     "actionNone": "None",
     "dragToScrollFast": "Drag far left/right or down/bottom to scroll fast",
-    "dragToAdjust": "Drag left/right or down/bottom to scroll"
+    "dragToAdjust": "Drag left/right or down/bottom to scroll",
+    "aboutApp": "About AniForge",
+    "appVersion": "Version",
+    "developer": "Developer",
+    "checkForUpdates": "Check for Updates",
+    "updateAvailable": "New update available!",
+    "updateUpToDate": "You are using the latest version",
+    "download": "Download",
+    "appSynopsis": "AniForge is your ultimate personal anime workspace. Craft, forge, and organize your collections using a dynamic, premium bento-styled interface tailored to your unique taste.\n\nThis project is built as a unified independent ecosystem, seamlessly binding remote cloud instances with highly optimized local storage databases for absolute speed and tracking privacy.\n\nData engine integration and credits:\n• AniList API — Core global media database, structural metadata, and relations.\n• Hikka.io — High-quality localization mapping, including translated titles, synopses, and regional data.\n• TMDB (The Movie Database) — High-resolution backdrop screenshots."
   },
   "devSettings": {
     "devSettingsHeader": "Developer Settings",

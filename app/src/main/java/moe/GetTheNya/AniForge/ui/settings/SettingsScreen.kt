@@ -18,6 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import moe.GetTheNya.AniForge.BuildConfig
+import moe.GetTheNya.AniForge.R
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -389,6 +395,209 @@ fun SettingsScreen(
                     } else {
                         Text(
                             text = strings.settingsScreen.forceUpdate,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 5. About App Card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header: App Branding Badge
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val context = LocalContext.current
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            setImageDrawable(ctx.packageManager.getApplicationIcon(ctx.packageName))
+                        }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Column {
+                    Text(
+                        text = "AniForge",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    )
+                    Text(
+                        text = strings.settingsScreen.aboutApp,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextSecondary
+                        )
+                    )
+                }
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // Dynamic escape-parsed multi-paragraph app description with Credits
+            Text(
+                text = strings.settingsScreen.appSynopsis,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = TextPrimary,
+                    lineHeight = 20.sp
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // Info rows
+            // Row 1: Localized "Version" / "Версія"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.settingsScreen.appVersion,
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+                Text(
+                    text = BuildConfig.VERSION_NAME,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Row 2: Localized "Developer" / "Розробник"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.settingsScreen.developer,
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+                val context = LocalContext.current
+                Text(
+                    text = "GetTheNya",
+                    color = NeonCoral,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        val intent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/GetTheNya")
+                        )
+                        context.startActivity(intent)
+                    }
+                )
+            }
+
+            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            // Dynamic Update Banner / Button
+            val isCheckingForUpdates by viewModel.isCheckingForUpdates.collectAsState()
+            val updateCheckStatus by viewModel.updateCheckStatus.collectAsState()
+            val updateHtmlUrl by viewModel.updateHtmlUrl.collectAsState()
+
+            val context = LocalContext.current
+
+            // State A (Up to Date): Trigger a low-emphasis Toast when active check determines we are up to date
+            LaunchedEffect(updateCheckStatus) {
+                if (updateCheckStatus == SettingsViewModel.UpdateStatus.UP_TO_DATE) {
+                    android.widget.Toast.makeText(
+                        context,
+                        strings.settingsScreen.updateUpToDate,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            if (updateCheckStatus == SettingsViewModel.UpdateStatus.UPDATE_AVAILABLE && updateHtmlUrl != null) {
+                // State B: Update Found Banner
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = strings.settingsScreen.updateAvailable,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Button(
+                        onClick = {
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(updateHtmlUrl)
+                            )
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            contentColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = strings.settingsScreen.download,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                if (updateCheckStatus == SettingsViewModel.UpdateStatus.UP_TO_DATE) {
+                    Text(
+                        text = strings.settingsScreen.updateUpToDate,
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
+
+                Button(
+                    onClick = { viewModel.checkForUpdates() },
+                    enabled = !isCheckingForUpdates,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonCoral,
+                        contentColor = BackgroundDark,
+                        disabledContainerColor = Color(0x33FFFFFF),
+                        disabledContentColor = TextSecondary
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isCheckingForUpdates) {
+                        CircularProgressIndicator(
+                            color = TextSecondary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    } else {
+                        Text(
+                            text = strings.settingsScreen.checkForUpdates,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )

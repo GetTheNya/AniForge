@@ -7,6 +7,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import moe.GetTheNya.AniForge.core.model.sync.CatalogDownloader
 import moe.GetTheNya.AniForge.core.network.api.AniForgeApiService
+import moe.GetTheNya.AniForge.core.network.api.GitHubApiService
 import moe.GetTheNya.AniForge.core.network.sync.CatalogDownloaderImpl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -66,6 +67,14 @@ abstract class NetworkModule {
             retrofit: Retrofit
         ): AniForgeApiService {
             return retrofit.create(AniForgeApiService::class.java)
+        }
+
+        @Provides
+        @Singleton
+        fun provideGitHubApiService(
+            retrofit: Retrofit
+        ): GitHubApiService {
+            return retrofit.create(GitHubApiService::class.java)
         }
     }
 }

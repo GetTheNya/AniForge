@@ -1,6 +1,7 @@
 package moe.GetTheNya.AniForge.core.database.di
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.room.Room
 import dagger.Module
 import dagger.Provides
@@ -21,14 +22,19 @@ object DatabaseModule {
     fun provideUserDatabase(
         @ApplicationContext context: Context
     ): UserDatabase {
-        return Room.databaseBuilder(
+        val builder = Room.databaseBuilder(
             context,
             UserDatabase::class.java,
             "user_data.db"
         )
         .openHelperFactory(RequerySQLiteOpenHelperFactory())
-        .fallbackToDestructiveMigration()
-        .build()
+        
+        val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (isDebuggable) {
+            builder.fallbackToDestructiveMigration(true)
+        }
+
+        return builder.build()
     }
 
     @Provides

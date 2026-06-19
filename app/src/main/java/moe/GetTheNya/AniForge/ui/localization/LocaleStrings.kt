@@ -23,7 +23,7 @@ data class LocaleStrings(
     val relationTypes: Map<String, String> = emptyMap(),
     val bentoWidgets: BentoWidgetStrings = BentoWidgetStrings(),
     val mediaStatuses: MediaStatusStrings = MediaStatusStrings(),
-    val mediaSources: MediaSourceStrings = MediaSourceStrings()
+    val mediaSources: MediaSourceStrings = MediaSourceStrings(),
 )
 
 @Serializable
@@ -215,7 +215,17 @@ data class SettingsScreenStrings(
     val actionEpisodeSlider: String = "[settingsScreen.actionEpisodeSlider]",
     val actionNone: String = "[settingsScreen.actionNone]",
     val dragToScrollFast: String = "[settingsScreen.dragToScrollFast]",
-    val dragToAdjust: String = "[settingsScreen.dragToAdjust]"
+    val dragToAdjust: String = "[settingsScreen.dragToAdjust]",
+
+    // About App & Update Checker
+    val aboutApp: String = "[settingsScreen.aboutApp]",
+    val appVersion: String = "[settingsScreen.appVersion]",
+    val developer: String = "[settingsScreen.developer]",
+    val checkForUpdates: String = "[settingsScreen.checkForUpdates]",
+    val updateAvailable: String = "[settingsScreen.updateAvailable]",
+    val updateUpToDate: String = "[settingsScreen.updateUpToDate]",
+    val download: String = "[settingsScreen.download]",
+    val appSynopsis: String = "[settingsScreen.appSynopsis]"
 )
 
 @Serializable

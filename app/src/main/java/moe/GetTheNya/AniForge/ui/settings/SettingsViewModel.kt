@@ -16,6 +16,10 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.repository.CatalogMetadata
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import moe.GetTheNya.AniForge.core.network.api.GitHubApiService
+import moe.GetTheNya.AniForge.BuildConfig
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,8 +28,73 @@ class SettingsViewModel @Inject constructor(
     private val localizationService: LocalizationService,
     private val databaseManager: DatabaseManager,
     private val animeRepository: AnimeRepository,
-    private val settingsProvider: SettingsProvider
+    private val settingsProvider: SettingsProvider,
+    private val gitHubApiService: GitHubApiService
 ) : ViewModel() {
+
+    enum class UpdateStatus {
+        NOT_CHECKED,
+        CHECKING,
+        UP_TO_DATE,
+        UPDATE_AVAILABLE,
+        FAILED
+    }
+
+    private val _isCheckingForUpdates = MutableStateFlow(false)
+    val isCheckingForUpdates: StateFlow<Boolean> = _isCheckingForUpdates.asStateFlow()
+
+    private val _isUpdateAvailable = MutableStateFlow(false)
+    val isUpdateAvailable: StateFlow<Boolean> = _isUpdateAvailable.asStateFlow()
+
+    private val _updateHtmlUrl = MutableStateFlow<String?>(null)
+    val updateHtmlUrl: StateFlow<String?> = _updateHtmlUrl.asStateFlow()
+
+    private val _updateCheckStatus = MutableStateFlow(UpdateStatus.NOT_CHECKED)
+    val updateCheckStatus: StateFlow<UpdateStatus> = _updateCheckStatus.asStateFlow()
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            _isCheckingForUpdates.value = true
+            _updateCheckStatus.value = UpdateStatus.CHECKING
+            try {
+                val latestRelease = gitHubApiService.getLatestRelease()
+                val remoteTag = latestRelease.tagName
+                val remoteUrl = latestRelease.htmlUrl
+
+                val cleanRemote = remoteTag.trim().removePrefix("v")
+                val cleanLocal = BuildConfig.VERSION_NAME.trim().removePrefix("v")
+
+                val isGreater = isVersionGreater(cleanRemote, cleanLocal)
+
+                _updateHtmlUrl.value = remoteUrl
+                _isUpdateAvailable.value = isGreater
+
+                if (isGreater) {
+                    _updateCheckStatus.value = UpdateStatus.UPDATE_AVAILABLE
+                } else {
+                    _updateCheckStatus.value = UpdateStatus.UP_TO_DATE
+                }
+            } catch (e: Exception) {
+                AppLogger.e("SettingsViewModel", "Check for updates failed", e)
+                _updateCheckStatus.value = UpdateStatus.FAILED
+            } finally {
+                _isCheckingForUpdates.value = false
+            }
+        }
+    }
+
+    private fun isVersionGreater(remote: String, local: String): Boolean {
+        val remoteParts = remote.split(".").mapNotNull { it.toIntOrNull() }
+        val localParts = local.split(".").mapNotNull { it.toIntOrNull() }
+        val maxLength = maxOf(remoteParts.size, localParts.size)
+        for (i in 0 until maxLength) {
+            val r = remoteParts.getOrElse(i) { 0 }
+            val l = localParts.getOrElse(i) { 0 }
+            if (r > l) return true
+            if (r < l) return false
+        }
+        return false
+    }
 
     val isUpdating: StateFlow<Boolean> = databaseManager.isUpdating
 
