@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.repository.BentoWidgetRepository
@@ -86,20 +87,44 @@ class HomeViewModel @Inject constructor(
             initialValue = null
         )
 
+    private val continueWatchingFlow: Flow<List<Anime>> = combine(
+        userTrackingDao.observeContinueWatching(),
+        animeRepository.swapSignal.onStart { emit(Unit) }
+    ) { trackingList, _ ->
+        val ids = trackingList.map { it.anilistId }
+        val animeList = animeRepository.getAnimeByIds(ids)
+        val animeMap = animeList.associateBy { it.anilistId }
+        ids.mapNotNull { animeMap[it] }
+    }.flowOn(Dispatchers.IO)
+
+    private val nextUpFlow: Flow<List<Anime>> = combine(
+        userTrackingDao.observeNextUp(),
+        animeRepository.swapSignal.onStart { emit(Unit) }
+    ) { trackingList, _ ->
+        val ids = trackingList.map { it.anilistId }
+        val animeList = animeRepository.getAnimeByIds(ids)
+        val animeMap = animeList.associateBy { it.anilistId }
+        ids.mapNotNull { animeMap[it] }
+    }.flowOn(Dispatchers.IO)
+
     val homeUiState: StateFlow<HomeUiState> = combine(
         userTrackingDao.observeAllTracking(),
         settingsProvider.preferUkTitles,
         animeRepository.queryAnimeFlow(moe.GetTheNya.AniForge.core.model.SearchFilterQuery()),
         bentoWidgetRepository.observeWidgetConfigs,
         bentoWidgetRepository.observeUserStats,
-        bentoWidgetRepository.bentoStatsFlow
+        bentoWidgetRepository.bentoStatsFlow,
+        continueWatchingFlow,
+        nextUpFlow
     ) { array ->
-        val trackingList = array[0] as List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>
+        val trackingList = array[0] as List<UserTrackingEntity>
         val preferUk = array[1] as Boolean
-        val animeList = array[2] as List<moe.GetTheNya.AniForge.core.model.Anime>
-        val widgetConfigs = array[3] as List<moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity>
+        val animeList = array[2] as List<Anime>
+        val widgetConfigs = array[3] as List<WidgetConfigEntity>
         val userStats = array[4] as moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
         val bentoStats = array[5] as moe.GetTheNya.AniForge.core.model.BentoStatsData
+        val continueWatching = array[6] as List<Anime>
+        val nextUp = array[7] as List<Anime>
 
         val stats = calculateStats(trackingList)
         val featured = animeList.firstOrNull {
@@ -114,7 +139,9 @@ class HomeViewModel @Inject constructor(
             widgetConfigs = widgetConfigs,
             userStats = userStats,
             bentoStats = bentoStats,
-            trackingStats = trackingStats
+            trackingStats = trackingStats,
+            continueWatchingList = continueWatching,
+            nextUpList = nextUp
         ) as HomeUiState
     }
     .catch { e ->
@@ -190,7 +217,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun calculateStats(trackingList: List<moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>): UserStats {
+    private fun calculateStats(trackingList: List<UserTrackingEntity>): UserStats {
         val totalEpisodes = trackingList.sumOf { it.episodeProgress }
         val completedCount = trackingList.count { it.watchStatus == "COMPLETED" }
         val currentCount = trackingList.count { it.watchStatus == "CURRENT" }
@@ -214,7 +241,9 @@ sealed interface HomeUiState {
         val widgetConfigs: List<WidgetConfigEntity> = emptyList(),
         val userStats: moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity = moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity(),
         val bentoStats: moe.GetTheNya.AniForge.core.model.BentoStatsData = moe.GetTheNya.AniForge.core.model.BentoStatsData(),
-        val trackingStats: Map<String, Int> = emptyMap()
+        val trackingStats: Map<String, Int> = emptyMap(),
+        val continueWatchingList: List<Anime> = emptyList(),
+        val nextUpList: List<Anime> = emptyList()
     ) : HomeUiState
     @Immutable
     data class Error(val message: String) : HomeUiState

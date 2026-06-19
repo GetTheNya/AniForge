@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,6 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
+import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
+import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.HourglassTop
@@ -47,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.toArgb
@@ -1727,6 +1732,136 @@ fun HomeScreenGrid(
             }
         }
 
+        if (!isEditMode) {
+            if (state.continueWatchingList.isNotEmpty()) {
+                item(span = { GridItemSpan(2) }, key = "continue_watching_section") {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.homeScreen.continueWatching,
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            IconButton(
+                                onClick = { onStatusClick("CURRENT") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = strings.homeScreen.continueWatching,
+                                    tint = TextPrimary
+                                )
+                            }
+                        }
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(
+                                items = state.continueWatchingList,
+                                key = { it.anilistId }
+                            ) { anime ->
+                                Box(
+                                    modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                                ) {
+                                    AnimeBentoCard(
+                                        anime = anime,
+                                        status = "CURRENT",
+                                        preferUk = state.preferUk,
+                                        onGestureActionTriggered = { action, _ ->
+                                            if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                onAnimeClick(anime.anilistId)
+                                            }
+                                        },
+                                        gestureCenter = QuickGestureAction.Immediate.None,
+                                        gestureUp = QuickGestureAction.Immediate.None,
+                                        gestureDown = QuickGestureAction.Immediate.None,
+                                        gestureLeft = QuickGestureAction.Immediate.None,
+                                        gestureRight = QuickGestureAction.Immediate.None,
+                                        clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                        enableGestures = false,
+                                        cardHeight = 180.dp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (state.nextUpList.isNotEmpty()) {
+                item(span = { GridItemSpan(2) }, key = "next_up_section") {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.homeScreen.nextUp,
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            IconButton(
+                                onClick = { onStatusClick("PLANNING") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowForward,
+                                    contentDescription = strings.homeScreen.nextUp,
+                                    tint = TextPrimary
+                                )
+                            }
+                        }
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(
+                                items = state.nextUpList,
+                                key = { it.anilistId }
+                            ) { anime ->
+                                Box(
+                                    modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                                ) {
+                                    AnimeBentoCard(
+                                        anime = anime,
+                                        status = "PLANNING",
+                                        preferUk = state.preferUk,
+                                        onGestureActionTriggered = { action, _ ->
+                                            if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                onAnimeClick(anime.anilistId)
+                                            }
+                                        },
+                                        gestureCenter = QuickGestureAction.Immediate.None,
+                                        gestureUp = QuickGestureAction.Immediate.None,
+                                        gestureDown = QuickGestureAction.Immediate.None,
+                                        gestureLeft = QuickGestureAction.Immediate.None,
+                                        gestureRight = QuickGestureAction.Immediate.None,
+                                        clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                        enableGestures = false,
+                                        cardHeight = 180.dp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Section Title: Quick Stats (only visible when NOT in edit mode)
         if (!isEditMode && visibleConfigs.isNotEmpty()) {
             item(span = { GridItemSpan(2) }, key = "workspace_header") {
@@ -1863,6 +1998,8 @@ fun HomeScreenGrid(
                 }
             }
         }
+
+
     }
 }
 

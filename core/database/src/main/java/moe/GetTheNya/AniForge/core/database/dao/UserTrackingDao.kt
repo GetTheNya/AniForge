@@ -19,6 +19,12 @@ interface UserTrackingDao {
     @Query("SELECT * FROM user_tracking ORDER BY last_modified DESC")
     fun observeAllTracking(): Flow<List<UserTrackingEntity>>
 
+    @Query("SELECT * FROM user_tracking WHERE watch_status = 'CURRENT' ORDER BY last_modified DESC LIMIT 10")
+    fun observeContinueWatching(): Flow<List<UserTrackingEntity>>
+
+    @Query("SELECT * FROM user_tracking WHERE watch_status = 'PLANNING' ORDER BY last_modified DESC LIMIT 10")
+    fun observeNextUp(): Flow<List<UserTrackingEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(tracking: UserTrackingEntity)
 

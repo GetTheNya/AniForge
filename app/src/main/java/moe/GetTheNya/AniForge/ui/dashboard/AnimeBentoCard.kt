@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
 import coil.compose.AsyncImage
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.localization.getSeasonLabel
@@ -76,7 +77,8 @@ fun AnimeBentoCard(
     gestureLeft: QuickGestureAction = QuickGestureAction.Immediate.OpenWatchStatusPicker,
     gestureRight: QuickGestureAction = QuickGestureAction.Immediate.ShareLink,
     clickAction: QuickGestureAction = QuickGestureAction.Immediate.OpenDetails,
-    enableGestures: Boolean = true
+    enableGestures: Boolean = true,
+    cardHeight: Dp = 260.dp
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
 
@@ -123,7 +125,7 @@ fun AnimeBentoCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(cardHeight)
                 .clip(RoundedCornerShape(24.dp))
                 .background(SurfaceCardDark)
                 .border(1.dp, if (isMenuVisible) Color.Transparent else CardBorder, RoundedCornerShape(24.dp))
@@ -161,7 +163,7 @@ fun AnimeBentoCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(260.dp)
+                        .height(cardHeight)
                 )
 
                 // Gradient overlay for text readability
