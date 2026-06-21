@@ -401,4 +401,26 @@ class AnimeRepositoryTest {
         assertEquals(11L, results[2].anilistId) // Tier 2: title_en (popularity 10)
         assertEquals(10L, results[3].anilistId) // Tier 3: description
     }
+
+    @Test
+    fun testGetScreenshotsFiltersOutNoneAndNonLinks() = runBlocking {
+        // Create screenshots table
+        db.execSQL("CREATE TABLE IF NOT EXISTS screenshots (anilist_id INTEGER, image_url TEXT);")
+        
+        // Insert sample screenshot URLs
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, 'https://example.com/image1.jpg');")
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, 'none');")
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, 'None');")
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, 'http://example.com/image2.png');")
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, 'not_a_link');")
+        db.execSQL("INSERT INTO screenshots (anilist_id, image_url) VALUES (1, '  ');")
+        
+        val screenshots = repository.getScreenshots(1L)
+        assertEquals(2, screenshots.size)
+        assertTrue(screenshots.contains("https://example.com/image1.jpg"))
+        assertTrue(screenshots.contains("http://example.com/image2.png"))
+        assertFalse(screenshots.contains("none"))
+        assertFalse(screenshots.contains("None"))
+        assertFalse(screenshots.contains("not_a_link"))
+    }
 }

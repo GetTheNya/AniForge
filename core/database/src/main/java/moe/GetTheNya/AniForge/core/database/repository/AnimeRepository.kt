@@ -130,7 +130,13 @@ class AnimeRepository @Inject constructor(
                 val index = cursor.getColumnIndex("image_url")
                 if (index >= 0) {
                     while (cursor.moveToNext()) {
-                        list.add(cursor.getString(index))
+                        val imageUrl = cursor.getString(index)
+                        if (imageUrl != null && imageUrl.isNotBlank() &&
+                            !imageUrl.equals("none", ignoreCase = true) &&
+                            (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"))
+                        ) {
+                            list.add(imageUrl)
+                        }
                     }
                 }
             }
