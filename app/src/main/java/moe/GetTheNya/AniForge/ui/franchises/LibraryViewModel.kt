@@ -103,11 +103,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = true
-    )
+    val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val collections: StateFlow<List<CollectionWithData>> = collectionDao.observeCollections()

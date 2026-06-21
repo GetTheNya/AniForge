@@ -38,6 +38,8 @@ fun SettingsScreen(
 ) {
     val strings = LocalLocaleStrings.current
     val preferUk by viewModel.preferUkTitles.collectAsState()
+    val show18Plus by viewModel.show18Plus.collectAsState()
+    var showWarningDialog by remember { mutableStateOf(false) }
     val currentLangCode by viewModel.currentLanguage.collectAsState()
     val availableLangs by viewModel.availableLanguages.collectAsState()
     val isUpdating by viewModel.isUpdating.collectAsState()
@@ -200,6 +202,45 @@ fun SettingsScreen(
                 Switch(
                     checked = preferUk,
                     onCheckedChange = viewModel::setPreferUkTitles,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = BackgroundDark,
+                        checkedTrackColor = NeonCoral,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = Color(0x33FFFFFF)
+                    )
+                )
+            }
+
+            HorizontalDivider(Modifier, thickness = 1.dp, color = CardBorder)
+
+            // 3. 18+ (NSFW) Mode Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        text = strings.settingsScreen.show18PlusTitle,
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = strings.settingsScreen.show18PlusDesc,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+                Switch(
+                    checked = show18Plus,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            showWarningDialog = true
+                        } else {
+                            viewModel.setShow18Plus(false)
+                        }
+                    },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = BackgroundDark,
                         checkedTrackColor = NeonCoral,
@@ -605,6 +646,57 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showWarningDialog) {
+        AlertDialog(
+            onDismissRequest = { showWarningDialog = false },
+            title = {
+                Text(
+                    text = strings.settingsScreen.confirm18PlusTitle,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = strings.settingsScreen.confirm18PlusText,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setShow18Plus(true)
+                        showWarningDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonCoral,
+                        contentColor = BackgroundDark
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = strings.settingsScreen.confirm18PlusOk,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showWarningDialog = false
+                    }
+                ) {
+                    Text(
+                        text = strings.settingsScreen.confirm18PlusCancel,
+                        color = TextSecondary
+                    )
+                }
+            },
+            containerColor = SurfaceCardDark,
+            shape = RoundedCornerShape(24.dp)
+        )
     }
 }
 

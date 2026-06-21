@@ -26,13 +26,24 @@ class SettingsProvider @Inject constructor(
 
     val preferUkTitles: StateFlow<Boolean> = settingsRepository.getSettingFlow(
         SettingsKeys.PREFER_UKRAINIAN,
-        "true"
+        "false"
     )
     .map { it.toBoolean() }
     .stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = true
+        initialValue = false
+    )
+
+    val show18Plus: StateFlow<Boolean> = settingsRepository.getSettingFlow(
+        SettingsKeys.SHOW_18_PLUS,
+        "false"
+    )
+    .map { it.toBoolean() }
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
     )
 
     val titleAnimStyleStr: StateFlow<String> = settingsRepository.getSettingFlow(
@@ -202,6 +213,16 @@ class SettingsProvider @Inject constructor(
     fun setGestureRight(value: String) {
         scope.launch {
             settingsRepository.saveSetting(SettingsKeys.GESTURE_RIGHT, value)
+        }
+    }
+
+    fun getShow18Plus(): Boolean {
+        return show18Plus.value
+    }
+
+    fun setShow18Plus(value: Boolean) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.SHOW_18_PLUS, value.toString())
         }
     }
 }

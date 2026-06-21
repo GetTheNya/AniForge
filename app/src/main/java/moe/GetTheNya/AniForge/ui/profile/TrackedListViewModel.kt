@@ -23,6 +23,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
 import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 import javax.inject.Inject
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TrackedListViewModel @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
@@ -78,19 +79,44 @@ class TrackedListViewModel @Inject constructor(
     val gestureRight: StateFlow<QuickGestureAction> = userTrackingRepository.gestureRight
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.ShareLink)
 
-    val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = true
-    )
+    val preferUk: StateFlow<Boolean> = settingsProvider.preferUkTitles
 
-    val allGenres: StateFlow<List<Genre>> = flow {
-        emit(animeRepository.getAllGenres())
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allGenres: StateFlow<List<Genre>> = settingsProvider.show18Plus
+        .flatMapLatest { show18 ->
+            flow {
+                val genres = animeRepository.getAllGenres()
+                if (show18) {
+                    emit(genres)
+                } else {
+                    emit(genres.filter {
+                        !it.nameEn.equals("Hentai", ignoreCase = true) &&
+                        !it.slug.equals("hentai", ignoreCase = true)
+                    })
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val allTags: StateFlow<List<Tag>> = flow {
-        emit(animeRepository.getAllTags())
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allTags: StateFlow<List<Tag>> = settingsProvider.show18Plus
+        .flatMapLatest { show18 ->
+            flow {
+                val tags = animeRepository.getAllTags()
+                if (show18) {
+                    emit(tags)
+                } else {
+                    val nsfwKeywords = listOf("Nudity", "Ecchi", "Fetish", "Incest", "Bondage")
+                    emit(tags.filter { tag ->
+                        val isNsfwCategory = tag.category?.equals("Sexual Content", ignoreCase = true) == true
+                        val isNsfwName = nsfwKeywords.any { kw ->
+                            tag.nameEn.contains(kw, ignoreCase = true) ||
+                            (tag.nameUk?.contains(kw, ignoreCase = true) == true)
+                        }
+                        !isNsfwCategory && !isNsfwName
+                    })
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allStudios: StateFlow<List<Studio>> = flow {
         emit(animeRepository.getAllStudios())
@@ -261,6 +287,25 @@ class TrackedListViewModel @Inject constructor(
 
     init {
         refreshSnapshot()
+        viewModelScope.launch {
+            settingsProvider.show18Plus.collectLatest { show18 ->
+                if (!show18) {
+                    val currentFilter = _listFilterState.value
+                    var changed = false
+                    val cleanGenres = currentFilter.genres.filter { !it.equals("Hentai", ignoreCase = true) }
+                    val cleanExcludedGenres = currentFilter.excludedGenres.filter { !it.equals("Hentai", ignoreCase = true) }
+                    if (cleanGenres.size != currentFilter.genres.size || cleanExcludedGenres.size != currentFilter.excludedGenres.size) {
+                        changed = true
+                    }
+                    if (changed) {
+                        _listFilterState.value = currentFilter.copy(
+                            genres = cleanGenres,
+                            excludedGenres = cleanExcludedGenres
+                        )
+                    }
+                }
+            }
+        }
     }
 
     fun refreshSnapshot() {

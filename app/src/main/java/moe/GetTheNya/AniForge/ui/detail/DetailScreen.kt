@@ -940,6 +940,29 @@ fun DetailContent(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
+                                if (anime.isAdult) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "•",
+                                        color = TextSecondary.copy(alpha = 0.6f),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0xFFFF3B30))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "18+",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             AutoScalingTitle(

@@ -4,6 +4,8 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
@@ -51,11 +53,11 @@ class AnimeRepository @Inject constructor(
     /**
      * Exposes the query result as a reactive Flow that emits new lists whenever the database is hot-swapped.
      */
-    fun queryAnimeFlow(filter: SearchFilterQuery): Flow<List<Anime>> = flow {
-        emit(queryAnime(filter))
-        databaseProvider.swapSignal.collect {
-            emit(queryAnime(filter))
-        }
+    fun queryAnimeFlow(filter: SearchFilterQuery): Flow<List<Anime>> = combine(
+        databaseProvider.swapSignal.onStart { emit(Unit) },
+        settingsProvider.show18Plus
+    ) { _, _ ->
+        queryAnime(filter)
     }
 
     /**
@@ -105,7 +107,12 @@ class AnimeRepository @Inject constructor(
         try {
             val placeholders = ids.joinToString(",") { "?" }
             val args = ids.map { it.toString() }.toTypedArray()
-            db.query("SELECT * FROM anime WHERE anilist_id IN ($placeholders)", args).use { cursor ->
+            val queryStr = if (settingsProvider.getShow18Plus()) {
+                "SELECT * FROM anime WHERE anilist_id IN ($placeholders)"
+            } else {
+                "SELECT * FROM anime WHERE anilist_id IN ($placeholders) AND is_adult = 0"
+            }
+            db.query(queryStr, args).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))
                 }
@@ -153,13 +160,18 @@ class AnimeRepository @Inject constructor(
         val db = databaseProvider.getDatabase()
         val list = ArrayList<Anime>()
         try {
-            db.query(
+            val queryStr = if (settingsProvider.getShow18Plus()) {
                 "SELECT target.* FROM anime target " +
                 "JOIN relations ON target.anilist_id = relations.target_anilist_id " +
                 "WHERE relations.source_anilist_id = ? " +
-                "ORDER BY target.season_year ASC, target.updated_at ASC",
-                arrayOf(anilistId.toString())
-            ).use { cursor ->
+                "ORDER BY target.season_year ASC, target.updated_at ASC"
+            } else {
+                "SELECT target.* FROM anime target " +
+                "JOIN relations ON target.anilist_id = relations.target_anilist_id " +
+                "WHERE relations.source_anilist_id = ? AND target.is_adult = 0 " +
+                "ORDER BY target.season_year ASC, target.updated_at ASC"
+            }
+            db.query(queryStr, arrayOf(anilistId.toString())).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))
                 }
@@ -174,7 +186,7 @@ class AnimeRepository @Inject constructor(
         val anilistId = cursor.getLong(cursor.getColumnIndexOrThrow("anilist_id"))
         val malId = if (cursor.isNull(cursor.getColumnIndexOrThrow("mal_id"))) null else cursor.getLong(cursor.getColumnIndexOrThrow("mal_id"))
         val titleUk = cursor.getString(cursor.getColumnIndexOrThrow("title_uk"))
-        val titleRomaji = cursor.getString(cursor.getColumnIndexOrThrow("title_romaji"))
+        val titleRomaji = cursor.getString(cursor.getColumnIndexOrThrow("title_romaji")) ?: ""
         val titleEn = cursor.getString(cursor.getColumnIndexOrThrow("title_en"))
         val descriptionUk = cursor.getString(cursor.getColumnIndexOrThrow("description_uk"))
         val descriptionEn = cursor.getString(cursor.getColumnIndexOrThrow("description_en"))
@@ -321,13 +333,18 @@ class AnimeRepository @Inject constructor(
         val db = databaseProvider.getDatabase()
         val list = ArrayList<Anime>()
         try {
-            db.query(
+            val queryStr = if (settingsProvider.getShow18Plus()) {
                 "SELECT target.* FROM anime target " +
                 "JOIN anime_recommendations rec ON target.anilist_id = rec.recommended_anilist_id " +
                 "WHERE rec.source_anilist_id = ? " +
-                "ORDER BY target.score_mal DESC, target.updated_at DESC",
-                arrayOf(anilistId.toString())
-            ).use { cursor ->
+                "ORDER BY target.score_mal DESC, target.updated_at DESC"
+            } else {
+                "SELECT target.* FROM anime target " +
+                "JOIN anime_recommendations rec ON target.anilist_id = rec.recommended_anilist_id " +
+                "WHERE rec.source_anilist_id = ? AND target.is_adult = 0 " +
+                "ORDER BY target.score_mal DESC, target.updated_at DESC"
+            }
+            db.query(queryStr, arrayOf(anilistId.toString())).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))
                 }
@@ -377,13 +394,18 @@ class AnimeRepository @Inject constructor(
         val db = databaseProvider.getDatabase()
         val list = ArrayList<Anime>()
         try {
-            db.query(
+            val queryStr = if (settingsProvider.getShow18Plus()) {
                 "SELECT a.* FROM anime a " +
                 "JOIN anime_franchises af ON a.anilist_id = af.anilist_id " +
                 "WHERE af.franchise_id = ? " +
-                "ORDER BY a.season_year ASC, a.updated_at ASC",
-                arrayOf(franchiseId.toString())
-            ).use { cursor ->
+                "ORDER BY a.season_year ASC, a.updated_at ASC"
+            } else {
+                "SELECT a.* FROM anime a " +
+                "JOIN anime_franchises af ON a.anilist_id = af.anilist_id " +
+                "WHERE af.franchise_id = ? AND a.is_adult = 0 " +
+                "ORDER BY a.season_year ASC, a.updated_at ASC"
+            }
+            db.query(queryStr, arrayOf(franchiseId.toString())).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))
                 }
@@ -504,8 +526,8 @@ class AnimeRepository @Inject constructor(
                     while (cursor.moveToNext()) {
                         list.add(
                             Genre(
-                                slug = cursor.getString(slugIdx),
-                                nameEn = cursor.getString(enIdx),
+                                slug = cursor.getString(slugIdx) ?: "",
+                                nameEn = cursor.getString(enIdx) ?: "",
                                 nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx)
                             )
                         )
@@ -563,7 +585,7 @@ class AnimeRepository @Inject constructor(
                         list.add(
                             Tag(
                                 tagId = cursor.getLong(idIdx),
-                                nameEn = cursor.getString(enIdx),
+                                nameEn = cursor.getString(enIdx) ?: "",
                                 nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx),
                                 category = if (cursor.isNull(catIdx)) null else cursor.getString(catIdx)
                             )
@@ -821,6 +843,10 @@ class AnimeRepository @Inject constructor(
         }
         
         val whereClauses = ArrayList<String>()
+        
+        if (!settingsProvider.getShow18Plus()) {
+            whereClauses.add("anime.is_adult = 0")
+        }
         
         if (hasText) {
             whereClauses.add("anime_search MATCH ?")

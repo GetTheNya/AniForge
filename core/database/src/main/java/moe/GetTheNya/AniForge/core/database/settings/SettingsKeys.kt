@@ -11,4 +11,5 @@ object SettingsKeys {
     const val GESTURE_DOWN = "gesture_down"
     const val GESTURE_LEFT = "gesture_left"
     const val GESTURE_RIGHT = "gesture_right"
+    const val SHOW_18_PLUS = "show_18_plus"
 }

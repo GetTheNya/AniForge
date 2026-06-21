@@ -119,16 +119,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    val preferUkTitles: StateFlow<Boolean> = settingsRepository.getSettingFlow(
-        SettingsKeys.PREFER_UKRAINIAN,
-        "true"
-    )
-    .map { it.toBoolean() }
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = true
-    )
+    val preferUkTitles: StateFlow<Boolean> = settingsProvider.preferUkTitles
 
     val currentLanguage: StateFlow<String> = settingsRepository.getSettingFlow(
         SettingsKeys.LANGUAGE,
@@ -143,9 +134,13 @@ class SettingsViewModel @Inject constructor(
     val availableLanguages: StateFlow<Map<String, String>> = localizationService.availableLanguages
 
     fun setPreferUkTitles(value: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.saveSetting(SettingsKeys.PREFER_UKRAINIAN, value.toString())
-        }
+        settingsProvider.setPreferUkTitles(value)
+    }
+
+    val show18Plus: StateFlow<Boolean> = settingsProvider.show18Plus
+
+    fun setShow18Plus(value: Boolean) {
+        settingsProvider.setShow18Plus(value)
     }
 
     fun setSelectedLanguage(langCode: String) {

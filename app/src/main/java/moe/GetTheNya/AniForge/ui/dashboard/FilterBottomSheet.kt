@@ -931,7 +931,7 @@ fun FilterBottomSheet(
                                 val isIncluded = genresList.contains(genre.slug)
                                 val isExcluded = excludedGenresList.contains(genre.slug)
                                 TriStateChip(
-                                    label = genre.getDisplayName(preferUk = true),
+                                    label = genre.getDisplayName(preferUk = preferUkTitles),
                                     isIncluded = isIncluded,
                                     isExcluded = isExcluded,
                                     onClick = { onGenreFilterToggled(genre.slug) }
@@ -974,7 +974,7 @@ fun FilterBottomSheet(
                                     val isIncluded = catalogFilter?.tags?.contains(tag.tagId) == true
                                     val isExcluded = catalogFilter?.excludedTags?.contains(tag.tagId) == true
                                     TriStateChip(
-                                        label = tag.getDisplayName(preferUk = true),
+                                        label = tag.getDisplayName(preferUk = preferUkTitles),
                                         isIncluded = isIncluded,
                                         isExcluded = isExcluded,
                                         onClick = { onTagFilterToggled?.invoke(tag.tagId) }
@@ -1061,8 +1061,8 @@ fun FilterBottomSheet(
             isExcluded = { genre -> excludedGenresList.contains(genre.slug) },
             onClick = { onGenreFilterToggled(it.slug) },
             onClear = onClearGenreFilters,
-            getLabel = { it.getDisplayName(preferUk = true) },
-            getItemSearchText = { it.getDisplayName(preferUk = true) + " " + it.slug },
+            getLabel = { it.getDisplayName(preferUk = preferUkTitles) },
+            getItemSearchText = { it.getDisplayName(preferUk = preferUkTitles) + " " + it.slug },
             onDismiss = { showGenreDialog = false }
         )
     }
@@ -1075,8 +1075,8 @@ fun FilterBottomSheet(
             isExcluded = { catalogFilter?.excludedTags?.contains(it.tagId) == true },
             onClick = { onTagFilterToggled(it.tagId) },
             onClear = onClearTagFilters,
-            getLabel = { it.getDisplayName(preferUk = true) },
-            getItemSearchText = { it.getDisplayName(preferUk = true) },
+            getLabel = { it.getDisplayName(preferUk = preferUkTitles) },
+            getItemSearchText = { it.getDisplayName(preferUk = preferUkTitles) },
             onDismiss = { showTagDialog = false }
         )
     }

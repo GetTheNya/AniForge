@@ -102,8 +102,9 @@ class HomeViewModel @Inject constructor(
 
     private val continueWatchingFlow: Flow<List<Anime>> = combine(
         userTrackingDao.observeContinueWatching(),
+        settingsProvider.show18Plus,
         animeRepository.swapSignal.onStart { emit(Unit) }
-    ) { trackingList, _ ->
+    ) { trackingList, _, _ ->
         val ids = trackingList.map { it.anilistId }
         val animeList = animeRepository.getAnimeByIds(ids)
         val animeMap = animeList.associateBy { it.anilistId }
@@ -112,8 +113,9 @@ class HomeViewModel @Inject constructor(
 
     private val nextUpFlow: Flow<List<Anime>> = combine(
         userTrackingDao.observeNextUp(),
+        settingsProvider.show18Plus,
         animeRepository.swapSignal.onStart { emit(Unit) }
-    ) { trackingList, _ ->
+    ) { trackingList, _, _ ->
         val ids = trackingList.map { it.anilistId }
         val animeList = animeRepository.getAnimeByIds(ids)
         val animeMap = animeList.associateBy { it.anilistId }

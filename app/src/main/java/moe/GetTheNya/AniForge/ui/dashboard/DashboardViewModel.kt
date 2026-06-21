@@ -50,13 +50,36 @@ class DashboardViewModel @Inject constructor(
     val gestureRight: StateFlow<QuickGestureAction> = userTrackingRepository.gestureRight
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuickGestureAction.Immediate.ShareLink)
 
-    val allGenres: StateFlow<List<Genre>> = flow {
-        emit(animeRepository.getAllGenres())
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allGenres: StateFlow<List<Genre>> = settingsProvider.show18Plus
+        .flatMapLatest { show18 ->
+            flow {
+                val genres = animeRepository.getAllGenres()
+                if (show18) {
+                    emit(genres)
+                } else {
+                    emit(genres.filter {
+                        !it.nameEn.equals("Hentai", ignoreCase = true) &&
+                        !it.slug.equals("hentai", ignoreCase = true)
+                    })
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val allTags: StateFlow<List<Tag>> = flow {
-        emit(animeRepository.getAllTags())
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allTags: StateFlow<List<Tag>> = settingsProvider.show18Plus
+        .flatMapLatest { show18 ->
+            flow {
+                val tags = animeRepository.getAllTags()
+                if (show18) {
+                    emit(tags)
+                } else {
+                    emit(tags.filter { tag ->
+                        tag.category?.equals("Sexual Content", ignoreCase = true) != true
+                    })
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val allStudios: StateFlow<List<Studio>> = flow {
         emit(animeRepository.getAllStudios())
@@ -66,13 +89,50 @@ class DashboardViewModel @Inject constructor(
         emit(animeRepository.getAllStaff())
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    init {
+        viewModelScope.launch {
+            settingsProvider.show18Plus.collectLatest { show18 ->
+                if (!show18) {
+                    val currentFilter = _searchFilter.value
+                    var changed = false
+                    val cleanGenres = currentFilter.genres.filter { !it.equals("Hentai", ignoreCase = true) }
+                    val cleanExcludedGenres = currentFilter.excludedGenres.filter { !it.equals("Hentai", ignoreCase = true) }
+                    if (cleanGenres.size != currentFilter.genres.size || cleanExcludedGenres.size != currentFilter.excludedGenres.size) {
+                        changed = true
+                    }
+                    
+                    val tags = animeRepository.getAllTags()
+                    val nsfwTagIds = tags.filter { tag ->
+                        tag.category?.equals("Sexual Content", ignoreCase = true) == true
+                    }.map { it.tagId }.toSet()
+                    
+                    val cleanTags = currentFilter.tags.filter { !nsfwTagIds.contains(it) }
+                    val cleanExcludedTags = currentFilter.excludedTags.filter { !nsfwTagIds.contains(it) }
+                    if (cleanTags.size != currentFilter.tags.size || cleanExcludedTags.size != currentFilter.excludedTags.size) {
+                        changed = true
+                    }
+                    
+                    if (changed) {
+                        _searchFilter.value = currentFilter.copy(
+                            genres = cleanGenres,
+                            excludedGenres = cleanExcludedGenres,
+                            tags = cleanTags,
+                            excludedTags = cleanExcludedTags
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         _searchFilter.debounce { query ->
             if (query.textQuery.isEmpty()) 0L else 250L
         },
         userTrackingDao.observeAllTracking(),
+        settingsProvider.show18Plus,
         animeRepository.swapSignal.onStart { emit(Unit) }
-    ) { filter, trackingList, _ ->
+    ) { filter, trackingList, _, _ ->
         val trackingStatusIds = trackingList
             .filter { it.watchStatus in filter.trackingStatuses }
             .map { it.anilistId }
