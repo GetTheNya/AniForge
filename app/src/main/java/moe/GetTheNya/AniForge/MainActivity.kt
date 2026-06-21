@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -1034,7 +1033,7 @@ fun FloatingBottomNavigation(
             val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
             val tabs = listOf(
                 TabScreen.Home to (Icons.Default.Home to strings.homeScreen.name),
-                TabScreen.Anime to (Icons.Default.DateRange to strings.dashboardScreen.name),
+                TabScreen.Anime to (Icons.Default.PlayArrow to strings.dashboardScreen.name),
                 TabScreen.Library to (Icons.Default.Layers to strings.libraryScreen.name),
                 TabScreen.Profile to (Icons.Default.Person to strings.profileScreen.name)
             )
