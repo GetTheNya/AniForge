@@ -17,6 +17,8 @@ import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.dashboard.UserStats
 import moe.GetTheNya.AniForge.ui.localization.LocalizationService
+import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
+import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,8 +27,19 @@ class HomeViewModel @Inject constructor(
     private val settingsProvider: SettingsProvider,
     private val animeRepository: AnimeRepository,
     private val localizationService: LocalizationService,
-    private val bentoWidgetRepository: BentoWidgetRepository
+    private val bentoWidgetRepository: BentoWidgetRepository,
+    private val databaseManager: DatabaseManager
 ) : ViewModel() {
+
+    val catalogUpdateState: StateFlow<CatalogUpdateState> = databaseManager.catalogUpdateState
+
+    val isCatalogEmpty: Boolean get() = databaseManager.isCatalogEmpty()
+
+    fun retryCatalogUpdate() {
+        viewModelScope.launch {
+            databaseManager.updateCatalogIfAvailable()
+        }
+    }
 
     private var cachedPhrase: Pair<String, String?>? = null
 

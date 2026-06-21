@@ -48,7 +48,11 @@
     "addWidgets": "Add Widgets",
     "releaseToDelete": "Release to Delete",
     "noHiddenWidgets": "All widgets are currently visible",
-    "emptyWorkspace": "So empty..."
+    "emptyWorkspace": "So empty...",
+    "initializingCatalog": "Initializing catalog...",
+    "downloadingCatalog": "Downloading catalog...",
+    "processingCatalog": "Processing catalog...",
+    "dbInitError": "Database initialization failed."
   },
   "libraryScreen": {
     "name": "Library",

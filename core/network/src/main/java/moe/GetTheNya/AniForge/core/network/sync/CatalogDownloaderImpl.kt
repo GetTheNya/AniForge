@@ -18,7 +18,11 @@ class CatalogDownloaderImpl @Inject constructor(
         response.version
     }
 
-    override suspend fun downloadCatalog(version: Long, destinationFile: File): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun downloadCatalog(
+        version: Long,
+        destinationFile: File,
+        onProgress: (progress: Float) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
             val response = apiService.downloadCatalog(version)
             if (!response.isSuccessful) {
@@ -28,10 +32,22 @@ class CatalogDownloaderImpl @Inject constructor(
 
             val body = response.body() ?: return@withContext false
             val tempFile = File(destinationFile.absolutePath + ".tmp")
+            val totalBytes = body.contentLength()
             
+            var bytesDownloaded = 0L
+            val buffer = ByteArray(8192)
+            var bytesRead: Int
+
             tempFile.outputStream().use { output ->
                 body.byteStream().use { input ->
-                    input.copyTo(output)
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        bytesDownloaded += bytesRead
+                        if (totalBytes > 0) {
+                            val progress = bytesDownloaded.toFloat() / totalBytes
+                            onProgress(progress.coerceIn(0f, 1f))
+                        }
+                    }
                 }
             }
 

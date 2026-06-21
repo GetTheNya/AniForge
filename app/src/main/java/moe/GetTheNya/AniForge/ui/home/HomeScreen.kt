@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -674,12 +676,152 @@ fun HomeScreen(
             .background(BackgroundDark)
             .onGloballyPositioned { rootBoxCoordinates = it }
     ) {
+        val isCatalogEmpty = viewModel.isCatalogEmpty
+        val catalogUpdateState by viewModel.catalogUpdateState.collectAsState()
+
         Crossfade(
-            targetState = stateType,
+            targetState = if (isCatalogEmpty && catalogUpdateState !is CatalogUpdateState.Ready) "init_overlay" else stateType,
             modifier = Modifier.fillMaxSize(),
             label = "homeCrossfade"
         ) { type ->
             when (type) {
+                "init_overlay" -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                                .padding(32.dp)
+                        ) {
+                            when (val updateState = catalogUpdateState) {
+                                is CatalogUpdateState.Error -> {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = NeonCoral,
+                                        modifier = Modifier.size(56.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                    Text(
+                                        text = strings.homeScreen.dbInitError,
+                                        color = TextPrimary,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = updateState.message,
+                                        color = TextSecondary,
+                                        fontSize = 14.sp,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Button(
+                                        onClick = { viewModel.retryCatalogUpdate() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = NeonCoral,
+                                            contentColor = BackgroundDark
+                                        ),
+                                        shape = RoundedCornerShape(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                                    ) {
+                                        Text(
+                                            text = strings.misc.retry,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                is CatalogUpdateState.Downloading -> {
+                                    val percent = (updateState.progress * 100).roundToInt()
+                                    val animatedProgress by animateFloatAsState(
+                                        targetValue = updateState.progress,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        ),
+                                        label = "downloadProgress"
+                                    )
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = strings.homeScreen.downloadingCatalog,
+                                                color = TextPrimary,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "$percent%",
+                                                color = NeonCoral,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color(0xFF1E1E24))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(animatedProgress.coerceIn(0f, 1f))
+                                                    .fillMaxHeight()
+                                                    .background(
+                                                        Brush.horizontalGradient(
+                                                            colors = listOf(NeonCoral, ElectricViolet)
+                                                        )
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
+                                else -> {
+                                    val statusText = when (updateState) {
+                                        is CatalogUpdateState.Processing -> strings.homeScreen.processingCatalog
+                                        else -> strings.homeScreen.initializingCatalog
+                                    }
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = statusText,
+                                            color = TextPrimary,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        LinearProgressIndicator(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(4.dp)),
+                                            color = NeonCoral,
+                                            trackColor = Color(0xFF1E1E24)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 "loading" -> {
                     Box(
                         modifier = Modifier.fillMaxSize()

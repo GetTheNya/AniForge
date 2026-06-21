@@ -70,7 +70,11 @@ data class HomeScreenStrings(
     val addWidgets: String = "[homeScreen.addWidgets]",
     val releaseToDelete: String = "[homeScreen.releaseToDelete]",
     val noHiddenWidgets: String = "[homeScreen.noHiddenWidgets]",
-    val emptyWorkspace: String = "[homeScreen.emptyWorkspace]"
+    val emptyWorkspace: String = "[homeScreen.emptyWorkspace]",
+    val initializingCatalog: String = "[homeScreen.initializingCatalog]",
+    val downloadingCatalog: String = "[homeScreen.downloadingCatalog]",
+    val processingCatalog: String = "[homeScreen.processingCatalog]",
+    val dbInitError: String = "[homeScreen.dbInitError]"
 )
 
 @Serializable

@@ -48,7 +48,11 @@
     "addWidgets": "Додати віджети",
     "releaseToDelete": "Відпустіть, щоб видалити",
     "noHiddenWidgets": "Всі віджети зараз відображаються",
-    "emptyWorkspace": "Так порожньо..."
+    "emptyWorkspace": "Так порожньо...",
+    "initializingCatalog": "Ініціалізація каталогу...",
+    "downloadingCatalog": "Завантаження каталогу...",
+    "processingCatalog": "Обробка каталогу...",
+    "dbInitError": "Помилка ініціалізації бази даних."
   },
   "libraryScreen": {
     "name": "Бібліотека",
