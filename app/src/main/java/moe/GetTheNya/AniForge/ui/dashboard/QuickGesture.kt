@@ -126,11 +126,18 @@ fun QuickGestureWrapper(
         label = "cardBlurRadius"
     )
 
-    val totalEpisodes = anime.episodes ?: 0
+    val isReleasing = anime.status?.uppercase() == "RELEASING"
+    val airingEpisode = anime.airingEpisode
+    val totalPlanned = anime.episodes
 
-    LaunchedEffect(isContinuousSliderActive, totalEpisodes) {
-        val maxEp = if (totalEpisodes > 0) totalEpisodes else 9999
-        if (isContinuousSliderActive && maxEp >= 50) {
+    val maxEp = remember(anime.status, anime.airingEpisode, anime.episodes) {
+        val limit = anime.getMaxAllowedIncrement()
+        if (limit == Int.MAX_VALUE) 9999 else limit
+    }
+
+    LaunchedEffect(isContinuousSliderActive, maxEp) {
+        val maxEpVal = maxEp
+        if (isContinuousSliderActive && maxEpVal >= 50) {
             try {
                 while (true) {
                     val dx = currentTouchPosition.x - sliderTouchAnchor.x
@@ -146,7 +153,7 @@ fun QuickGestureWrapper(
                         val tickDelay = (1000f / rate).toLong()
 
                         val oldVal = currentEpisodeValue
-                        currentEpisodeValue = (currentEpisodeValue + direction).coerceIn(0, maxEp)
+                        currentEpisodeValue = (currentEpisodeValue + direction).coerceIn(0, maxEpVal.coerceAtLeast(sliderBaseEpisode))
                         if (oldVal != currentEpisodeValue) {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
@@ -169,7 +176,7 @@ fun QuickGestureWrapper(
             .fillMaxWidth()
             .then(
                 if (enabled) {
-                    Modifier.pointerInput(initialScore, initialEpisode, totalEpisodes, gestureCenter, gestureUp, gestureDown, gestureLeft, gestureRight) {
+                    Modifier.pointerInput(initialScore, initialEpisode, maxEp, gestureCenter, gestureUp, gestureDown, gestureLeft, gestureRight) {
                 coroutineScope {
                     var continuousActionJob: Job? = null
                     while (true) {
@@ -303,38 +310,38 @@ fun QuickGestureWrapper(
                                                   haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                               }
                                           } else if (action == QuickGestureAction.Continuous.EpisodeSlider) {
-                                              val maxEp = if (totalEpisodes > 0) totalEpisodes else 9999
-                                              val isLongSeries = maxEp >= 50
+                                               val maxEpVal = maxEp
+                                               val isLongSeries = maxEpVal >= 50
 
-                                              if (!isLongSeries) {
-                                                  val dpPerEpisode = (300f / maxEp).coerceIn(4f, 20f)
-                                                  val newEpisode = (sliderBaseEpisode + (netDp / dpPerEpisode).toInt()).coerceIn(0, maxEp)
-                                                  if (currentEpisodeValue != newEpisode) {
-                                                      currentEpisodeValue = newEpisode
-                                                      haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                  }
-                                              } else {
-                                                  if (abs(netDp) <= 100f) {
-                                                      if (wasFastScrolling) {
-                                                          sliderTouchAnchor = position
-                                                          sliderBaseEpisode = currentEpisodeValue
-                                                          wasFastScrolling = false
-                                                      }
-                                                      // Re-calculate local displacement after resetting touch anchor
-                                                      val localDx = position.x - sliderTouchAnchor.x
-                                                      val localDy = position.y - sliderTouchAnchor.y
-                                                      val localDxDp = localDx / density.density
-                                                      val localDyDp = localDy / density.density
-                                                      val localNetDp = localDxDp - localDyDp
-                                                      val newEpisode = (sliderBaseEpisode + (localNetDp / 4f).toInt()).coerceIn(0, maxEp)
-                                                      if (currentEpisodeValue != newEpisode) {
-                                                          currentEpisodeValue = newEpisode
-                                                          haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                      }
-                                                  } else {
-                                                      wasFastScrolling = true
-                                                  }
-                                              }
+                                               if (!isLongSeries) {
+                                                   val dpPerEpisode = (300f / maxEpVal).coerceIn(4f, 20f)
+                                                   val newEpisode = (sliderBaseEpisode + (netDp / dpPerEpisode).toInt()).coerceIn(0, maxEpVal.coerceAtLeast(sliderBaseEpisode))
+                                                   if (currentEpisodeValue != newEpisode) {
+                                                       currentEpisodeValue = newEpisode
+                                                       haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                   }
+                                               } else {
+                                                   if (abs(netDp) <= 100f) {
+                                                       if (wasFastScrolling) {
+                                                           sliderTouchAnchor = position
+                                                           sliderBaseEpisode = currentEpisodeValue
+                                                           wasFastScrolling = false
+                                                       }
+                                                       // Re-calculate local displacement after resetting touch anchor
+                                                       val localDx = position.x - sliderTouchAnchor.x
+                                                       val localDy = position.y - sliderTouchAnchor.y
+                                                       val localDxDp = localDx / density.density
+                                                       val localDyDp = localDy / density.density
+                                                       val localNetDp = localDxDp - localDyDp
+                                                       val newEpisode = (sliderBaseEpisode + (localNetDp / 4f).toInt()).coerceIn(0, maxEpVal.coerceAtLeast(sliderBaseEpisode))
+                                                       if (currentEpisodeValue != newEpisode) {
+                                                           currentEpisodeValue = newEpisode
+                                                           haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                       }
+                                                   } else {
+                                                       wasFastScrolling = true
+                                                   }
+                                               }
                                           }
                                     }
                                 }
@@ -664,30 +671,30 @@ fun QuickGestureWrapper(
                                 verticalArrangement = Arrangement.Center,
                                 modifier = Modifier.padding(24.dp)
                             ) {
-                                val action = selectedAction
-                                val maxEp = if (totalEpisodes > 0) totalEpisodes else 9999
-                                val strings = LocalLocaleStrings.current
-                                val title = if (action == QuickGestureAction.Continuous.ScoreSlider) strings.misc.setScore else strings.misc.setEpisodes
-                                val progressColor = if (action == QuickGestureAction.Continuous.ScoreSlider) NeonCoral else CyberTeal
-
-                                Text(
-                                    text = title.uppercase(),
-                                    color = TextPrimary.copy(alpha = 0.6f),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 2.sp
-                                )
-
-                                Spacer(modifier = Modifier.height(32.dp))
-
-                                // Large Floating Value Bubble (Premium Visual)
-                                val bubbleText = if (action == QuickGestureAction.Continuous.ScoreSlider) {
-                                    String.format("%.1f", currentScoreValue)
-                                } else {
-                                    val maxEpDisplay = if (totalEpisodes > 0) totalEpisodes.toString() else "?"
-                                    val prefix = strings.misc.episodeLabel
-                                    "$prefix $currentEpisodeValue / $maxEpDisplay"
-                                }
+                                 val action = selectedAction
+                                 val strings = LocalLocaleStrings.current
+                                 val title = if (action == QuickGestureAction.Continuous.ScoreSlider) strings.misc.setScore else strings.misc.setEpisodes
+                                 val progressColor = if (action == QuickGestureAction.Continuous.ScoreSlider) NeonCoral else CyberTeal
+ 
+                                 Text(
+                                     text = title.uppercase(),
+                                     color = TextPrimary.copy(alpha = 0.6f),
+                                     fontSize = 12.sp,
+                                     fontWeight = FontWeight.Bold,
+                                     letterSpacing = 2.sp
+                                 )
+ 
+                                 Spacer(modifier = Modifier.height(32.dp))
+ 
+                                 // Large Floating Value Bubble (Premium Visual)
+                                 val bubbleText = if (action == QuickGestureAction.Continuous.ScoreSlider) {
+                                     String.format("%.1f", currentScoreValue)
+                                 } else {
+                                     val limit = anime.getReleasedEpisodes()
+                                     val maxEpDisplay = if (limit != null && limit > 0) limit.toString() else "?"
+                                     val prefix = strings.misc.episodeLabel
+                                     "$prefix $currentEpisodeValue / $maxEpDisplay"
+                                 }
 
                                 // Scrolling indicator if fast scrubbing is active
                                 val dx = currentTouchPosition.x - sliderTouchAnchor.x

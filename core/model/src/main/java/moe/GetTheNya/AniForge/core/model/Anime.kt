@@ -45,4 +45,45 @@ data class Anime(
             titleEn ?: titleRomaji
         }
     }
+
+    fun getReleasedEpisodes(): Int? {
+        if (status?.uppercase() == "RELEASING") {
+            if (airingEpisode != null) {
+                return airingEpisode - 1
+            }
+            return episodes
+        }
+        return episodes
+    }
+
+    fun getEpisodeBadgeText(progress: Int, suffix: String): String {
+        val totalPlanned = episodes
+        val isReleasing = status?.uppercase() == "RELEASING"
+        val airingEpisode = airingEpisode
+
+        return when {
+            isReleasing && airingEpisode != null -> {
+                "$progress / ${airingEpisode - 1} $suffix"
+            }
+            totalPlanned != null -> {
+                "$progress / $totalPlanned $suffix"
+            }
+            isReleasing -> {
+                "$progress / ? $suffix"
+            }
+            else -> {
+                "?"
+            }
+        }
+    }
+
+    fun getMaxAllowedIncrement(): Int {
+        if (status?.uppercase() == "RELEASING") {
+            if (airingEpisode != null) {
+                return airingEpisode - 1
+            }
+            return episodes ?: Int.MAX_VALUE
+        }
+        return episodes ?: Int.MAX_VALUE
+    }
 }

@@ -999,8 +999,8 @@ fun DetailContent(
                 ) {
                     // User Tracking Section
                     TrackingWidget(
+                        anime = anime,
                         tracking = tracking,
-                        maxEpisodes = anime.episodes ?: 0,
                         onStatusChange = onStatusChange,
                         onIncrement = onIncrementProgress,
                         onDecrement = onDecrementProgress,
@@ -1054,39 +1054,52 @@ fun DetailContent(
                         // Second Row: Episodes, Duration, Source and Status Badges
                         val source = anime.source
                         val status = anime.status
-                        if (anime.episodes != null || anime.duration != null || source != null || status != null) {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (anime.episodes != null) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(50.dp))
-                                            .background(SurfaceCardDark)
-                                            .border(1.dp, CardBorder, RoundedCornerShape(50.dp))
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.PlayArrow,
-                                                contentDescription = null,
-                                                tint = TextSecondary,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Text(
-                                                text = "${anime.episodes} ${strings.detailScreen.episodeSuffix}",
-                                                color = TextPrimary,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                    }
+                        val currentEpisodes = anime.getReleasedEpisodes()
+                        val totalEpisodes = anime.episodes
+                        val episodeSuffix = strings.detailScreen.episodeSuffix
+                        val episodesBadgeText = when {
+                            status?.uppercase() == "FINISHED" && totalEpisodes != null -> "$totalEpisodes $episodeSuffix"
+                            currentEpisodes != null && totalEpisodes != null -> {
+                                if (currentEpisodes == totalEpisodes) {
+                                    "$totalEpisodes $episodeSuffix"
+                                } else {
+                                    "$currentEpisodes / $totalEpisodes $episodeSuffix"
                                 }
+                            }
+                            currentEpisodes != null && totalEpisodes == null -> "$currentEpisodes / ? $episodeSuffix"
+                            else -> "? $episodeSuffix"
+                        }
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50.dp))
+                                    .background(SurfaceCardDark)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(50.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = episodesBadgeText,
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
 
                                 if (anime.duration != null) {
                                     Box(
@@ -1184,7 +1197,6 @@ fun DetailContent(
                                     }
                                 }
                             }
-                        }
                     }
 
                     // Synopsis
@@ -1577,8 +1589,8 @@ fun DetailContent(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TrackingWidget(
+    anime: Anime,
     tracking: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity?,
-    maxEpisodes: Int,
     onStatusChange: (String) -> Unit,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
@@ -1595,7 +1607,12 @@ fun TrackingWidget(
             focusManager.clearFocus()
         }
     }
- 
+
+    val maxAllowedIncrement = anime.getMaxAllowedIncrement()
+    val currentProgress = tracking?.episodeProgress ?: 0
+    val isIncrementEnabled = currentProgress < maxAllowedIncrement
+    val progressText = anime.getEpisodeBadgeText(currentProgress, strings.detailScreen.episodeSuffix)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1661,19 +1678,23 @@ fun TrackingWidget(
                     Text("-", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Text(
-                    text = "${tracking?.episodeProgress ?: 0} / ${if (maxEpisodes > 0) maxEpisodes else "?"}",
+                    text = progressText,
                     color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Button(
                     onClick = onIncrement,
+                    enabled = isIncrementEnabled,
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.size(36.dp),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonCoral,
+                        disabledContainerColor = NeonCoral.copy(alpha = 0.3f)
+                    )
                 ) {
-                    Text("+", color = BackgroundDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("+", color = if (isIncrementEnabled) BackgroundDark else TextSecondary.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

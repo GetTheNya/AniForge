@@ -198,7 +198,7 @@ class DetailViewModel @Inject constructor(
 
     fun incrementEpisodeProgress() {
         val state = _uiState.value as? DetailUiState.Success ?: return
-        val maxEpisodes = state.anime.episodes ?: Int.MAX_VALUE
+        val maxEpisodes = state.anime.getMaxAllowedIncrement()
         viewModelScope.launch(Dispatchers.IO) {
             val currentTracking = state.tracking
             val currentProgress = currentTracking?.episodeProgress ?: 0
