@@ -1310,4 +1310,21 @@ class AnimeRepository @Inject constructor(
         }
         list
     }
+
+    suspend fun getTopAnimeForSeason(season: String, seasonYear: Int, limit: Int = 15): List<Anime> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Anime>()
+        try {
+            val adultFilter = if (settingsProvider.getShow18Plus()) "" else "AND is_adult = 0"
+            val queryStr = "SELECT * FROM anime WHERE season = ? AND season_year = ? $adultFilter ORDER BY score_mal DESC, popularity DESC LIMIT ?"
+            db.query(queryStr, arrayOf(season, seasonYear.toString(), limit.toString())).use { cursor ->
+                while (cursor.moveToNext()) {
+                    list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
 }

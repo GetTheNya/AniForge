@@ -19,6 +19,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.UserStats
 import moe.GetTheNya.AniForge.ui.localization.LocalizationService
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
+import moe.GetTheNya.AniForge.core.database.util.AnimeSeasonCalculator
 import javax.inject.Inject
 
 @HiltViewModel
@@ -122,6 +123,38 @@ class HomeViewModel @Inject constructor(
         ids.mapNotNull { animeMap[it] }
     }.flowOn(Dispatchers.IO)
 
+    private val seasonalAnimeFlow: Flow<Pair<String, List<Anime>>> = combine(
+        animeRepository.swapSignal.onStart { emit(Unit) },
+        settingsProvider.show18Plus,
+        localizationService.activeLocaleStrings
+    ) { _, _, locale ->
+        val generatedAt = settingsProvider.getDatabaseGeneratedAt()
+        if (generatedAt.isNullOrBlank()) {
+            Pair("", emptyList())
+        } else {
+            val seasonInfo = AnimeSeasonCalculator.calculateSeason(generatedAt)
+            if (seasonInfo != null) {
+                val animeList = animeRepository.getTopAnimeForSeason(seasonInfo.season, seasonInfo.seasonYear)
+                val seasonLabel = when (seasonInfo.season) {
+                    "WINTER" -> locale.seasons.winter
+                    "SPRING" -> locale.seasons.spring
+                    "SUMMER" -> locale.seasons.summer
+                    "FALL" -> locale.seasons.fall
+                    else -> seasonInfo.season
+                }
+                val formatString = locale.homeScreen.topSeasonHeader
+                val localizedHeader = try {
+                    String.format(formatString, seasonLabel, seasonInfo.seasonYear)
+                } catch (e: Exception) {
+                    "$seasonLabel ${seasonInfo.seasonYear}"
+                }
+                Pair(localizedHeader, animeList)
+            } else {
+                Pair("", emptyList())
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
     val homeUiState: StateFlow<HomeUiState> = combine(
         userTrackingDao.observeAllTracking(),
         settingsProvider.preferUkTitles,
@@ -130,7 +163,8 @@ class HomeViewModel @Inject constructor(
         bentoWidgetRepository.observeUserStats,
         bentoWidgetRepository.bentoStatsFlow,
         continueWatchingFlow,
-        nextUpFlow
+        nextUpFlow,
+        seasonalAnimeFlow
     ) { array ->
         val trackingList = array[0] as List<UserTrackingEntity>
         val preferUk = array[1] as Boolean
@@ -140,6 +174,7 @@ class HomeViewModel @Inject constructor(
         val bentoStats = array[5] as moe.GetTheNya.AniForge.core.model.BentoStatsData
         val continueWatching = array[6] as List<Anime>
         val nextUp = array[7] as List<Anime>
+        val seasonalData = array[8] as Pair<String, List<Anime>>
 
         val stats = calculateStats(trackingList)
         val featured = animeList.firstOrNull {
@@ -156,7 +191,9 @@ class HomeViewModel @Inject constructor(
             bentoStats = bentoStats,
             trackingStats = trackingStats,
             continueWatchingList = continueWatching,
-            nextUpList = nextUp
+            nextUpList = nextUp,
+            seasonalTitle = seasonalData.first,
+            seasonalAnimeList = seasonalData.second
         ) as HomeUiState
     }
     .catch { e ->
@@ -266,7 +303,9 @@ sealed interface HomeUiState {
         val bentoStats: moe.GetTheNya.AniForge.core.model.BentoStatsData = moe.GetTheNya.AniForge.core.model.BentoStatsData(),
         val trackingStats: Map<String, Int> = emptyMap(),
         val continueWatchingList: List<Anime> = emptyList(),
-        val nextUpList: List<Anime> = emptyList()
+        val nextUpList: List<Anime> = emptyList(),
+        val seasonalTitle: String = "",
+        val seasonalAnimeList: List<Anime> = emptyList()
     ) : HomeUiState
     @Immutable
     data class Error(val message: String) : HomeUiState

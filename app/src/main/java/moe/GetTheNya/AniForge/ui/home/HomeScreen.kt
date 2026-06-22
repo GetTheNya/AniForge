@@ -1851,28 +1851,55 @@ fun HomeScreenGrid(
                 Spacer(modifier = Modifier.height(topSpacerHeight.value))
             }
         }
-        // Spotlight Section (only visible when NOT in Edit Mode)
-        if (!isEditMode && state.featuredAnime != null) {
+        // Seasonal Top Section (replacing Spotlight)
+        if (!isEditMode && state.seasonalAnimeList.isNotEmpty()) {
             item(span = { GridItemSpan(2) }, key = "spotlight_header") {
                 Text(
-                    text = strings.homeScreen.spotlight,
+                    text = state.seasonalTitle,
                     color = TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
             item(span = { GridItemSpan(2) }, key = "spotlight_card") {
-                HomeFeaturedCard(
-                    anime = state.featuredAnime,
-                    preferUk = state.preferUk,
-                    onClick = {
-                        if (lazyGridState.isScrollInProgress) {
-                            coroutineScope.launch { lazyGridState.stopScroll() }
-                        } else {
-                            onAnimeClick(state.featuredAnime.anilistId)
+                val seasonalRowState = rememberLazyListState()
+                LazyRow(
+                    state = seasonalRowState,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(
+                        items = state.seasonalAnimeList,
+                        key = { it.anilistId }
+                    ) { anime ->
+                        Box(
+                            modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                        ) {
+                            AnimeBentoCard(
+                                anime = anime,
+                                status = null,
+                                preferUk = state.preferUk,
+                                onGestureActionTriggered = { action, _ ->
+                                    if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                        if (seasonalRowState.isScrollInProgress) {
+                                            coroutineScope.launch { seasonalRowState.stopScroll() }
+                                        } else {
+                                            onAnimeClick(anime.anilistId)
+                                        }
+                                    }
+                                },
+                                gestureCenter = QuickGestureAction.Immediate.None,
+                                gestureUp = QuickGestureAction.Immediate.None,
+                                gestureDown = QuickGestureAction.Immediate.None,
+                                gestureLeft = QuickGestureAction.Immediate.None,
+                                gestureRight = QuickGestureAction.Immediate.None,
+                                clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                enableGestures = false,
+                                cardHeight = 180.dp
+                            )
                         }
                     }
-                )
+                }
             }
             item(span = { GridItemSpan(2) }, key = "spotlight_spacer") {
                 Spacer(modifier = Modifier.height(8.dp))

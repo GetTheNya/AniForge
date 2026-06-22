@@ -51,7 +51,7 @@ open class CatalogDatabaseProvider @Inject constructor(
      * Closes the active database connection, updates SettingsProvider, re-instantiates SQLite
      * open helper pointing to the standby slot, and emits a swap signal to reload active UI flows.
      */
-    suspend fun hotSwapToStandby(newVersion: Long): Boolean = mutex.withLock {
+    suspend fun hotSwapToStandby(newVersion: Long, generatedAt: String? = null): Boolean = mutex.withLock {
         val currentActive = settingsProvider.getActiveCatalogFileName()
         val standbyFileName = settingsProvider.getStandbyCatalogFileName()
         
@@ -71,7 +71,7 @@ open class CatalogDatabaseProvider @Inject constructor(
             currentHelper = null
 
             // 3. Commit slot changes to SettingsProvider
-            settingsProvider.setActiveCatalog(standbyFileName, newVersion)
+            settingsProvider.setActiveCatalog(standbyFileName, newVersion, generatedAt)
 
             // 4. Rebuild the instance pointing to the new active file
             AppLogger.i("CatalogDatabaseProvider", "Opening connection to new active catalog: $standbyFileName")

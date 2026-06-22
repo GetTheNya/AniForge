@@ -3,6 +3,7 @@ package moe.GetTheNya.AniForge.core.network.sync
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.model.sync.CatalogDownloader
+import moe.GetTheNya.AniForge.core.model.sync.CatalogVersionInfo
 import moe.GetTheNya.AniForge.core.network.api.AniForgeApiService
 import java.io.File
 import javax.inject.Inject
@@ -13,9 +14,17 @@ class CatalogDownloaderImpl @Inject constructor(
     private val apiService: AniForgeApiService
 ) : CatalogDownloader {
 
-    override suspend fun fetchLatestVersion(): Long? = withContext(Dispatchers.IO) {
-        val response = apiService.getVersion()
-        response.version
+    override suspend fun fetchLatestVersionInfo(): CatalogVersionInfo? = withContext(Dispatchers.IO) {
+        try {
+            val response = apiService.getVersion()
+            CatalogVersionInfo(
+                version = response.version,
+                generatedAt = response.generatedAt
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("CatalogDownloader", "fetchLatestVersionInfo failed", e)
+            null
+        }
     }
 
     override suspend fun downloadCatalog(

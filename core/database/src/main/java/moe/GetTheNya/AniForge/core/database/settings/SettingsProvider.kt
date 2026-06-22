@@ -21,6 +21,7 @@ class SettingsProvider @Inject constructor(
     companion object {
         private const val KEY_ACTIVE_CATALOG = "active_catalog_slot"
         private const val KEY_CATALOG_VERSION = "catalog_version"
+        private const val KEY_DATABASE_GENERATED_AT = "database_generated_at"
         private const val DEFAULT_CATALOG = "catalog_a.db"
     }
 
@@ -149,12 +150,20 @@ class SettingsProvider @Inject constructor(
     }
 
     /**
-     * Swaps the active slot to the specified file and updates the current version number.
+     * Gets the currently stored catalog database generatedAt ISO-8601 string.
      */
-    fun setActiveCatalog(fileName: String, version: Long) {
+    fun getDatabaseGeneratedAt(): String? {
+        return prefs.getString(KEY_DATABASE_GENERATED_AT, null)
+    }
+
+    /**
+     * Swaps the active slot to the specified file and updates the current version number and generatedAt timestamp.
+     */
+    fun setActiveCatalog(fileName: String, version: Long, generatedAt: String? = null) {
         prefs.edit()
             .putString(KEY_ACTIVE_CATALOG, fileName)
             .putLong(KEY_CATALOG_VERSION, version)
+            .putString(KEY_DATABASE_GENERATED_AT, generatedAt)
             .apply()
     }
 

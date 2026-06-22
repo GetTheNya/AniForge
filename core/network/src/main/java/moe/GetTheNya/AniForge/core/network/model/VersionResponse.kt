@@ -8,5 +8,7 @@ data class VersionResponse(
     @SerializedName("version")
     val version: Long,
     @SerializedName("updated_at")
-    val updatedAt: Long? = null
+    val updatedAt: Long? = null,
+    @SerializedName("generatedAt")
+    val generatedAt: String? = null
 )

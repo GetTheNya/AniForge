@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.CatalogDatabaseProvider
 import moe.GetTheNya.AniForge.core.model.sync.CatalogDownloader
+import moe.GetTheNya.AniForge.core.model.sync.CatalogVersionInfo
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
 import moe.GetTheNya.AniForge.core.database.util.GzipDecompressor
@@ -59,12 +60,13 @@ class DatabaseManager @Inject constructor(
         var standbyFile: File? = null
         
         try {
-            val latestVersion = catalogDownloader.fetchLatestVersion()
-            if (latestVersion == null) {
-                AppLogger.w("DatabaseManager", "Failed to fetch latest catalog version from remote CDN.")
-                _catalogUpdateState.value = CatalogUpdateState.Error("Failed to fetch latest catalog version")
+            val versionInfo = catalogDownloader.fetchLatestVersionInfo()
+            if (versionInfo == null) {
+                AppLogger.w("DatabaseManager", "Failed to fetch latest catalog version info from remote CDN.")
+                _catalogUpdateState.value = CatalogUpdateState.Error("Failed to fetch latest catalog version info")
                 return@withContext false
             }
+            val latestVersion = versionInfo.version
 
             if (latestVersion <= currentVersion) {
                 AppLogger.i("DatabaseManager", "Catalog is already up to date. Version: $currentVersion")
@@ -120,7 +122,7 @@ class DatabaseManager @Inject constructor(
 
                     // 4. Perform the dynamic Room connection hotswap
                     AppLogger.i("DatabaseManager", "Integrity check passed. Hot swapping to slot: $standbyFileName")
-                    val isSwapped = databaseProvider.hotSwapToStandby(latestVersion)
+                    val isSwapped = databaseProvider.hotSwapToStandby(latestVersion, versionInfo.generatedAt)
                     if (isSwapped) {
                         AppLogger.i("DatabaseManager", "Database hot-swap completed successfully! Active catalog slot: $standbyFileName (v$latestVersion)")
                         _catalogUpdateState.value = CatalogUpdateState.Ready
