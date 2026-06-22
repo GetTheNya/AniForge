@@ -265,7 +265,8 @@ fun QuickGestureWrapper(
                                              }
                                              selectedAction = action
 
-                                             if (action.isContinuous) {
+                                             val isActionLocked = action == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased()
+                                             if (action.isContinuous && !isActionLocked) {
                                                  if (continuousActionJob == null) {
                                                      continuousActionJob = launch {
                                                          delay(250L) // hover delay before slider activates
@@ -364,15 +365,18 @@ fun QuickGestureWrapper(
 
                             val action = selectedAction
                             if (action != null) {
-                                if (action.isContinuous) {
-                                    val value = if (action == QuickGestureAction.Continuous.ScoreSlider) {
-                                        currentScoreValue
+                                val isActionLocked = action == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased()
+                                if (!isActionLocked) {
+                                    if (action.isContinuous) {
+                                        val value = if (action == QuickGestureAction.Continuous.ScoreSlider) {
+                                            currentScoreValue
+                                        } else {
+                                            currentEpisodeValue
+                                        }
+                                        onGestureActionTriggered(action, value)
                                     } else {
-                                        currentEpisodeValue
+                                        onGestureActionTriggered(action, null)
                                     }
-                                    onGestureActionTriggered(action, value)
-                                } else {
-                                    onGestureActionTriggered(action, null)
                                 }
                             } else {
                                 onGestureActionTriggered(clickAction, null)
@@ -522,31 +526,61 @@ fun QuickGestureWrapper(
                         action = gestureCenter,
                         label = strings.misc.gestureCenterDir,
                         isActive = activeDirection == QuickGestureDirection.CENTER,
+                        isLocked = gestureCenter == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased(),
                         modifier = Modifier.offset(x = 0.dp, y = 0.dp)
                     )
                     RadialLabel(
                         action = gestureUp,
                         label = strings.misc.gestureUpDir,
                         isActive = activeDirection == QuickGestureDirection.UP,
+                        isLocked = gestureUp == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased(),
                         modifier = Modifier.offset(x = 0.dp, y = -placementRadius)
                     )
                     RadialLabel(
                         action = gestureDown,
                         label = strings.misc.gestureDownDir,
                         isActive = activeDirection == QuickGestureDirection.DOWN,
+                        isLocked = gestureDown == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased(),
                         modifier = Modifier.offset(x = 0.dp, y = placementRadius)
                     )
                     RadialLabel(
                         action = gestureLeft,
                         label = strings.misc.gestureLeftDir,
                         isActive = activeDirection == QuickGestureDirection.LEFT,
+                        isLocked = gestureLeft == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased(),
                         modifier = Modifier.offset(x = -placementRadius, y = 0.dp)
                     )
                     RadialLabel(
                         action = gestureRight,
                         label = strings.misc.gestureRightDir,
                         isActive = activeDirection == QuickGestureDirection.RIGHT,
+                        isLocked = gestureRight == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased(),
                         modifier = Modifier.offset(x = placementRadius, y = 0.dp)
+                    )
+                }
+
+                // If the currently hovered action is locked, show a warning banner
+                val isHoveredActionLocked = remember(selectedAction, anime.status) {
+                    selectedAction == QuickGestureAction.Continuous.EpisodeSlider && anime.isNotYetReleased()
+                }
+
+                AnimatedVisibility(
+                    visible = isHoveredActionLocked,
+                    enter = fadeIn() + slideInVertically { it / 2 },
+                    exit = fadeOut() + slideOutVertically { it / 2 },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
+                ) {
+                    Text(
+                        text = strings.mediaStatuses.notYetReleased.uppercase(),
+                        color = NeonCoral,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.8f))
+                            .border(1.dp, NeonCoral.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -788,6 +822,7 @@ fun RadialLabel(
     action: QuickGestureAction,
     label: String,
     isActive: Boolean,
+    isLocked: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val scale by animateFloatAsState(
@@ -806,20 +841,28 @@ fun RadialLabel(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                this.alpha = alpha
+                this.alpha = if (isLocked) alpha * 0.4f else alpha
             }
             .size(54.dp)
     ) {
         Icon(
-            imageVector = action.icon,
+            imageVector = if (isLocked) Icons.Default.Lock else action.icon,
             contentDescription = label,
-            tint = if (isActive) ElectricViolet else Color.White,
+            tint = when {
+                isLocked -> Color.White.copy(alpha = 0.3f)
+                isActive -> ElectricViolet
+                else -> Color.White
+            },
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
-            color = if (isActive) TextPrimary else TextSecondary.copy(alpha = 0.8f),
+            color = when {
+                isLocked -> TextSecondary.copy(alpha = 0.4f)
+                isActive -> TextPrimary
+                else -> TextSecondary.copy(alpha = 0.8f)
+            },
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold
         )

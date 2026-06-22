@@ -375,37 +375,53 @@ fun AnimeBentoCard(
 
                                     val isSelected = status == config.id
                                     val itemColor = config.color
+                                    val isAnimeNotYetReleased = anime.isNotYetReleased()
+                                    val isEnabled = !isAnimeNotYetReleased || config.id == "PLANNING"
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(36.dp)
                                             .graphicsLayer {
-                                                alpha = itemAlpha
+                                                alpha = itemAlpha * (if (isEnabled) 1f else 0.4f)
                                                 scaleX = itemScale
                                                 scaleY = itemScale
                                             }
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(if (isSelected) itemColor.copy(alpha = 0.15f) else Color.Transparent)
-                                            .clickable {
-                                                onStatusChange?.invoke(config.id)
-                                                onMenuDismiss?.invoke()
-                                            }
+                                            .background(if (isSelected && isEnabled) itemColor.copy(alpha = 0.15f) else Color.Transparent)
+                                            .then(
+                                                if (isEnabled) {
+                                                    Modifier.clickable {
+                                                        onStatusChange?.invoke(config.id)
+                                                        onMenuDismiss?.invoke()
+                                                    }
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
                                             .padding(horizontal = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Start
                                     ) {
                                         Icon(
-                                            imageVector = if (isSelected) config.activeIcon else config.inactiveIcon,
+                                            imageVector = if (isSelected && isEnabled) config.activeIcon else config.inactiveIcon,
                                             contentDescription = config.getLabel(strings),
-                                            tint = if (isSelected) itemColor else Color.White.copy(alpha = 0.5f),
+                                            tint = when {
+                                                isSelected && isEnabled -> itemColor
+                                                isEnabled -> Color.White.copy(alpha = 0.5f)
+                                                else -> Color.White.copy(alpha = 0.2f)
+                                            },
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = config.getLabel(strings),
-                                            color = if (isSelected) itemColor else TextPrimary,
+                                            color = when {
+                                                isSelected && isEnabled -> itemColor
+                                                isEnabled -> TextPrimary
+                                                else -> TextPrimary.copy(alpha = 0.3f)
+                                            },
                                             fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            fontWeight = if (isSelected && isEnabled) FontWeight.Bold else FontWeight.Medium
                                         )
                                     }
                                 }
