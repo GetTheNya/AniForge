@@ -44,7 +44,14 @@ class UserTrackingRepository @Inject constructor(
         val anime = animeRepository.getAnimeById(anilistId)
         val duration = (anime?.duration ?: 0).toLong()
 
+        // Hard-block: unreleased anime can only be PLANNING. Any other status
+        // transition is physically impossible and is silently rejected.
+        if (anime?.isNotYetReleased() == true && status != "PLANNING") {
+            return@withContext
+        }
+
         if (currentTracking != null && currentTracking.watchStatus == status) {
+            // Toggle off: clicking the already-active status removes the tracking entry.
             val oldProgress = currentTracking.episodeProgress
             val watchTimeDelta = -oldProgress.toLong() * duration
             if (watchTimeDelta != 0L) {
@@ -62,11 +69,18 @@ class UserTrackingRepository @Inject constructor(
                 userTrackingDao.insertOrUpdate(updated)
             }
         } else {
-            val maxEpisodes = anime?.episodes ?: 0
-            val progress = if (status == "COMPLETED") {
-                maxEpisodes
-            } else {
-                currentTracking?.episodeProgress ?: 0
+            // Sync-lag override: when the user manually marks a still-RELEASING
+            // anime as COMPLETED, trust their intent and auto-bump episode progress
+            // to the total planned count (or to the max known aired count as fallback).
+            val progress = when {
+                status == "COMPLETED" && anime?.isReleasing() == true -> {
+                    // Prefer total planned episodes; fall back to max currently aired.
+                    anime.episodes ?: anime.getMaxAllowedIncrement().takeIf { it != Int.MAX_VALUE } ?: (currentTracking?.episodeProgress ?: 0)
+                }
+                status == "COMPLETED" -> {
+                    anime?.episodes ?: (currentTracking?.episodeProgress ?: 0)
+                }
+                else -> currentTracking?.episodeProgress ?: 0
             }
 
             val oldProgress = currentTracking?.episodeProgress ?: 0
@@ -152,13 +166,20 @@ class UserTrackingRepository @Inject constructor(
     suspend fun updateEpisodeProgress(anilistId: Long, progress: Int) = withContext(Dispatchers.IO) {
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val anime = animeRepository.getAnimeById(anilistId)
-        val maxEpisodes = anime?.episodes ?: 0
-        val status = if (maxEpisodes in 1..progress) {
-            "COMPLETED"
-        } else if (progress >= 1) {
-            "CURRENT"
-        } else {
-            currentTracking?.watchStatus ?: ""
+        val totalPlanned = anime?.episodes
+        val currentStatus = currentTracking?.watchStatus ?: ""
+
+        // Determine the new auto-status based on progress:
+        // • progress reaches the total planned count  → COMPLETED
+        // • For RELEASING anime without a known total, we don't auto-complete
+        //   (the user must do that manually via the status picker).
+        // • progress 0→1+ and current status is empty or PLANNING → CURRENT (Watching)
+        // • otherwise, keep the existing status unchanged
+        val status = when {
+            totalPlanned != null && totalPlanned > 0 && progress >= totalPlanned -> "COMPLETED"
+            progress >= 1 && (currentStatus.isEmpty() || currentStatus == "PLANNING") -> "CURRENT"
+            progress >= 1 -> currentStatus  // keep existing status (e.g., PAUSED, DROPPED)
+            else -> currentStatus
         }
 
         val oldProgress = currentTracking?.episodeProgress ?: 0

@@ -46,6 +46,15 @@ data class Anime(
         }
     }
 
+    /** Returns true when the anime has not started airing yet.
+     *  Only PLANNING is a meaningful list status in this state. */
+    fun isNotYetReleased(): Boolean =
+        status?.uppercase() == "NOT_YET_RELEASED"
+
+    /** Returns true when the anime is currently airing. */
+    fun isReleasing(): Boolean =
+        status?.uppercase() == "RELEASING"
+
     fun getReleasedEpisodes(): Int? {
         if (status?.uppercase() == "RELEASING") {
             if (airingEpisode != null) {

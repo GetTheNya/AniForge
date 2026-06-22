@@ -1630,27 +1630,46 @@ fun TrackingWidget(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isAnimeNotYetReleased = anime.isNotYetReleased()
             statusConfigs.forEach { item ->
                 val isSelected = tracking?.watchStatus == item.id
+                // NOT_YET_RELEASED: only PLANNING is interactive; everything else is locked.
+                val isEnabled = !isAnimeNotYetReleased || item.id == "PLANNING"
                 val buttonColor = item.color
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) buttonColor.copy(alpha = 0.15f) else Color.Transparent)
+                        .background(
+                            when {
+                                isSelected && isEnabled -> buttonColor.copy(alpha = 0.15f)
+                                else -> Color.Transparent
+                            }
+                        )
                         .border(
                             width = 1.dp,
-                            color = if (isSelected) buttonColor else CardBorder,
+                            color = when {
+                                isSelected && isEnabled -> buttonColor
+                                isEnabled -> CardBorder
+                                else -> CardBorder.copy(alpha = 0.3f)
+                            },
                             shape = RoundedCornerShape(12.dp)
                         )
-                        .clickable { onStatusChange(item.id) },
+                        .then(
+                            if (isEnabled) Modifier.clickable { onStatusChange(item.id) }
+                            else Modifier
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isSelected) item.activeIcon else item.inactiveIcon,
+                        imageVector = if (isSelected && isEnabled) item.activeIcon else item.inactiveIcon,
                         contentDescription = item.getLabel(strings),
-                        tint = if (isSelected) buttonColor else Color.White.copy(alpha = 0.5f),
+                        tint = when {
+                            isSelected && isEnabled -> buttonColor
+                            isEnabled -> Color.White.copy(alpha = 0.5f)
+                            else -> Color.White.copy(alpha = 0.2f)
+                        },
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -1668,24 +1687,26 @@ fun TrackingWidget(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                val isDecrementEnabled = !anime.isNotYetReleased() && currentProgress > 0
                 OutlinedButton(
                     onClick = onDecrement,
+                    enabled = isDecrementEnabled,
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.size(36.dp),
                     shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, CardBorder)
+                    border = BorderStroke(1.dp, if (isDecrementEnabled) CardBorder else CardBorder.copy(alpha = 0.3f))
                 ) {
-                    Text("-", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("-", color = if (isDecrementEnabled) TextPrimary else TextSecondary.copy(alpha = 0.3f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
                 Text(
                     text = progressText,
-                    color = TextPrimary,
+                    color = if (anime.isNotYetReleased()) TextSecondary.copy(alpha = 0.4f) else TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Button(
                     onClick = onIncrement,
-                    enabled = isIncrementEnabled,
+                    enabled = isIncrementEnabled && !anime.isNotYetReleased(),
                     contentPadding = PaddingValues(0.dp),
                     modifier = Modifier.size(36.dp),
                     shape = RoundedCornerShape(10.dp),
@@ -1694,7 +1715,8 @@ fun TrackingWidget(
                         disabledContainerColor = NeonCoral.copy(alpha = 0.3f)
                     )
                 ) {
-                    Text("+", color = if (isIncrementEnabled) BackgroundDark else TextSecondary.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    val plusEnabled = isIncrementEnabled && !anime.isNotYetReleased()
+                    Text("+", color = if (plusEnabled) BackgroundDark else TextSecondary.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
