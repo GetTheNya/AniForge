@@ -2,6 +2,8 @@ name: Build and Release Android App
 
 on:
   push:
+    branches:
+      - '**'
     tags:
       - 'v*'
 
@@ -28,18 +30,25 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Extract Tag Version
+      - name: Extract Version
         id: get_version
         run: |
-          TAG_NAME="${{ github.ref_name }}"
-          # Remove 'v' prefix if it exists
-          VERSION="${TAG_NAME#v}"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            # Remove 'v' prefix if it exists
+            VERSION="${TAG_NAME#v}"
+          else
+            # Use a dev build version derived from the short commit SHA
+            VERSION="0.0.0-dev+${{ github.sha }}"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_release=${{ startsWith(github.ref, 'refs/tags/v') }}" >> $GITHUB_OUTPUT
 
       - name: Build with Gradle
         run: ./gradlew assembleRelease -PversionName=${{ steps.get_version.outputs.version }}
 
       - name: Create Release and Upload APK
+        if: steps.get_version.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/app-release.apk
