@@ -67,10 +67,13 @@ import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.core.model.Studio
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -525,6 +528,8 @@ fun DetailScreen(
             if (showRecommendationsSheet && uiState is DetailUiState.Success) {
                 val state = uiState as DetailUiState.Success
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val recsGridState = rememberLazyGridState()
+                val recsCoroutineScope = rememberCoroutineScope()
                 ModalBottomSheet(
                     onDismissRequest = { showRecommendationsSheet = false },
                     sheetState = sheetState,
@@ -563,6 +568,7 @@ fun DetailScreen(
                             }
                         } else {
                             LazyVerticalGrid(
+                                state = recsGridState,
                                 columns = GridCells.Fixed(2),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -579,8 +585,12 @@ fun DetailScreen(
                                             preferUk = preferUk,
                                             onGestureActionTriggered = { action, _ ->
                                                 if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                    showRecommendationsSheet = false
-                                                    navController.navigate(Screen.Detail(recAnime.anilistId))
+                                                    if (recsGridState.isScrollInProgress) {
+                                                        recsCoroutineScope.launch { recsGridState.stopScroll() }
+                                                    } else {
+                                                        showRecommendationsSheet = false
+                                                        navController.navigate(Screen.Detail(recAnime.anilistId))
+                                                    }
                                                 }
                                             },
                                             gestureCenter = QuickGestureAction.Immediate.None,
@@ -1546,7 +1556,9 @@ fun DetailContent(
                             }
 
                             // Content Scroll Engine (LazyRow)
+                            val recsRowState = rememberLazyListState()
                             LazyRow(
+                                state = recsRowState,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -1564,7 +1576,11 @@ fun DetailContent(
                                             preferUk = preferUk,
                                             onGestureActionTriggered = { action, _ ->
                                                 if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                    onAnimeClick(recAnime.anilistId)
+                                                    if (recsRowState.isScrollInProgress) {
+                                                        coroutineScope.launch { recsRowState.stopScroll() }
+                                                    } else {
+                                                        onAnimeClick(recAnime.anilistId)
+                                                    }
                                                 }
                                             },
                                             gestureCenter = QuickGestureAction.Immediate.None,

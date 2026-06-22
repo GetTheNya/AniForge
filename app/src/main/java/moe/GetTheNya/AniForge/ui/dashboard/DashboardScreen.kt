@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.input.pointer.pointerInput
@@ -46,11 +47,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.filter
+import androidx.compose.foundation.gestures.stopScroll
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -265,6 +268,7 @@ fun DashboardContent(
     var gridScrollEnabled by remember { mutableStateOf(true) }
     var isSliderActive by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.isScrollInProgress }
@@ -336,7 +340,13 @@ fun DashboardContent(
                             anime = anime,
                             action = action,
                             value = value,
-                            onOpenDetails = { onAnimeClick(anime.anilistId) },
+                            onOpenDetails = {
+                                if (gridState.isScrollInProgress) {
+                                    coroutineScope.launch { gridState.stopScroll() }
+                                } else {
+                                    onAnimeClick(anime.anilistId)
+                                }
+                            },
                             onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
                             onScoreChange = { newScore -> onScoreChange(anime.anilistId, newScore) },
                             onEpisodeChange = { newEp -> onEpisodeChange(anime.anilistId, newEp) }

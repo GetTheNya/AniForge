@@ -63,6 +63,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -1703,6 +1704,7 @@ fun HomeScreenGrid(
     }
 
     var gridScrollEnabled by remember { mutableStateOf(true) }
+    val coroutineScope = rememberCoroutineScope()
 
     val density = LocalDensity.current
     val topSpacerHeight = remember(isEditMode, expandedHeaderHeightPx) {
@@ -1863,7 +1865,13 @@ fun HomeScreenGrid(
                 HomeFeaturedCard(
                     anime = state.featuredAnime,
                     preferUk = state.preferUk,
-                    onClick = { onAnimeClick(state.featuredAnime.anilistId) }
+                    onClick = {
+                        if (lazyGridState.isScrollInProgress) {
+                            coroutineScope.launch { lazyGridState.stopScroll() }
+                        } else {
+                            onAnimeClick(state.featuredAnime.anilistId)
+                        }
+                    }
                 )
             }
             item(span = { GridItemSpan(2) }, key = "spotlight_spacer") {
@@ -1900,7 +1908,9 @@ fun HomeScreenGrid(
                             }
                         }
 
+                        val continueWatchingRowState = rememberLazyListState()
                         LazyRow(
+                            state = continueWatchingRowState,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1917,7 +1927,11 @@ fun HomeScreenGrid(
                                         preferUk = state.preferUk,
                                         onGestureActionTriggered = { action, _ ->
                                             if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                onAnimeClick(anime.anilistId)
+                                                if (continueWatchingRowState.isScrollInProgress) {
+                                                    coroutineScope.launch { continueWatchingRowState.stopScroll() }
+                                                } else {
+                                                    onAnimeClick(anime.anilistId)
+                                                }
                                             }
                                         },
                                         gestureCenter = QuickGestureAction.Immediate.None,
@@ -1964,7 +1978,9 @@ fun HomeScreenGrid(
                             }
                         }
 
+                        val nextUpRowState = rememberLazyListState()
                         LazyRow(
+                            state = nextUpRowState,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1981,7 +1997,11 @@ fun HomeScreenGrid(
                                         preferUk = state.preferUk,
                                         onGestureActionTriggered = { action, _ ->
                                             if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                onAnimeClick(anime.anilistId)
+                                                if (nextUpRowState.isScrollInProgress) {
+                                                    coroutineScope.launch { nextUpRowState.stopScroll() }
+                                                } else {
+                                                    onAnimeClick(anime.anilistId)
+                                                }
                                             }
                                         },
                                         gestureCenter = QuickGestureAction.Immediate.None,
