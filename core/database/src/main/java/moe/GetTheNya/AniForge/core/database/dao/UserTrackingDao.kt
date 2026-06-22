@@ -5,38 +5,42 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 
 @Dao
-interface UserTrackingDao {
+abstract class UserTrackingDao(val db: RoomDatabase) {
     @Query("SELECT * FROM user_tracking WHERE anilist_id = :anilistId")
-    fun observeTrackingForAnime(anilistId: Long): Flow<UserTrackingEntity?>
+    abstract fun observeTrackingForAnime(anilistId: Long): Flow<UserTrackingEntity?>
 
     @Query("SELECT * FROM user_tracking WHERE anilist_id = :anilistId")
-    suspend fun getTrackingForAnimeSync(anilistId: Long): UserTrackingEntity?
+    abstract suspend fun getTrackingForAnimeSync(anilistId: Long): UserTrackingEntity?
 
     @Query("SELECT * FROM user_tracking ORDER BY last_modified DESC")
-    fun observeAllTracking(): Flow<List<UserTrackingEntity>>
+    abstract fun observeAllTracking(): Flow<List<UserTrackingEntity>>
 
     @Query("SELECT * FROM user_tracking WHERE watch_status = 'CURRENT' ORDER BY last_modified DESC LIMIT 10")
-    fun observeContinueWatching(): Flow<List<UserTrackingEntity>>
+    abstract fun observeContinueWatching(): Flow<List<UserTrackingEntity>>
 
     @Query("SELECT * FROM user_tracking WHERE watch_status = 'PLANNING' ORDER BY last_modified DESC LIMIT 10")
-    fun observeNextUp(): Flow<List<UserTrackingEntity>>
+    abstract fun observeNextUp(): Flow<List<UserTrackingEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdate(tracking: UserTrackingEntity)
+    abstract suspend fun insertOrUpdate(tracking: UserTrackingEntity)
 
     @Delete
-    suspend fun delete(tracking: UserTrackingEntity)
+    abstract suspend fun delete(tracking: UserTrackingEntity)
     
     @Query("DELETE FROM user_tracking WHERE anilist_id = :anilistId")
-    suspend fun deleteByAnimeId(anilistId: Long)
+    abstract suspend fun deleteByAnimeId(anilistId: Long)
 
     @Query("SELECT anilist_id FROM user_tracking WHERE watch_status = :statusId")
-    suspend fun getAnimeIdsByStatus(statusId: String): List<Long>
+    abstract suspend fun getAnimeIdsByStatus(statusId: String): List<Long>
 
     @Query("SELECT * FROM user_tracking")
-    suspend fun getAllTrackingSync(): List<UserTrackingEntity>
+    abstract suspend fun getAllTrackingSync(): List<UserTrackingEntity>
+
+    @Query("SELECT * FROM user_tracking WHERE anilist_id IN (:anilistIds)")
+    abstract suspend fun getTrackingForAnimeIds(anilistIds: List<Long>): List<UserTrackingEntity>
 }

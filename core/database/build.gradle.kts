@@ -38,6 +38,7 @@ dependencies {
     implementation(libs.datastore.preferences)
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.paging.common)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

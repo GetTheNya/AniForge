@@ -827,11 +827,20 @@ class AnimeRepository @Inject constructor(
     /**
      * Core dynamic SQLite statement builder. Intersects multiple criteria dynamically.
      */
-    private fun buildSqlFilterQuery(filter: SearchFilterQuery): SimpleSQLiteQuery {
+    private fun buildSqlFilterQuery(
+        filter: SearchFilterQuery,
+        limit: Int? = null,
+        offset: Int? = null,
+        isCountOnly: Boolean = false
+    ): SimpleSQLiteQuery {
         val queryBuilder = StringBuilder()
         val args = ArrayList<Any>()
         
-        queryBuilder.append("SELECT anime.* FROM anime")
+        if (isCountOnly) {
+            queryBuilder.append("SELECT COUNT(*) FROM anime")
+        } else {
+            queryBuilder.append("SELECT anime.* FROM anime")
+        }
         
         // FTS5 MATCH join
         val words = filter.textQuery.trim()
@@ -1009,37 +1018,106 @@ class AnimeRepository @Inject constructor(
             queryBuilder.append(whereClauses.joinToString(" AND "))
         }
         
-        // Ordering
-        when (filter.sortBy) {
-            SortOption.RELEVANCE -> {
-                if (hasText) {
-                    val searchWordFts = words.joinToString(" ") { "$it*" }
-                    val escapedSearchWordFts = searchWordFts.replace("'", "''")
-                    
-                    queryBuilder.append(" ORDER BY CASE " +
-                        "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_uk MATCH '$escapedSearchWordFts') THEN 1 " +
-                        "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_en MATCH '$escapedSearchWordFts' OR synonyms_flat MATCH '$escapedSearchWordFts') THEN 2 " +
-                        "ELSE 3 " +
-                        "END ASC, anime.popularity DESC")
-                } else {
-                    queryBuilder.append(" ORDER BY anime.popularity DESC")
+        if (!isCountOnly) {
+            // Ordering
+            when (filter.sortBy) {
+                SortOption.RELEVANCE -> {
+                    if (hasText) {
+                        val searchWordFts = words.joinToString(" ") { "$it*" }
+                        val escapedSearchWordFts = searchWordFts.replace("'", "''")
+                        
+                        queryBuilder.append(" ORDER BY CASE " +
+                            "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_uk MATCH '$escapedSearchWordFts') THEN 1 " +
+                            "WHEN anime.anilist_id IN (SELECT rowid FROM anime_search WHERE title_en MATCH '$escapedSearchWordFts' OR synonyms_flat MATCH '$escapedSearchWordFts') THEN 2 " +
+                            "ELSE 3 " +
+                            "END ASC, anime.popularity DESC")
+                    } else {
+                        queryBuilder.append(" ORDER BY anime.popularity DESC")
+                    }
                 }
+                SortOption.SCORE -> queryBuilder.append(" ORDER BY score_mal DESC")
+                SortOption.SCORE_ASC -> queryBuilder.append(" ORDER BY score_mal ASC")
+                SortOption.YEAR_DESC -> queryBuilder.append(" ORDER BY season_year DESC, updated_at DESC")
+                SortOption.YEAR_ASC -> queryBuilder.append(" ORDER BY season_year ASC, updated_at ASC")
+                SortOption.TITLE -> queryBuilder.append(" ORDER BY title_romaji ASC")
+                SortOption.TITLE_DESC -> queryBuilder.append(" ORDER BY title_romaji DESC")
+                SortOption.POPULARITY -> queryBuilder.append(" ORDER BY popularity DESC")
+                SortOption.POPULARITY_ASC -> queryBuilder.append(" ORDER BY popularity ASC")
+                SortOption.START_DATE_DESC -> queryBuilder.append(" ORDER BY start_date_year DESC, start_date_month DESC, start_date_day DESC")
+                SortOption.START_DATE_ASC -> queryBuilder.append(" ORDER BY start_date_year ASC, start_date_month ASC, start_date_day ASC")
+                SortOption.EPISODES_DESC -> queryBuilder.append(" ORDER BY episodes DESC")
+                SortOption.EPISODES_ASC -> queryBuilder.append(" ORDER BY episodes ASC")
             }
-            SortOption.SCORE -> queryBuilder.append(" ORDER BY score_mal DESC")
-            SortOption.SCORE_ASC -> queryBuilder.append(" ORDER BY score_mal ASC")
-            SortOption.YEAR_DESC -> queryBuilder.append(" ORDER BY season_year DESC, updated_at DESC")
-            SortOption.YEAR_ASC -> queryBuilder.append(" ORDER BY season_year ASC, updated_at ASC")
-            SortOption.TITLE -> queryBuilder.append(" ORDER BY title_romaji ASC")
-            SortOption.TITLE_DESC -> queryBuilder.append(" ORDER BY title_romaji DESC")
-            SortOption.POPULARITY -> queryBuilder.append(" ORDER BY popularity DESC")
-            SortOption.POPULARITY_ASC -> queryBuilder.append(" ORDER BY popularity ASC")
-            SortOption.START_DATE_DESC -> queryBuilder.append(" ORDER BY start_date_year DESC, start_date_month DESC, start_date_day DESC")
-            SortOption.START_DATE_ASC -> queryBuilder.append(" ORDER BY start_date_year ASC, start_date_month ASC, start_date_day ASC")
-            SortOption.EPISODES_DESC -> queryBuilder.append(" ORDER BY episodes DESC")
-            SortOption.EPISODES_ASC -> queryBuilder.append(" ORDER BY episodes ASC")
+            
+            if (limit != null && offset != null) {
+                queryBuilder.append(" LIMIT ? OFFSET ?")
+                args.add(limit)
+                args.add(offset)
+            }
         }
         
         return SimpleSQLiteQuery(queryBuilder.toString(), args.toArray())
+    }
+
+    /**
+     * Executes a dynamic SQL query with pagination (LIMIT and OFFSET constraints) on a background thread.
+     */
+    suspend fun queryAnimePaged(filter: SearchFilterQuery, limit: Int, offset: Int): List<Anime> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val rawQuery = buildSqlFilterQuery(filter, limit, offset, isCountOnly = false)
+        val list = ArrayList<Anime>()
+        try {
+            db.query(rawQuery).use { cursor ->
+                while (cursor.moveToNext()) {
+                    list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    /**
+     * Executes a dynamic SQL query returning only the count of matched anime items.
+     */
+    suspend fun getAnimeCount(filter: SearchFilterQuery): Int = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val rawQuery = buildSqlFilterQuery(filter, isCountOnly = true)
+        var count = 0
+        try {
+            db.query(rawQuery).use { cursor ->
+                if (cursor.moveToNext()) {
+                    count = cursor.getInt(0)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        count
+    }
+
+    /**
+     * Helper to fetch a single featured anime directly from the SQLite catalog database.
+     */
+    suspend fun getFeaturedAnime(): Anime? = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        var anime: Anime? = null
+        try {
+            val queryStr = if (settingsProvider.getShow18Plus()) {
+                "SELECT * FROM anime WHERE score_mal >= 8.5 ORDER BY popularity DESC LIMIT 1"
+            } else {
+                "SELECT * FROM anime WHERE score_mal >= 8.5 AND is_adult = 0 ORDER BY popularity DESC LIMIT 1"
+            }
+            db.query(queryStr).use { cursor ->
+                if (cursor.moveToNext()) {
+                    anime = cursorToAnime(cursor)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        anime
     }
 
     suspend fun getGenreDistributions(trackedIds: List<Long>): List<moe.GetTheNya.AniForge.core.model.GenreDistribution> = withContext(Dispatchers.IO) {

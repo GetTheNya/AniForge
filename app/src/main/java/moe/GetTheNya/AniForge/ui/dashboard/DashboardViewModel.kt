@@ -8,6 +8,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
@@ -19,6 +20,12 @@ import moe.GetTheNya.AniForge.core.model.Studio
 import moe.GetTheNya.AniForge.core.model.EpisodeGroup
 import moe.GetTheNya.AniForge.core.model.Staff
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import moe.GetTheNya.AniForge.core.model.AnimeWithTracking
+import moe.GetTheNya.AniForge.core.database.repository.AnimeCatalogPagingSource
 import javax.inject.Inject
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -125,7 +132,49 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    val uiState: StateFlow<DashboardUiState> = combine(
+    @Volatile
+    private var currentPagingSource: AnimeCatalogPagingSource? = null
+
+    val allTracking: StateFlow<Map<Long, UserTrackingEntity>?> = userTrackingDao.observeAllTracking()
+        .map { list -> list.associateBy { it.anilistId } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    val pagingDataFlow: Flow<PagingData<AnimeWithTracking>> = combine(
+        _searchFilter.debounce { query ->
+            if (query.textQuery.isEmpty()) 0L else 250L
+        },
+        settingsProvider.show18Plus,
+        animeRepository.swapSignal.onStart { emit(Unit) }
+    ) { filter, _, _ ->
+        filter
+    }
+    .distinctUntilChanged()
+    .flatMapLatest { finalFilter ->
+        Pager(
+            config = PagingConfig(
+                pageSize = 30,
+                enablePlaceholders = false,
+                prefetchDistance = 10
+            ),
+            pagingSourceFactory = {
+                val source = AnimeCatalogPagingSource(
+                    animeRepository = animeRepository,
+                    userTrackingDao = userTrackingDao,
+                    filter = finalFilter,
+                    pageSize = 30
+                )
+                currentPagingSource = source
+                source
+            }
+        ).flow
+    }
+    .cachedIn(viewModelScope)
+
+    val filteredCount: StateFlow<Int> = combine(
         _searchFilter.debounce { query ->
             if (query.textQuery.isEmpty()) 0L else 250L
         },
@@ -140,61 +189,22 @@ class DashboardViewModel @Inject constructor(
             .filter { it.watchStatus in filter.excludedTrackingStatuses }
             .map { it.anilistId }
 
-        val finalFilter = filter.copy(
+        filter.copy(
             trackingStatusIds = trackingStatusIds,
             excludedTrackingStatusIds = excludedTrackingStatusIds
         )
-        finalFilter to trackingList
     }
-    .distinctUntilChanged { old, new ->
-        old.first == new.first && 
-        old.second.size == new.second.size && 
-        old.second.all { oldItem ->
-            new.second.any { newItem -> newItem.anilistId == oldItem.anilistId && newItem.watchStatus == oldItem.watchStatus }
-        }
-    }
-    .flatMapLatest { (finalFilter, trackingList) ->
+    .distinctUntilChanged()
+    .flatMapLatest { finalFilter ->
         flow {
-            val list = animeRepository.queryAnime(finalFilter)
-            emit(list to trackingList)
+            emit(animeRepository.getAnimeCount(finalFilter))
         }
-    }
-    .map { (animeList, trackingList) ->
-        val stats = calculateStats(trackingList)
-        val featured = animeList.firstOrNull {
-            val score = it.scoreMal
-            score != null && score >= 8.5
-        }
-        val trackingMap = trackingList.associate { it.anilistId to it.watchStatus }
-        DashboardUiState.Success(
-            animeList = animeList,
-            featuredAnime = featured,
-            stats = stats,
-            trackingMap = trackingMap,
-            trackingEntitiesMap = trackingList.associateBy { it.anilistId }
-        ) as DashboardUiState
-    }
-    .catch { e ->
-        emit(DashboardUiState.Error(e.message ?: "Unknown error"))
     }
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DashboardUiState.Loading
+        initialValue = 0
     )
-
-    val filteredCount: StateFlow<Int> = uiState
-        .map { state ->
-            when (state) {
-                is DashboardUiState.Success -> state.animeList.size
-                else -> 0
-            }
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = 0
-        )
 
     fun updateSearchQuery(query: String) {
         val wasBlank = _searchFilter.value.textQuery.isBlank()
@@ -512,21 +522,6 @@ class DashboardViewModel @Inject constructor(
     }
 }
 
-@Immutable
-sealed interface DashboardUiState {
-    @Immutable
-    data object Loading : DashboardUiState
-    @Immutable
-    data class Success(
-        val animeList: List<Anime>,
-        val featuredAnime: Anime?,
-        val stats: UserStats,
-        val trackingMap: Map<Long, String> = emptyMap(),
-        val trackingEntitiesMap: Map<Long, moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity> = emptyMap()
-    ) : DashboardUiState
-    @Immutable
-    data class Error(val message: String) : DashboardUiState
-}
 
 @Immutable
 data class UserStats(

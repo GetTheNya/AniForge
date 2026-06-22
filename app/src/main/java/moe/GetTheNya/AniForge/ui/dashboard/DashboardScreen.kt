@@ -54,6 +54,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.filter
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
+import moe.GetTheNya.AniForge.core.model.AnimeWithTracking
+import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -71,8 +78,10 @@ fun DashboardScreen(
             focusManager.clearFocus()
         }
     }
-    val uiState by viewModel.uiState.collectAsState()
+    val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
+    val filteredCount by viewModel.filteredCount.collectAsState()
     val searchFilter by viewModel.searchFilter.collectAsState()
+    val allTracking by viewModel.allTracking.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
 
     val gestureCenter by viewModel.gestureCenter.collectAsState()
@@ -157,44 +166,38 @@ fun DashboardScreen(
         }
 
         // Main Bento list container
-        when (val state = uiState) {
-            is DashboardUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = NeonCoral)
-                }
+        val refreshState = lazyPagingItems.loadState.refresh
+        if (refreshState is LoadState.Loading && lazyPagingItems.itemCount == 0) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = NeonCoral)
             }
-            is DashboardUiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val errorMessage = when (state.message) {
-                        "Unknown error" -> strings.dashboardScreen.unknownError
-                        else -> state.message
-                    }
-                    Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
-                }
+        } else if (refreshState is LoadState.Error && lazyPagingItems.itemCount == 0) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                val errorMessage = refreshState.error.message ?: strings.dashboardScreen.unknownError
+                Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
             }
-            is DashboardUiState.Success -> {
-                DashboardContent(
-                    animeList = state.animeList,
-                    trackingMap = state.trackingMap,
-                    trackingEntitiesMap = state.trackingEntitiesMap,
-                    gestureCenter = gestureCenter,
-                    gestureUp = gestureUp,
-                    gestureDown = gestureDown,
-                    gestureLeft = gestureLeft,
-                    gestureRight = gestureRight,
-                    preferUk = preferUk,
-                    onAnimeClick = onAnimeClick,
-                    onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) },
-                    onScoreChange = { anilistId, score -> viewModel.updateScore(anilistId, score) },
-                    onEpisodeChange = { anilistId, progress -> viewModel.updateEpisodeProgress(anilistId, progress) }
-                )
-            }
+        } else {
+            DashboardContent(
+                lazyPagingItems = lazyPagingItems,
+                filteredCount = filteredCount,
+                allTracking = allTracking,
+                gestureCenter = gestureCenter,
+                gestureUp = gestureUp,
+                gestureDown = gestureDown,
+                gestureLeft = gestureLeft,
+                gestureRight = gestureRight,
+                preferUk = preferUk,
+                onAnimeClick = onAnimeClick,
+                onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) },
+                onScoreChange = { anilistId, score -> viewModel.updateScore(anilistId, score) },
+                onEpisodeChange = { anilistId, progress -> viewModel.updateEpisodeProgress(anilistId, progress) }
+            )
         }
     }
 
@@ -248,9 +251,9 @@ fun SearchBar(
 
 @Composable
 fun DashboardContent(
-    animeList: List<Anime>,
-    trackingMap: Map<Long, String>,
-    trackingEntitiesMap: Map<Long, moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity>,
+    lazyPagingItems: LazyPagingItems<AnimeWithTracking>,
+    filteredCount: Int,
+    allTracking: Map<Long, UserTrackingEntity>?,
     gestureCenter: QuickGestureAction,
     gestureUp: QuickGestureAction,
     gestureDown: QuickGestureAction,
@@ -315,7 +318,7 @@ fun DashboardContent(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = strings.dashboardScreen.foundCount.replace("{count}", animeList.size.toString()),
+                        text = strings.dashboardScreen.foundCount.replace("{count}", filteredCount.toString()),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         fontStyle = FontStyle.Italic
@@ -325,46 +328,98 @@ fun DashboardContent(
 
             // Grid Catalog items
             items(
-                items = animeList,
-                key = { anime -> anime.anilistId },
-                contentType = { "anime_card" }
-            ) { anime ->
-                val trackingEntity = trackingEntitiesMap[anime.anilistId]
-                AnimeBentoCard(
-                    anime = anime,
-                    status = trackingMap[anime.anilistId],
-                    preferUk = preferUk,
-                    onGestureActionTriggered = { action, value ->
-                        handleQuickGestureAction(
-                            context = context,
-                            anime = anime,
-                            action = action,
-                            value = value,
-                            onOpenDetails = {
-                                if (gridState.isScrollInProgress) {
-                                    coroutineScope.launch { gridState.stopScroll() }
-                                } else {
-                                    onAnimeClick(anime.anilistId)
-                                }
-                            },
-                            onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
-                            onScoreChange = { newScore -> onScoreChange(anime.anilistId, newScore) },
-                            onEpisodeChange = { newEp -> onEpisodeChange(anime.anilistId, newEp) }
+                count = lazyPagingItems.itemCount,
+                key = lazyPagingItems.itemKey { it.anime.anilistId },
+                contentType = lazyPagingItems.itemContentType { "anime_card" }
+            ) { index ->
+                val item = lazyPagingItems[index]
+                if (item != null) {
+                    val anime = item.anime
+                    val currentStatus = if (allTracking != null) {
+                        allTracking[anime.anilistId]?.watchStatus
+                    } else {
+                        item.watchStatus
+                    }
+                    val currentScore = if (allTracking != null) {
+                        allTracking[anime.anilistId]?.score
+                    } else {
+                        item.score
+                    }
+                    val currentEpisode = if (allTracking != null) {
+                        allTracking[anime.anilistId]?.episodeProgress ?: 0
+                    } else {
+                        item.episodeProgress
+                    }
+
+                    AnimeBentoCard(
+                        anime = anime,
+                        status = currentStatus,
+                        preferUk = preferUk,
+                        onGestureActionTriggered = { action, value ->
+                            handleQuickGestureAction(
+                                context = context,
+                                anime = anime,
+                                action = action,
+                                value = value,
+                                onOpenDetails = {
+                                    if (gridState.isScrollInProgress) {
+                                        coroutineScope.launch { gridState.stopScroll() }
+                                    } else {
+                                        onAnimeClick(anime.anilistId)
+                                    }
+                                },
+                                onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
+                                onScoreChange = { newScore -> onScoreChange(anime.anilistId, newScore) },
+                                onEpisodeChange = { newEp -> onEpisodeChange(anime.anilistId, newEp) }
+                            )
+                        },
+                        onStatusChange = { newStatus -> onStatusChange(anime.anilistId, newStatus) },
+                        isMenuVisible = activeMenuAnimeId == anime.anilistId,
+                        onMenuDismiss = { activeMenuAnimeId = null },
+                        initialScore = currentScore,
+                        initialEpisode = currentEpisode,
+                        onDragStateChanged = { isDragging -> gridScrollEnabled = !isDragging },
+                        onSliderStateChanged = { isActive -> isSliderActive = isActive },
+                        gestureCenter = gestureCenter,
+                        gestureUp = gestureUp,
+                        gestureDown = gestureDown,
+                        gestureLeft = gestureLeft,
+                        gestureRight = gestureRight
+                    )
+                }
+            }
+
+            // Append state loader
+            val appendState = lazyPagingItems.loadState.append
+            if (appendState is LoadState.Loading) {
+                item(span = { GridItemSpan(2) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = NeonCoral,
+                            modifier = Modifier.size(32.dp)
                         )
-                    },
-                    onStatusChange = { newStatus -> onStatusChange(anime.anilistId, newStatus) },
-                    isMenuVisible = activeMenuAnimeId == anime.anilistId,
-                    onMenuDismiss = { activeMenuAnimeId = null },
-                    initialScore = trackingEntity?.score,
-                    initialEpisode = trackingEntity?.episodeProgress ?: 0,
-                    onDragStateChanged = { isDragging -> gridScrollEnabled = !isDragging },
-                    onSliderStateChanged = { isActive -> isSliderActive = isActive },
-                    gestureCenter = gestureCenter,
-                    gestureUp = gestureUp,
-                    gestureDown = gestureDown,
-                    gestureLeft = gestureLeft,
-                    gestureRight = gestureRight
-                )
+                    }
+                }
+            } else if (appendState is LoadState.Error) {
+                item(span = { GridItemSpan(2) }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = strings.misc.error,
+                            color = NeonCoral,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
         }
     }
