@@ -15,7 +15,7 @@
             <group android:name="group">
                 <path
                     android:name="path"
-                    android:pathData="M 578.078 248.513 L 578.078 283.027 L 645.51 283.027 L 645.51 214 L 578.078 214 L 578.078 248.513 Z"
+                    android:pathData="M 578.078 248.513 L 578.078 283.027 L 645.51 249.011 L 578.078 214 L 578.078 248.513 Z"
                     android:fillColor="#01fffd"
                     android:strokeWidth="1"/>
             </group>
