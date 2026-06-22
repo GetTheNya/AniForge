@@ -13,6 +13,10 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.Franchise
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import javax.inject.Inject
 
 data class FranchiseItem(
@@ -39,35 +43,28 @@ class LibraryViewModel @Inject constructor(
     // --- Franchises Section ---
     val searchQuery = MutableStateFlow("")
 
-    private val _franchises = MutableStateFlow<List<FranchiseItem>>(emptyList())
-    val franchises: StateFlow<List<FranchiseItem>> = _franchises.asStateFlow()
-
-    val filteredFranchises: StateFlow<List<FranchiseItem>> = combine(
-        _franchises,
-        searchQuery
-    ) { franchiseList, query ->
-        if (query.isBlank()) {
-            franchiseList
-        } else {
-            franchiseList.filter { item ->
-                val nameMatches = item.franchise.nameEn?.contains(query, ignoreCase = true) == true ||
-                        item.franchise.nameUk?.contains(query, ignoreCase = true) == true
-                val releaseMatches = item.releases.any { release ->
-                    release.titleUk?.contains(query, ignoreCase = true) == true ||
-                            release.titleEn?.contains(query, ignoreCase = true) == true ||
-                            release.titleRomaji.contains(query, ignoreCase = true)
-                }
-                nameMatches || releaseMatches
-            }
+    @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val pagingFranchisesFlow: Flow<PagingData<FranchiseItem>> = searchQuery
+        .debounce { query ->
+            if (query.isEmpty()) 0L else 250L
         }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
-    private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+        .flatMapLatest { query ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 20,
+                    enablePlaceholders = false,
+                    prefetchDistance = 5
+                ),
+                pagingSourceFactory = {
+                    FranchiseCatalogPagingSource(
+                        animeRepository = animeRepository,
+                        query = query,
+                        pageSize = 20
+                    )
+                }
+            ).flow
+        }
+        .cachedIn(viewModelScope)
 
     // --- Collections Section ---
     val activeLibraryTab = MutableStateFlow<Int?>(null)
@@ -162,28 +159,6 @@ class LibraryViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
-
-    init {
-        loadFranchises()
-    }
-
-    fun loadFranchises() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _isLoading.value = true
-            try {
-                val allFranchises = animeRepository.getAllFranchises()
-                val items = allFranchises.map { franchise ->
-                    val releases = animeRepository.getFranchiseAnime(franchise.franchiseId)
-                    FranchiseItem(franchise, releases)
-                }
-                _franchises.value = items
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
 
     fun createCollection(title: String, description: String) {
         viewModelScope.launch(Dispatchers.IO) {

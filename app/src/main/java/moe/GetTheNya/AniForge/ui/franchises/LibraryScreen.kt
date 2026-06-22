@@ -62,6 +62,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -79,9 +83,9 @@ fun LibraryScreen(
             focusManager.clearFocus()
         }
     }
-    val franchisesList by viewModel.filteredFranchises.collectAsState()
+    val lazyFranchiseItems = viewModel.pagingFranchisesFlow.collectAsLazyPagingItems()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val isLoading = lazyFranchiseItems.loadState.refresh is LoadState.Loading && lazyFranchiseItems.itemCount == 0
 
     val selectedCollectionIds by viewModel.selectedCollectionIds.collectAsState()
     val isInSelectionMode by viewModel.isInSelectionMode.collectAsState()
@@ -186,16 +190,20 @@ fun LibraryScreen(
                                     Spacer(modifier = Modifier.height(220.dp))
                                 }
                                 items(
-                                    items = franchisesList,
-                                    key = { it.franchise.franchiseId }
-                                ) { item ->
-                                    FranchiseBentoCard(
-                                        item = item,
-                                        preferUk = preferUk,
-                                        onClick = {
-                                            navController.navigate(Screen.FranchiseTree(item.franchise.franchiseId))
-                                        }
-                                    )
+                                    count = lazyFranchiseItems.itemCount,
+                                    key = lazyFranchiseItems.itemKey { it.franchise.franchiseId },
+                                    contentType = lazyFranchiseItems.itemContentType { "franchise_card" }
+                                ) { index ->
+                                    val item = lazyFranchiseItems[index]
+                                    if (item != null) {
+                                        FranchiseBentoCard(
+                                            item = item,
+                                            preferUk = preferUk,
+                                            onClick = {
+                                                navController.navigate(Screen.FranchiseTree(item.franchise.franchiseId))
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -1226,4 +1226,60 @@ class AnimeRepository @Inject constructor(
         }
         list
     }
+
+    suspend fun queryFranchisesPaged(query: String, limit: Int, offset: Int): List<Pair<Franchise, List<Anime>>> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Pair<Franchise, List<Anime>>>()
+        try {
+            val hasQuery = query.isNotBlank()
+            val sql = if (hasQuery) {
+                val show18Plus = settingsProvider.getShow18Plus()
+                val adultFilter = if (show18Plus) "" else "AND a.is_adult = 0"
+                
+                "SELECT DISTINCT f.franchise_id, f.main_anilist_id, f.name_en, f.name_uk " +
+                "FROM franchises f " +
+                "LEFT JOIN anime_franchises af ON f.franchise_id = af.franchise_id " +
+                "LEFT JOIN anime a ON af.anilist_id = a.anilist_id " +
+                "WHERE (f.name_en LIKE ? OR f.name_uk LIKE ? OR a.title_uk LIKE ? OR a.title_en LIKE ? OR a.title_romaji LIKE ?) " +
+                "$adultFilter " +
+                "ORDER BY f.name_en ASC " +
+                "LIMIT ? OFFSET ?"
+            } else {
+                "SELECT franchise_id, main_anilist_id, name_en, name_uk FROM franchises ORDER BY name_en ASC LIMIT ? OFFSET ?"
+            }
+            
+            val args = if (hasQuery) {
+                val term = "%${query.trim()}%"
+                arrayOf(term, term, term, term, term, limit.toString(), offset.toString())
+            } else {
+                arrayOf(limit.toString(), offset.toString())
+            }
+            
+            val franchises = ArrayList<Franchise>()
+            db.query(sql, args).use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow("franchise_id")
+                val mainIdx = cursor.getColumnIndexOrThrow("main_anilist_id")
+                val enIdx = cursor.getColumnIndexOrThrow("name_en")
+                val ukIdx = cursor.getColumnIndexOrThrow("name_uk")
+                while (cursor.moveToNext()) {
+                    franchises.add(
+                        Franchise(
+                            franchiseId = cursor.getLong(idIdx),
+                            mainAnilistId = cursor.getLong(mainIdx),
+                            nameEn = if (cursor.isNull(enIdx)) null else cursor.getString(enIdx),
+                            nameUk = if (cursor.isNull(ukIdx)) null else cursor.getString(ukIdx)
+                        )
+                    )
+                }
+            }
+            
+            for (franchise in franchises) {
+                val releases = getFranchiseAnime(franchise.franchiseId)
+                list.add(Pair(franchise, releases))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
 }
