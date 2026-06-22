@@ -23,6 +23,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import moe.GetTheNya.AniForge.BuildConfig
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import moe.GetTheNya.AniForge.R
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.navigation.NavController
@@ -36,6 +39,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = { navController.popBackStack() }
 ) {
+    val context = LocalContext.current
     val strings = LocalLocaleStrings.current
     val preferUk by viewModel.preferUkTitles.collectAsState()
     val show18Plus by viewModel.show18Plus.collectAsState()
@@ -461,7 +465,6 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val context = LocalContext.current
                 androidx.compose.ui.viewinterop.AndroidView(
                     factory = { ctx ->
                         android.widget.ImageView(ctx).apply {
@@ -491,14 +494,87 @@ fun SettingsScreen(
 
             HorizontalDivider(color = CardBorder, thickness = 1.dp)
 
-            // Dynamic escape-parsed multi-paragraph app description with Credits
-            Text(
-                text = strings.settingsScreen.appSynopsis,
+            val appSynopsisText = strings.settingsScreen.appSynopsis
+            val annotatedSynopsis = remember(appSynopsisText) {
+                buildAnnotatedString {
+                    append(appSynopsisText)
+                    
+                    // Style and annotate "AniList API"
+                    val aniListStart = appSynopsisText.indexOf("AniList API")
+                    if (aniListStart != -1) {
+                        addStyle(
+                            style = SpanStyle(
+                                color = NeonCoral,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            start = aniListStart,
+                            end = aniListStart + "AniList API".length
+                        )
+                        addStringAnnotation(
+                            tag = "URL",
+                            annotation = "https://anilist.co/",
+                            start = aniListStart,
+                            end = aniListStart + "AniList API".length
+                        )
+                    }
+
+                    // Style and annotate "Hikka.io"
+                    val hikkaStart = appSynopsisText.indexOf("Hikka.io")
+                    if (hikkaStart != -1) {
+                        addStyle(
+                            style = SpanStyle(
+                                color = NeonCoral,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            start = hikkaStart,
+                            end = hikkaStart + "Hikka.io".length
+                        )
+                        addStringAnnotation(
+                            tag = "URL",
+                            annotation = "https://hikka.io/",
+                            start = hikkaStart,
+                            end = hikkaStart + "Hikka.io".length
+                        )
+                    }
+
+                    // Style and annotate "TMDB"
+                    val tmdbStart = appSynopsisText.indexOf("TMDB")
+                    if (tmdbStart != -1) {
+                        addStyle(
+                            style = SpanStyle(
+                                color = NeonCoral,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            start = tmdbStart,
+                            end = tmdbStart + "TMDB".length
+                        )
+                        addStringAnnotation(
+                            tag = "URL",
+                            annotation = "https://www.themoviedb.org/",
+                            start = tmdbStart,
+                            end = tmdbStart + "TMDB".length
+                        )
+                    }
+                }
+            }
+
+            ClickableText(
+                text = annotatedSynopsis,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = TextPrimary,
                     lineHeight = 20.sp
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { offset ->
+                    annotatedSynopsis.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                        .firstOrNull()?.let { annotation ->
+                            val intent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse(annotation.item)
+                            )
+                            context.startActivity(intent)
+                        }
+                }
             )
 
             HorizontalDivider(color = CardBorder, thickness = 1.dp)
@@ -534,7 +610,6 @@ fun SettingsScreen(
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
-                val context = LocalContext.current
                 Text(
                     text = "GetTheNya",
                     color = NeonCoral,
@@ -556,8 +631,6 @@ fun SettingsScreen(
             val isCheckingForUpdates by viewModel.isCheckingForUpdates.collectAsState()
             val updateCheckStatus by viewModel.updateCheckStatus.collectAsState()
             val updateHtmlUrl by viewModel.updateHtmlUrl.collectAsState()
-
-            val context = LocalContext.current
 
             // State A (Up to Date): Trigger a low-emphasis Toast when active check determines we are up to date
             LaunchedEffect(updateCheckStatus) {
