@@ -1232,20 +1232,48 @@ class AnimeRepository @Inject constructor(
         val list = ArrayList<Pair<Franchise, List<Anime>>>()
         try {
             val hasQuery = query.isNotBlank()
+            val show18Plus = settingsProvider.getShow18Plus()
+            val adultFilterMain = if (show18Plus) "" else "AND a.is_adult = 0"
+            val adultFilterSub = if (show18Plus) "" else "AND a2.is_adult = 0"
+            
             val sql = if (hasQuery) {
-                val show18Plus = settingsProvider.getShow18Plus()
-                val adultFilter = if (show18Plus) "" else "AND a.is_adult = 0"
-                
                 "SELECT DISTINCT f.franchise_id, f.main_anilist_id, f.name_en, f.name_uk " +
                 "FROM franchises f " +
                 "LEFT JOIN anime_franchises af ON f.franchise_id = af.franchise_id " +
                 "LEFT JOIN anime a ON af.anilist_id = a.anilist_id " +
+                "LEFT JOIN (" +
+                "    SELECT " +
+                "        af2.franchise_id," +
+                "        COALESCE(" +
+                "            AVG(CASE WHEN a2.format IN ('TV', 'MOVIE') THEN a2.popularity END)," +
+                "            AVG(a2.popularity) * 0.8" +
+                "        ) AS franchise_weight" +
+                "    FROM anime_franchises af2" +
+                "    JOIN anime a2 ON af2.anilist_id = a2.anilist_id" +
+                "    WHERE 1=1 $adultFilterSub" +
+                "    GROUP BY af2.franchise_id" +
+                ") w ON f.franchise_id = w.franchise_id " +
                 "WHERE (f.name_en LIKE ? OR f.name_uk LIKE ? OR a.title_uk LIKE ? OR a.title_en LIKE ? OR a.title_romaji LIKE ?) " +
-                "$adultFilter " +
-                "ORDER BY f.name_en ASC " +
+                "$adultFilterMain " +
+                "ORDER BY w.franchise_weight DESC, f.name_en ASC " +
                 "LIMIT ? OFFSET ?"
             } else {
-                "SELECT franchise_id, main_anilist_id, name_en, name_uk FROM franchises ORDER BY name_en ASC LIMIT ? OFFSET ?"
+                "SELECT f.franchise_id, f.main_anilist_id, f.name_en, f.name_uk " +
+                "FROM franchises f " +
+                "LEFT JOIN (" +
+                "    SELECT " +
+                "        af2.franchise_id," +
+                "        COALESCE(" +
+                "            AVG(CASE WHEN a2.format IN ('TV', 'MOVIE') THEN a2.popularity END)," +
+                "            AVG(a2.popularity) * 0.8" +
+                "        ) AS franchise_weight" +
+                "    FROM anime_franchises af2" +
+                "    JOIN anime a2 ON af2.anilist_id = a2.anilist_id" +
+                "    WHERE 1=1 $adultFilterSub" +
+                "    GROUP BY af2.franchise_id" +
+                ") w ON f.franchise_id = w.franchise_id " +
+                "ORDER BY w.franchise_weight DESC, f.name_en ASC " +
+                "LIMIT ? OFFSET ?"
             }
             
             val args = if (hasQuery) {

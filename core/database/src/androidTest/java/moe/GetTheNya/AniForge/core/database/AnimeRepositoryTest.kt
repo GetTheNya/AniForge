@@ -7,6 +7,7 @@ import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
@@ -35,10 +36,21 @@ class AnimeRepositoryTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         val fakeUserSettingDao = object : moe.GetTheNya.AniForge.core.database.dao.UserSettingDao {
+            private val settings = mutableMapOf<String, kotlinx.coroutines.flow.MutableStateFlow<String?>>()
+            
+            private fun getOrCreateFlow(key: String): kotlinx.coroutines.flow.MutableStateFlow<String?> {
+                return settings.getOrPut(key) { kotlinx.coroutines.flow.MutableStateFlow(null) }
+            }
+
             override fun observeSetting(key: String): kotlinx.coroutines.flow.Flow<String?> =
-                kotlinx.coroutines.flow.flowOf(null)
-            override suspend fun getSettingSync(key: String): String? = null
-            override suspend fun insertOrUpdate(setting: moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity) {}
+                getOrCreateFlow(key)
+
+            override suspend fun getSettingSync(key: String): String? = 
+                getOrCreateFlow(key).value
+
+            override suspend fun insertOrUpdate(setting: moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity) {
+                getOrCreateFlow(setting.key).value = setting.value
+            }
         }
         val fakeSettingsRepository = moe.GetTheNya.AniForge.core.database.repository.SettingsRepository(fakeUserSettingDao)
         settingsProvider = SettingsProvider(context, fakeSettingsRepository)
@@ -422,5 +434,82 @@ class AnimeRepositoryTest {
         assertFalse(screenshots.contains("none"))
         assertFalse(screenshots.contains("None"))
         assertFalse(screenshots.contains("not_a_link"))
+    }
+
+    @Test
+    fun testFranchiseSmartSorting() = runBlocking {
+        // Clear existing test data from relevant tables to avoid interference
+        db.execSQL("DELETE FROM anime_franchises;")
+        db.execSQL("DELETE FROM franchises;")
+        db.execSQL("DELETE FROM anime;")
+
+        // Let's create 3 franchises:
+        // Franchise A (ID 1): Has 1 TV title (popularity 100) and 1 OVA title (popularity 200).
+        // Since it has a TV title, its weight should be only the TV title (100).
+        db.execSQL("INSERT INTO franchises (franchise_id, main_anilist_id, name_en) VALUES (1, 10, 'Franchise A');")
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (10, 'A-TV', 'TV', 100, 0);")
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (11, 'A-OVA', 'OVA', 200, 0);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (10, 1);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (11, 1);")
+
+        // Franchise B (ID 2): Has only OVA/ONA formats: 1 OVA (popularity 150) and 1 ONA (popularity 50).
+        // Count of TV/MOVIE = 0.
+        // Fallback average = (150 + 50) / 2 = 100.
+        // Penalty weight = 100 * 0.8 = 80.
+        db.execSQL("INSERT INTO franchises (franchise_id, main_anilist_id, name_en) VALUES (2, 20, 'Franchise B');")
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (20, 'B-OVA', 'OVA', 150, 0);")
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (21, 'B-ONA', 'ONA', 50, 0);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (20, 2);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (21, 2);")
+
+        // Franchise C (ID 3): Has 1 TV title (popularity 90).
+        // Its weight should be 90.
+        db.execSQL("INSERT INTO franchises (franchise_id, main_anilist_id, name_en) VALUES (3, 30, 'Franchise C');")
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (30, 'C-TV', 'TV', 90, 0);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (30, 3);")
+
+        // 1. Verify default sort order when NSFW is OFF (default).
+        // Expected sorted order of franchises based on weight:
+        // Franchise A (weight 100) -> Franchise C (weight 90) -> Franchise B (weight 80)
+        
+        var resultsDefault = repository.queryFranchisesPaged(query = "", limit = 10, offset = 0)
+        assertEquals(3, resultsDefault.size)
+        assertEquals("Franchise A", resultsDefault[0].first.nameEn)
+        assertEquals("Franchise C", resultsDefault[1].first.nameEn)
+        assertEquals("Franchise B", resultsDefault[2].first.nameEn)
+
+        // 2. Verify search querying works and retains same smart sorting.
+        val resultsSearch = repository.queryFranchisesPaged(query = "Franchise", limit = 10, offset = 0)
+        assertEquals(3, resultsSearch.size)
+        assertEquals("Franchise A", resultsSearch[0].first.nameEn)
+        assertEquals("Franchise C", resultsSearch[1].first.nameEn)
+        assertEquals("Franchise B", resultsSearch[2].first.nameEn)
+
+        // 3. Test NSFW (18+) isolation within the weight subquery block.
+        // Add an 18+ TV title with high popularity (500) to Franchise B.
+        db.execSQL("INSERT INTO anime (anilist_id, title_romaji, format, popularity, is_adult) VALUES (22, 'B-Adult-TV', 'TV', 500, 1);")
+        db.execSQL("INSERT INTO anime_franchises (anilist_id, franchise_id) VALUES (22, 2);")
+
+        // Since show18Plus is false, the adult TV title must be ignored.
+        // Franchise B weight should still be 80.
+        // Franchise A (100) -> Franchise C (90) -> Franchise B (80).
+        var resultsNsfwOff = repository.queryFranchisesPaged(query = "", limit = 10, offset = 0)
+        assertEquals(3, resultsNsfwOff.size)
+        assertEquals("Franchise A", resultsNsfwOff[0].first.nameEn)
+        assertEquals("Franchise C", resultsNsfwOff[1].first.nameEn)
+        assertEquals("Franchise B", resultsNsfwOff[2].first.nameEn)
+
+        // 4. Test NSFW (18+) enabled.
+        // If show18Plus is true, the adult TV title is included.
+        // Franchise B now has a TV title, so its primary weight evaluates to the average of TV formats: 500.
+        // Expected order: Franchise B (500) -> Franchise A (100) -> Franchise C (90)
+        settingsProvider.setShow18Plus(true)
+        settingsProvider.show18Plus.first { it } // Wait until settings provider updates
+
+        var resultsNsfwOn = repository.queryFranchisesPaged(query = "", limit = 10, offset = 0)
+        assertEquals(3, resultsNsfwOn.size)
+        assertEquals("Franchise B", resultsNsfwOn[0].first.nameEn)
+        assertEquals("Franchise A", resultsNsfwOn[1].first.nameEn)
+        assertEquals("Franchise C", resultsNsfwOn[2].first.nameEn)
     }
 }
