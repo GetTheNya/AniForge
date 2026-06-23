@@ -842,10 +842,18 @@ class AnimeRepository @Inject constructor(
             queryBuilder.append("SELECT anime.* FROM anime")
         }
         
-        // FTS5 MATCH join
-        val words = filter.textQuery.trim()
-            .split("[^\\p{L}\\p{N}]+".toRegex())
-            .filter { it.isNotBlank() }
+        // FTS5 MATCH join or direct ID lookup interception
+        val queryTrim = filter.textQuery.trim()
+        val numericId = queryTrim.toLongOrNull()
+        val isNumericId = numericId != null && queryTrim.matches(Regex("^\\d+$"))
+
+        val words = if (isNumericId) {
+            emptyList()
+        } else {
+            queryTrim
+                .split("[^\\p{L}\\p{N}]+".toRegex())
+                .filter { it.isNotBlank() }
+        }
         val hasText = words.isNotEmpty()
         if (hasText) {
             queryBuilder.append(" JOIN anime_search ON anime.anilist_id = anime_search.rowid")
@@ -857,7 +865,11 @@ class AnimeRepository @Inject constructor(
             whereClauses.add("anime.is_adult = 0")
         }
         
-        if (hasText) {
+        if (isNumericId && numericId != null) {
+            whereClauses.add("(anime.anilist_id = ? OR anime.mal_id = ?)")
+            args.add(numericId)
+            args.add(numericId)
+        } else if (hasText) {
             whereClauses.add("anime_search MATCH ?")
             val sanitizedQuery = words.joinToString(" ") { "$it*" }
             args.add(sanitizedQuery)
@@ -1326,5 +1338,22 @@ class AnimeRepository @Inject constructor(
             e.printStackTrace()
         }
         list
+    }
+
+    suspend fun findExactAnimeMatch(title: String): Anime? = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        var anime: Anime? = null
+        val query = "SELECT * FROM anime WHERE LOWER(title_romaji) = ? OR LOWER(title_en) = ? OR LOWER(title_uk) = ? LIMIT 1"
+        val cleanedTitle = title.lowercase().trim()
+        try {
+            db.query(query, arrayOf(cleanedTitle, cleanedTitle, cleanedTitle)).use { cursor ->
+                if (cursor.moveToNext()) {
+                    anime = cursorToAnime(cursor)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        anime
     }
 }

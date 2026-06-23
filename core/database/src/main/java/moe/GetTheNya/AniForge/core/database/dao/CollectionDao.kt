@@ -82,4 +82,7 @@ interface CollectionDao {
         insertCrossRef(ref)
         return collectionId.toLong()
     }
+
+    @Query("SELECT * FROM collections WHERE title = :title LIMIT 1")
+    suspend fun getCollectionByTitle(title: String): CollectionEntity?
 }

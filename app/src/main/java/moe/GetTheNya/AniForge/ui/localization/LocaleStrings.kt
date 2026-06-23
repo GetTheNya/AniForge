@@ -236,7 +236,34 @@ data class SettingsScreenStrings(
     val updateAvailable: String = "[settingsScreen.updateAvailable]",
     val updateUpToDate: String = "[settingsScreen.updateUpToDate]",
     val download: String = "[settingsScreen.download]",
-    val appSynopsis: String = "[settingsScreen.appSynopsis]"
+    val appSynopsis: String = "[settingsScreen.appSynopsis]",
+    
+    // Data Management
+    val dataManagementHeader: String = "[settingsScreen.dataManagementHeader]",
+    val exportDataTitle: String = "[settingsScreen.exportDataTitle]",
+    val exportDataComingSoon: String = "[settingsScreen.exportDataComingSoon]",
+    val importAnixartTitle: String = "[settingsScreen.importAnixartTitle]",
+    val csvImportHeader: String = "[settingsScreen.csvImportHeader]",
+    val csvImportDesc: String = "[settingsScreen.csvImportDesc]",
+    val csvImportSelectFile: String = "[settingsScreen.csvImportSelectFile]",
+    val csvImportMatchPriority: String = "[settingsScreen.csvImportMatchPriority]",
+    val csvImportPriorityOriginal: String = "[settingsScreen.csvImportPriorityOriginal]",
+    val csvImportPriorityAlternative: String = "[settingsScreen.csvImportPriorityAlternative]",
+    val csvImportSyncStatus: String = "[settingsScreen.csvImportSyncStatus]",
+    val csvImportSyncRating: String = "[settingsScreen.csvImportSyncRating]",
+    val csvImportSuccessCount: String = "[settingsScreen.csvImportSuccessCount]",
+    val csvImportFailedCount: String = "[settingsScreen.csvImportFailedCount]",
+    val csvImportResolveManually: String = "[settingsScreen.csvImportResolveManually]",
+    val csvImportSearchAnime: String = "[settingsScreen.csvImportSearchAnime]",
+    val csvImportNoResults: String = "[settingsScreen.csvImportNoResults]",
+    val csvImportProcessing: String = "[settingsScreen.csvImportProcessing]",
+    val csvImportProgressDesc: String = "[settingsScreen.csvImportProgressDesc]",
+    val csvImportSuccessText: String = "[settingsScreen.csvImportSuccessText]",
+    val csvImportFailedText: String = "[settingsScreen.csvImportFailedText]",
+    val csvImportTotalText: String = "[settingsScreen.csvImportTotalText]",
+    val csvImportAllMapped: String = "[settingsScreen.csvImportAllMapped]",
+    val csvImportCollectionTitle: String = "[settingsScreen.csvImportCollectionTitle]",
+    val csvImportCollectionDesc: String = "[settingsScreen.csvImportCollectionDesc]"
 )
 
 @Serializable
