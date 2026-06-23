@@ -1,3 +1,13 @@
+import java.util.Properties
+
+// Load signing credentials from keystore.properties (local builds).
+// Falls back to -P Gradle properties injected by CI.
+val keystoreProps = Properties()
+val keystoreFile = rootProject.file("keystore.properties")
+if (keystoreFile.exists()) keystoreFile.inputStream().use { keystoreProps.load(it) }
+fun signingProp(name: String): String? =
+    keystoreProps.getProperty(name) ?: project.findProperty(name)?.toString()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -20,10 +30,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = signingProp("storeFile")?.let { file(it) }
+            storePassword = signingProp("storePassword")
+            keyAlias = signingProp("keyAlias")
+            keyPassword = signingProp("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
