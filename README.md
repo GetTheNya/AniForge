@@ -4,6 +4,10 @@
   <img src="AppIcon.png" alt="AniForge App Icon" width="300" />
 </p>
 
+<p align="center">
+  <a href="./README.md">🇬🇧 English</a> &nbsp;|&nbsp; <a href="./README.uk.md">🇺🇦 Українська</a>
+</p>
+
 **AniForge** is a personal anime tracker for Android — fast, offline, and built around how you actually watch anime.
 
 No accounts. No cloud required. Just open the app and start tracking.
@@ -35,6 +39,15 @@ Every anime has a full detail page with cover art, synopsis, episode count, genr
 - **Quick episode button** — Tap once to mark an episode watched, right from the widget
 - **Sequel alerts** — Get notified when a sequel to something you've watched is announced or starts airing
 - **Customizable dashboard** — Rearrange your home screen to show what matters most to you
+
+---
+
+## 🌐 Languages
+
+AniForge supports the following languages:
+
+- 🇺🇦 Ukrainian
+- 🇬🇧 English
 
 ---
 
