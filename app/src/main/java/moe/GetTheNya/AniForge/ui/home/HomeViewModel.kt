@@ -20,6 +20,7 @@ import moe.GetTheNya.AniForge.ui.localization.LocalizationService
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
 import moe.GetTheNya.AniForge.core.database.util.AnimeSeasonCalculator
+import moe.GetTheNya.AniForge.ui.update.UpdateManager
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,8 +30,17 @@ class HomeViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val localizationService: LocalizationService,
     private val bentoWidgetRepository: BentoWidgetRepository,
-    private val databaseManager: DatabaseManager
+    private val databaseManager: DatabaseManager,
+    private val updateManager: UpdateManager
 ) : ViewModel() {
+
+    val updateState: StateFlow<UpdateManager.UpdateState> = updateManager.updateState
+
+    init {
+        viewModelScope.launch {
+            updateManager.checkForUpdates(silent = true)
+        }
+    }
 
     val catalogUpdateState: StateFlow<CatalogUpdateState> = databaseManager.catalogUpdateState
 

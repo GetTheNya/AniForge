@@ -484,6 +484,7 @@ class MainActivity : ComponentActivity() {
                                                         0 -> HomeScreen(
                                                             viewModel = homeViewModel,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
+                                                            onSettingsClick = { navController.navigate(Screen.Settings) },
                                                             onGenreClick = { genreSlug ->
                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
                                                                 coroutineScope.launch {

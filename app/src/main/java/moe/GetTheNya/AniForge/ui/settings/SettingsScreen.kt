@@ -41,6 +41,15 @@ import android.net.Uri
 import moe.GetTheNya.AniForge.ui.settings.ImportViewModel
 import moe.GetTheNya.AniForge.ui.settings.MatchPriority
 import moe.GetTheNya.AniForge.BuildConfig
+import moe.GetTheNya.AniForge.ui.update.UpdateViewModel
+import moe.GetTheNya.AniForge.ui.update.UpdateManager
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.Brush
+import kotlin.math.roundToInt
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -77,6 +86,14 @@ fun SettingsScreen(
             ViewModelProvider(context as ComponentActivity)[ImportViewModel::class.java]
         }
     }
+    val updateViewModel = remember(storeOwner) {
+        if (storeOwner != null) {
+            ViewModelProvider(storeOwner)[UpdateViewModel::class.java]
+        } else {
+            ViewModelProvider(context as ComponentActivity)[UpdateViewModel::class.java]
+        }
+    }
+    val updateState by updateViewModel.updateState.collectAsState()
     val importState by importViewModel.state.collectAsState()
     val matchPriority by importViewModel.matchPriority.collectAsState()
     val importSyncStatus by importViewModel.syncStatus.collectAsState()
@@ -767,94 +784,240 @@ fun SettingsScreen(
 
             HorizontalDivider(color = CardBorder, thickness = 1.dp)
 
-            // Dynamic Update Banner / Button
-            val isCheckingForUpdates by viewModel.isCheckingForUpdates.collectAsState()
-            val updateCheckStatus by viewModel.updateCheckStatus.collectAsState()
-            val updateHtmlUrl by viewModel.updateHtmlUrl.collectAsState()
-
             // State A (Up to Date): Trigger a low-emphasis Toast when active check determines we are up to date
-            LaunchedEffect(updateCheckStatus) {
-                if (updateCheckStatus == SettingsViewModel.UpdateStatus.UP_TO_DATE) {
+            var wasChecking by remember { mutableStateOf(false) }
+            LaunchedEffect(updateState) {
+                if (updateState is UpdateManager.UpdateState.Checking) {
+                    wasChecking = true
+                } else if (wasChecking && updateState is UpdateManager.UpdateState.Idle) {
+                    wasChecking = false
                     android.widget.Toast.makeText(
                         context,
                         strings.settingsScreen.updateUpToDate,
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
+                } else if (updateState is UpdateManager.UpdateState.ReadyToInstall) {
+                    // Trigger package installer immediately when ready
+                    updateViewModel.installUpdate((updateState as UpdateManager.UpdateState.ReadyToInstall).apkFile)
                 }
             }
 
-            if (updateCheckStatus == SettingsViewModel.UpdateStatus.UPDATE_AVAILABLE && updateHtmlUrl != null) {
-                // State B: Update Found Banner
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = strings.settingsScreen.updateAvailable,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                    Button(
-                        onClick = {
-                            val intent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse(updateHtmlUrl)
+            AnimatedContent(
+                targetState = updateState,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                },
+                label = "updateSectionContent"
+            ) { state ->
+                when (state) {
+                    is UpdateManager.UpdateState.Idle -> {
+                        Button(
+                            onClick = { updateViewModel.checkForUpdates() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonCoral,
+                                contentColor = BackgroundDark
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = strings.settingsScreen.checkForUpdates,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                            context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            contentColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = strings.settingsScreen.download,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        }
                     }
-                }
-            } else {
-                if (updateCheckStatus == SettingsViewModel.UpdateStatus.UP_TO_DATE) {
-                    Text(
-                        text = strings.settingsScreen.updateUpToDate,
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    )
-                }
-
-                Button(
-                    onClick = { viewModel.checkForUpdates() },
-                    enabled = !isCheckingForUpdates,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonCoral,
-                        contentColor = BackgroundDark,
-                        disabledContainerColor = Color(0x33FFFFFF),
-                        disabledContentColor = TextSecondary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isCheckingForUpdates) {
-                        CircularProgressIndicator(
-                            color = TextSecondary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    } else {
-                        Text(
-                            text = strings.settingsScreen.checkForUpdates,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    is UpdateManager.UpdateState.Checking -> {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = Color(0x33FFFFFF),
+                                disabledContentColor = TextSecondary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            CircularProgressIndicator(
+                                color = TextSecondary,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is UpdateManager.UpdateState.UpdateAvailable -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF0F0F13))
+                                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = strings.settingsScreen.updateAvailable,
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = state.versionName,
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { updateViewModel.reset() }
+                                ) {
+                                    Text(
+                                        text = strings.libraryScreen.cancel,
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = { updateViewModel.downloadUpdate(state.downloadUrl) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = NeonCoral,
+                                    contentColor = BackgroundDark
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = strings.settingsScreen.download,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    is UpdateManager.UpdateState.Downloading -> {
+                        val percent = (state.progress * 100).roundToInt()
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = strings.settingsScreen.downloading,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "$percent%",
+                                    color = NeonCoral,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0xFF1E1E24))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(state.progress.coerceIn(0f, 1f))
+                                        .fillMaxHeight()
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                colors = listOf(NeonCoral, ElectricViolet)
+                                            )
+                                        )
+                                )
+                            }
+                        }
+                    }
+                    is UpdateManager.UpdateState.ReadyToInstall -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { updateViewModel.installUpdate(state.apkFile) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = NeonCoral,
+                                    contentColor = BackgroundDark
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = strings.settingsScreen.readyToInstall,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            TextButton(
+                                onClick = { updateViewModel.reset() },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            ) {
+                                Text(
+                                    text = strings.libraryScreen.cancel,
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                    is UpdateManager.UpdateState.Error -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0x11EF4444))
+                                .border(1.dp, Color(0x33EF4444), RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "${strings.settingsScreen.errorPrefix}${state.message}",
+                                color = Color(0xFFEF4444),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                TextButton(
+                                    onClick = { updateViewModel.reset() }
+                                ) {
+                                    Text(
+                                        text = strings.libraryScreen.cancel,
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { updateViewModel.checkForUpdates() }
+                                ) {
+                                    Text(
+                                        text = strings.misc.retry,
+                                        color = NeonCoral,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -945,53 +1108,48 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (matchPriority == MatchPriority.ORIGINAL_TITLE) Color(0x33FF4081) else SurfaceCardDark)
+                                .border(1.dp, if (matchPriority == MatchPriority.ORIGINAL_TITLE) NeonCoral else CardBorder, RoundedCornerShape(8.dp))
+                                .clickable { importViewModel.setMatchPriority(MatchPriority.ORIGINAL_TITLE) }
+                                .padding(8.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (matchPriority == MatchPriority.ORIGINAL_TITLE) Color(0x33FF4081) else SurfaceCardDark)
-                                    .border(1.dp, if (matchPriority == MatchPriority.ORIGINAL_TITLE) NeonCoral else CardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { importViewModel.setMatchPriority(MatchPriority.ORIGINAL_TITLE) }
-                                    .padding(8.dp)
-                            ) {
-                                RadioButton(
-                                    selected = matchPriority == MatchPriority.ORIGINAL_TITLE,
-                                    onClick = { importViewModel.setMatchPriority(MatchPriority.ORIGINAL_TITLE) },
-                                    colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
-                                )
-                                Text(
-                                    text = strings.settingsScreen.csvImportPriorityOriginal,
-                                    color = TextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (matchPriority == MatchPriority.ALTERNATIVE_TITLE) Color(0x33FF4081) else SurfaceCardDark)
-                                    .border(1.dp, if (matchPriority == MatchPriority.ALTERNATIVE_TITLE) NeonCoral else CardBorder, RoundedCornerShape(8.dp))
-                                    .clickable { importViewModel.setMatchPriority(MatchPriority.ALTERNATIVE_TITLE) }
-                                    .padding(8.dp)
-                            ) {
-                                RadioButton(
-                                    selected = matchPriority == MatchPriority.ALTERNATIVE_TITLE,
-                                    onClick = { importViewModel.setMatchPriority(MatchPriority.ALTERNATIVE_TITLE) },
-                                    colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
-                                )
-                                Text(
-                                    text = strings.settingsScreen.csvImportPriorityAlternative,
-                                    color = TextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            RadioButton(
+                                selected = matchPriority == MatchPriority.ORIGINAL_TITLE,
+                                onClick = { importViewModel.setMatchPriority(MatchPriority.ORIGINAL_TITLE) },
+                                colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
+                            )
+                            Text(
+                                text = strings.settingsScreen.csvImportPriorityOriginal,
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (matchPriority == MatchPriority.ALTERNATIVE_TITLE) Color(0x33FF4081) else SurfaceCardDark)
+                                .border(1.dp, if (matchPriority == MatchPriority.ALTERNATIVE_TITLE) NeonCoral else CardBorder, RoundedCornerShape(8.dp))
+                                .clickable { importViewModel.setMatchPriority(MatchPriority.ALTERNATIVE_TITLE) }
+                                .padding(8.dp)
+                        ) {
+                            RadioButton(
+                                selected = matchPriority == MatchPriority.ALTERNATIVE_TITLE,
+                                onClick = { importViewModel.setMatchPriority(MatchPriority.ALTERNATIVE_TITLE) },
+                                colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
+                            )
+                            Text(
+                                text = strings.settingsScreen.csvImportPriorityAlternative,
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
 

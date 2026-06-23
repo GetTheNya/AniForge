@@ -237,6 +237,11 @@ data class SettingsScreenStrings(
     val updateUpToDate: String = "[settingsScreen.updateUpToDate]",
     val download: String = "[settingsScreen.download]",
     val appSynopsis: String = "[settingsScreen.appSynopsis]",
+    val downloading: String = "[settingsScreen.downloading]",
+    val readyToInstall: String = "[settingsScreen.readyToInstall]",
+    val errorPrefix: String = "[settingsScreen.errorPrefix]",
+    val newUpdateFoundHome: String = "[settingsScreen.newUpdateFoundHome]",
+    val goToSettings: String = "[settingsScreen.goToSettings]",
     
     // Data Management
     val dataManagementHeader: String = "[settingsScreen.dataManagementHeader]",

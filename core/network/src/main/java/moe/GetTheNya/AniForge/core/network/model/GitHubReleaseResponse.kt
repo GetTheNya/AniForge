@@ -8,5 +8,15 @@ data class GitHubReleaseResponse(
     @SerializedName("tag_name")
     val tagName: String,
     @SerializedName("html_url")
-    val htmlUrl: String
+    val htmlUrl: String,
+    @SerializedName("assets")
+    val assets: List<GitHubAssetResponse> = emptyList()
+)
+
+@Keep
+data class GitHubAssetResponse(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("browser_download_url")
+    val browserDownloadUrl: String
 )

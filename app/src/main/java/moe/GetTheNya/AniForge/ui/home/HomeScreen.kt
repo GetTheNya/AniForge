@@ -77,6 +77,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity
 import moe.GetTheNya.AniForge.core.model.Anime
+import moe.GetTheNya.AniForge.ui.update.UpdateManager
 import moe.GetTheNya.AniForge.ui.bento.*
 import moe.GetTheNya.AniForge.ui.dashboard.BentoStatsCard
 import moe.GetTheNya.AniForge.ui.dashboard.FeaturedBentoCard
@@ -284,6 +285,7 @@ fun HomeScreen(
     onStudioClick: (Long) -> Unit,
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -860,6 +862,7 @@ fun HomeScreen(
                             onStudioClick = onStudioClick,
                             onCollectionClick = onCollectionClick,
                             onStatusClick = onStatusClick,
+                            onSettingsClick = onSettingsClick,
                             onAddWidgetsClick = {
                                 viewModel.enterEditMode()
                                 showRestorationSheet = true
@@ -1690,12 +1693,14 @@ fun HomeScreenGrid(
     onStudioClick: (Long) -> Unit,
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     onAddWidgetsClick: () -> Unit,
     onDragRelease: (String, Offset, Offset, Float, Float, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val hapticFeedback = LocalHapticFeedback.current
+    val updateState by viewModel.updateState.collectAsState()
 
     val visibleConfigs = if (isEditMode) {
         viewModel.editableWidgetConfigs.filter { it.isVisible }
@@ -1849,6 +1854,68 @@ fun HomeScreenGrid(
             Column {
                 Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                 Spacer(modifier = Modifier.height(topSpacerHeight.value))
+            }
+        }
+
+        // Standalone APK Update Available Badge Card
+        if (updateState is UpdateManager.UpdateState.UpdateAvailable && !isEditMode) {
+            item(span = { GridItemSpan(2) }, key = "home_update_badge") {
+                val availableState = updateState as UpdateManager.UpdateState.UpdateAvailable
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(NeonCoral.copy(alpha = 0.15f), ElectricViolet.copy(alpha = 0.15f))
+                            )
+                        )
+                        .border(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                colors = listOf(NeonCoral, ElectricViolet)
+                            ),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { onSettingsClick() }
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.settingsScreen.newUpdateFoundHome,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = availableState.versionName,
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Button(
+                            onClick = onSettingsClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonCoral,
+                                contentColor = BackgroundDark
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = strings.settingsScreen.goToSettings,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
         }
         // Seasonal Top Section (replacing Spotlight)
