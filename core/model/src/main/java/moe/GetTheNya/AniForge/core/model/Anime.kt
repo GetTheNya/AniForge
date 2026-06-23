@@ -39,10 +39,13 @@ data class Anime(
 ) {
     // Helper to get the display title based on preference or fallback
     fun getDisplayTitle(preferUk: Boolean = true): String {
-        return if (preferUk) {
-            titleUk ?: titleRomaji
-        } else {
-            titleEn ?: titleRomaji
+        val firstChoice = if (preferUk) titleUk else titleEn
+        val secondChoice = if (preferUk) titleEn else titleUk
+
+        return when {
+            !firstChoice.isNullOrBlank() -> firstChoice
+            !secondChoice.isNullOrBlank() -> secondChoice
+            else -> titleRomaji
         }
     }
 

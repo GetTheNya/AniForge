@@ -18,6 +18,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.animation.EnterTransition
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -714,6 +718,11 @@ fun DetailContent(
     val maxOverscrollPx = remember(headerHeightPx) { headerHeightPx * 0.15f }
     val overscrollOffsetState = remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
+    var isTagsExpanded by remember { mutableStateOf(false) }
+    var tagsContentHeight by remember { mutableStateOf(0) }
+    val isTagsScrollable = remember(tagsContentHeight) {
+        with(density) { tagsContentHeight.toDp() > 110.dp }
+    }
 
     val nestedScrollConnection = remember(scrollState, headerHeightPx, maxOverscrollPx, coroutineScope) {
         var springJob: kotlinx.coroutines.Job? = null
@@ -1332,21 +1341,74 @@ fun DetailContent(
 
                             if (tags.isNotEmpty()) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(
-                                        text = strings.detailScreen.tagsTitle,
-                                        color = TextPrimary,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    CustomStretchingFlowRow(
-                                        horizontalGap = 8.dp,
-                                        verticalGap = 8.dp,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        tags.forEach { tag ->
-                                            TagChipMinimal(
-                                                name = tag.getDisplayName(preferUk),
-                                                onClick = { onTagClick(tag.tagId) }
+                                        Text(
+                                            text = strings.detailScreen.tagsTitle,
+                                            color = TextPrimary,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (isTagsScrollable) {
+                                            IconButton(
+                                                onClick = { isTagsExpanded = !isTagsExpanded },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isTagsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                    contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
+                                                    tint = TextSecondary
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                                            .then(
+                                                if (!isTagsExpanded && isTagsScrollable) {
+                                                    Modifier
+                                                        .heightIn(max = 110.dp)
+                                                        .clipToBounds()
+                                                        .clickable { isTagsExpanded = true }
+                                                } else {
+                                                    Modifier
+                                                }
+                                            )
+                                    ) {
+                                        CustomStretchingFlowRow(
+                                            horizontalGap = 8.dp,
+                                            verticalGap = 8.dp,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .wrapContentHeight(align = Alignment.Top, unbounded = true)
+                                                .onGloballyPositioned { coordinates ->
+                                                    tagsContentHeight = coordinates.size.height
+                                                }
+                                        ) {
+                                            tags.forEach { tag ->
+                                                TagChipMinimal(
+                                                    name = tag.getDisplayName(preferUk),
+                                                    onClick = { onTagClick(tag.tagId) }
+                                                )
+                                            }
+                                        }
+
+                                        if (!isTagsExpanded && isTagsScrollable) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .fillMaxWidth()
+                                                    .height(40.dp)
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            colors = listOf(Color.Transparent, BackgroundDark)
+                                                        )
+                                                    )
                                             )
                                         }
                                     }
