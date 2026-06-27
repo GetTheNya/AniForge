@@ -1593,7 +1593,7 @@ fun SettingsScreen(
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
                                                             Text(
-                                                                text = anime.titleUk ?: anime.titleRomaji,
+                                                                text = anime.getDisplayTitle(preferUk = preferUk),
                                                                 color = TextPrimary,
                                                                 fontSize = 12.sp,
                                                                 fontWeight = FontWeight.Medium
