@@ -38,7 +38,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -134,6 +139,63 @@ fun TrackedListScreen(
             }
         } else {
             baseColor
+        }
+    }
+
+    val currentEntry = remember(navController) {
+        navController.backStack.lastOrNull { it.screen is Screen.TrackedList }
+    }
+
+    val density = LocalDensity.current
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidthPx = remember(density, screenWidth) { with(density) { screenWidth.toPx() } }
+
+    var accumulatedDragX by remember { mutableStateOf(0f) }
+
+    val nestedScrollConnection = remember(screenWidthPx, currentEntry) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (pagerState.currentPage == 0 && (available.x > 0f || accumulatedDragX > 0f)) {
+                    accumulatedDragX = (accumulatedDragX + available.x).coerceAtLeast(0f)
+                    currentEntry?.let { entry ->
+                        if (accumulatedDragX > 0f) {
+                            entry.isDragging = true
+                            entry.dragOffset = accumulatedDragX
+                        } else {
+                            entry.isDragging = false
+                            entry.dragOffset = 0f
+                        }
+                    }
+                    return Offset(available.x, 0f)
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && accumulatedDragX > 0f) {
+            val releaseOffset = accumulatedDragX
+            accumulatedDragX = 0f
+            currentEntry?.let { entry ->
+                entry.isDragging = false
+                coroutineScope.launch {
+                    entry.animatableOffset.snapTo(releaseOffset)
+                    if (releaseOffset > screenWidthPx * 0.4f) {
+                        entry.animatableOffset.animateTo(
+                            screenWidthPx,
+                            tween(durationMillis = 300)
+                        )
+                        navController.popBackStack()
+                    } else {
+                        entry.animatableOffset.animateTo(0f, spring())
+                    }
+                }
+            }
         }
     }
 
@@ -327,7 +389,8 @@ fun TrackedListScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .blur(if (isSliderActive) 16.dp else 0.dp),
+                .blur(if (isSliderActive) 16.dp else 0.dp)
+                .nestedScroll(nestedScrollConnection),
             userScrollEnabled = scrollEnabled
         ) { pageIndex ->
             // Watch status pages
