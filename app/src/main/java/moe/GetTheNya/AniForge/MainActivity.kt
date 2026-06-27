@@ -31,9 +31,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -359,8 +362,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        val navigationBarsHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                         val bottomBarOffset by animateDpAsState(
-                            targetValue = if (isBottomBarVisible) 0.dp else 120.dp,
+                            targetValue = if (isBottomBarVisible) 0.dp else (120.dp + navigationBarsHeight),
                             animationSpec = tween(durationMillis = 300),
                             label = "bottomBarOffset"
                         )
@@ -949,6 +953,7 @@ fun FloatingBottomNavigation(
 
     Box(
         modifier = modifier
+            .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 24.dp)
             .fillMaxWidth()
             .height(68.dp)
