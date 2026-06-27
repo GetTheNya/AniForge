@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 val BackgroundDark = Color(0xFF0C0C0E)
 val SurfaceDark = Color(0xFF16161C)
 val SurfaceCardDark = Color(0x3B20202A) // Glassmorphic translucent card base
+val AlertBackground = Color(0xD90E0D12)
 
 // Accents (Vibrant HSL-derived colors)
 val NeonCoral = Color(0xFFFF2E93)

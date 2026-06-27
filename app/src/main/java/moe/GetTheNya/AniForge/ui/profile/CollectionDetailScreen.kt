@@ -47,6 +47,7 @@ import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
+import moe.GetTheNya.AniForge.ui.franchises.CollectionFormDialog
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import moe.GetTheNya.AniForge.ui.localization.getPlural
 import kotlinx.coroutines.CoroutineScope
@@ -260,78 +261,28 @@ fun CollectionDetailScreen(
             val currentCollection = collection!!
 
     if (showEditDialog) {
-        var editTitle by remember { mutableStateOf(currentCollection.title) }
-        var editDesc by remember { mutableStateOf(currentCollection.description) }
-
-        AlertDialog(
+        CollectionFormDialog(
+            initialTitle = currentCollection.title,
+            initialDescription = currentCollection.description,
+            dialogTitle = strings.libraryScreen.editCollectionDetails,
+            confirmButtonText = strings.libraryScreen.save,
+            descriptionLabel = strings.libraryScreen.description,
             onDismissRequest = { showEditDialog = false },
-            title = { Text(strings.libraryScreen.editCollectionDetails, color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        value = editTitle,
-                        onValueChange = { editTitle = it },
-                        label = { Text(strings.libraryScreen.title, color = TextSecondary) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = ElectricViolet,
-                            unfocusedBorderColor = CardBorder,
-                            focusedContainerColor = SurfaceDark,
-                            unfocusedContainerColor = SurfaceDark
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = editDesc,
-                        onValueChange = { editDesc = it },
-                        label = { Text(strings.libraryScreen.description, color = TextSecondary) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedBorderColor = ElectricViolet,
-                            unfocusedBorderColor = CardBorder,
-                            focusedContainerColor = SurfaceDark,
-                            unfocusedContainerColor = SurfaceDark
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (editTitle.isNotBlank()) {
-                            viewModel.updateCollectionDetails(editTitle, editDesc)
-                            showEditDialog = false
-                        }
-                    },
-                    enabled = editTitle.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(strings.libraryScreen.save, color = BackgroundDark, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) {
-                    Text(strings.libraryScreen.cancel, color = TextSecondary)
-                }
-            },
-            containerColor = SurfaceCardDark,
-            shape = RoundedCornerShape(24.dp)
+            onConfirm = { title, description ->
+                viewModel.updateCollectionDetails(title, description)
+                showEditDialog = false
+            }
         )
     }
 
     if (showAddTitlesDialog) {
         AlertDialog(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                ),
             onDismissRequest = { 
                 showAddTitlesDialog = false 
                 viewModel.setSearchQuery("")
@@ -436,7 +387,7 @@ fun CollectionDetailScreen(
                     Text(strings.libraryScreen.done, color = BackgroundDark, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = SurfaceCardDark,
+            containerColor = AlertBackground,
             shape = RoundedCornerShape(24.dp)
         )
     }

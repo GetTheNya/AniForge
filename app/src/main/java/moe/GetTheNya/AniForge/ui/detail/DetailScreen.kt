@@ -69,6 +69,7 @@ import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
+import moe.GetTheNya.AniForge.ui.franchises.CollectionFormDialog
 import moe.GetTheNya.AniForge.core.model.Studio
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.stopScroll
@@ -456,76 +457,17 @@ fun DetailScreen(
             }
 
             if (showCreateDialog) {
-                var title by remember { mutableStateOf("") }
-                var description by remember { mutableStateOf("") }
-
-                AlertDialog(
+                CollectionFormDialog(
+                    initialTitle = "",
+                    initialDescription = "",
+                    dialogTitle = strings.libraryScreen.newCollection,
+                    confirmButtonText = strings.libraryScreen.create,
+                    descriptionLabel = strings.libraryScreen.descriptionOptional,
                     onDismissRequest = { showCreateDialog = false },
-                    title = { Text(strings.libraryScreen.newCollection, color = TextPrimary, fontWeight = FontWeight.Bold) },
-                    text = {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = title,
-                                onValueChange = { title = it },
-                                label = { Text(strings.libraryScreen.title, color = TextSecondary) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary,
-                                    focusedBorderColor = ElectricViolet,
-                                    unfocusedBorderColor = CardBorder,
-                                    focusedContainerColor = SurfaceDark,
-                                    unfocusedContainerColor = SurfaceDark
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            OutlinedTextField(
-                                value = description,
-                                onValueChange = { description = it },
-                                label = { Text(strings.libraryScreen.descriptionOptional, color = TextSecondary) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary,
-                                    focusedBorderColor = ElectricViolet,
-                                    unfocusedBorderColor = CardBorder,
-                                    focusedContainerColor = SurfaceDark,
-                                    unfocusedContainerColor = SurfaceDark
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                if (title.isNotBlank()) {
-                                    viewModel.createNewCollectionWithAnime(title, description)
-                                    showCreateDialog = false
-                                }
-                            },
-                            enabled = title.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ElectricViolet,
-                                disabledContainerColor = ElectricViolet.copy(alpha = 0.5f)
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(strings.libraryScreen.create, color = BackgroundDark, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showCreateDialog = false }) {
-                            Text(strings.libraryScreen.cancel, color = TextSecondary)
-                        }
-                    },
-                    containerColor = SurfaceCardDark,
-                    shape = RoundedCornerShape(24.dp)
+                    onConfirm = { title, description ->
+                        viewModel.createNewCollectionWithAnime(title, description)
+                        showCreateDialog = false
+                    }
                 )
             }
 

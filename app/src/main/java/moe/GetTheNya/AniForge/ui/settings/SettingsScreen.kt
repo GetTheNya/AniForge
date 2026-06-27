@@ -1026,6 +1026,12 @@ fun SettingsScreen(
 
     if (showWarningDialog) {
         AlertDialog(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                ),
             onDismissRequest = { showWarningDialog = false },
             title = {
                 Text(
@@ -1070,7 +1076,7 @@ fun SettingsScreen(
                     )
                 }
             },
-            containerColor = SurfaceCardDark,
+            containerColor = AlertBackground,
             shape = RoundedCornerShape(24.dp)
         )
     }
@@ -1079,6 +1085,12 @@ fun SettingsScreen(
 
     if (selectedFileUri != null) {
         AlertDialog(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                ),
             onDismissRequest = { selectedFileUri = null },
             title = {
                 Text(
@@ -1221,13 +1233,19 @@ fun SettingsScreen(
                     Text(text = strings.libraryScreen.cancel, color = TextSecondary)
                 }
             },
-            containerColor = SurfaceCardDark,
+            containerColor = AlertBackground,
             shape = RoundedCornerShape(24.dp)
         )
     }
 
     if (importState.isProcessing) {
         AlertDialog(
+            modifier = Modifier
+                .border(
+                    width = 1.dp,
+                    color = CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                ),
             onDismissRequest = {},
             title = {
                 Text(
@@ -1272,7 +1290,7 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {},
-            containerColor = SurfaceCardDark,
+            containerColor = AlertBackground,
             shape = RoundedCornerShape(24.dp)
         )
     }

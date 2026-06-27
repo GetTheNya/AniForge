@@ -214,76 +214,17 @@ fun LibraryScreen(
                         var showCreateDialog by remember { mutableStateOf(false) }
 
                         if (showCreateDialog) {
-                            var title by remember { mutableStateOf("") }
-                            var description by remember { mutableStateOf("") }
-
-                            AlertDialog(
+                            CollectionFormDialog(
+                                initialTitle = "",
+                                initialDescription = "",
+                                dialogTitle = strings.libraryScreen.newCollection,
+                                confirmButtonText = strings.libraryScreen.create,
+                                descriptionLabel = strings.libraryScreen.descriptionOptional,
                                 onDismissRequest = { showCreateDialog = false },
-                                title = { Text(strings.libraryScreen.newCollection, color = TextPrimary, fontWeight = FontWeight.Bold) },
-                                text = {
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        OutlinedTextField(
-                                            value = title,
-                                            onValueChange = { title = it },
-                                            label = { Text(strings.libraryScreen.title, color = TextSecondary) },
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedTextColor = TextPrimary,
-                                                unfocusedTextColor = TextPrimary,
-                                                focusedBorderColor = ElectricViolet,
-                                                unfocusedBorderColor = CardBorder,
-                                                focusedContainerColor = SurfaceDark,
-                                                unfocusedContainerColor = SurfaceDark
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-
-                                        OutlinedTextField(
-                                            value = description,
-                                            onValueChange = { description = it },
-                                            label = { Text(strings.libraryScreen.descriptionOptional, color = TextSecondary) },
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedTextColor = TextPrimary,
-                                                unfocusedTextColor = TextPrimary,
-                                                focusedBorderColor = ElectricViolet,
-                                                unfocusedBorderColor = CardBorder,
-                                                focusedContainerColor = SurfaceDark,
-                                                unfocusedContainerColor = SurfaceDark
-                                            ),
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                },
-                                confirmButton = {
-                                    Button(
-                                        onClick = {
-                                            if (title.isNotBlank()) {
-                                                viewModel.createCollection(title, description)
-                                                showCreateDialog = false
-                                            }
-                                        },
-                                        enabled = title.isNotBlank(),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = ElectricViolet,
-                                            disabledContainerColor = ElectricViolet.copy(alpha = 0.5f)
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Text(strings.libraryScreen.create, color = BackgroundDark, fontWeight = FontWeight.Bold)
-                                    }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { showCreateDialog = false }) {
-                                        Text(strings.libraryScreen.cancel, color = TextSecondary)
-                                    }
-                                },
-                                containerColor = SurfaceCardDark,
-                                shape = RoundedCornerShape(24.dp)
+                                onConfirm = { title, description ->
+                                    viewModel.createCollection(title, description)
+                                    showCreateDialog = false
+                                }
                             )
                         }
 
@@ -464,6 +405,12 @@ fun LibraryScreen(
 
         if (showDeleteConfirmation) {
             AlertDialog(
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        color = CardBorder,
+                        shape = RoundedCornerShape(24.dp)
+                    ),
                 onDismissRequest = { showDeleteConfirmation = false },
                 title = { Text(strings.libraryScreen.deleteSelectedCollections, color = TextPrimary, fontWeight = FontWeight.Bold) },
                 text = { Text(strings.libraryScreen.deleteSelectedConfirm, color = TextSecondary) },
@@ -484,7 +431,7 @@ fun LibraryScreen(
                         Text(strings.libraryScreen.cancel, color = TextSecondary)
                     }
                 },
-                containerColor = SurfaceCardDark,
+                containerColor = AlertBackground,
                 shape = RoundedCornerShape(24.dp)
             )
         }
