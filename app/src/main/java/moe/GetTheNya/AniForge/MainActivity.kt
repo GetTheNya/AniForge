@@ -646,7 +646,12 @@ class MainActivity : ComponentActivity() {
                                                 when (val screen = entry.screen) {
                                                     is Screen.Detail -> {
                                                         val scopedViewModel = remember(entry) {
-                                                            ViewModelProvider(entry)[DetailViewModel::class.java]
+                                                            ViewModelProvider(entry)[DetailViewModel::class.java].apply {
+                                                                entry.savedStateHandle.keys().forEach { key ->
+                                                                    this.savedStateHandle.set(key, entry.savedStateHandle.get<Any>(key))
+                                                                }
+                                                                entry.savedStateHandle = this.savedStateHandle
+                                                            }
                                                         }
                                                         DetailScreen(
                                                             anilistId = screen.anilistId,

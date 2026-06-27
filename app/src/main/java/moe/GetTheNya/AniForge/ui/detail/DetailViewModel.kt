@@ -31,7 +31,7 @@ class DetailViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: moe.GetTheNya.AniForge.core.database.dao.CollectionDao,
-    private val savedStateHandle: SavedStateHandle,
+    val savedStateHandle: SavedStateHandle,
     private val userTrackingRepository: moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 ) : ViewModel() {
 
