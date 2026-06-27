@@ -1081,7 +1081,7 @@ fun SettingsScreen(
         )
     }
 
-    // --- CSV Import Wizard Dialogs ---
+    // --- Anixart Import Wizard Dialogs ---
 
     if (selectedFileUri != null) {
         AlertDialog(
@@ -1094,7 +1094,7 @@ fun SettingsScreen(
             onDismissRequest = { selectedFileUri = null },
             title = {
                 Text(
-                    text = strings.settingsScreen.csvImportHeader,
+                    text = strings.settingsScreen.anixartImportHeader,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
@@ -1105,7 +1105,7 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = strings.settingsScreen.csvImportDesc,
+                        text = strings.settingsScreen.anixartImportDesc,
                         color = TextSecondary,
                         fontSize = 13.sp
                     )
@@ -1114,7 +1114,7 @@ fun SettingsScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = strings.settingsScreen.csvImportMatchPriority,
+                            text = strings.settingsScreen.anixartImportMatchPriority,
                             color = TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -1135,7 +1135,7 @@ fun SettingsScreen(
                                 colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
                             )
                             Text(
-                                text = strings.settingsScreen.csvImportPriorityOriginal,
+                                text = strings.settingsScreen.anixartImportPriorityOriginal,
                                 color = TextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -1157,7 +1157,7 @@ fun SettingsScreen(
                                 colors = RadioButtonDefaults.colors(selectedColor = NeonCoral, unselectedColor = TextSecondary)
                             )
                             Text(
-                                text = strings.settingsScreen.csvImportPriorityAlternative,
+                                text = strings.settingsScreen.anixartImportPriorityAlternative,
                                 color = TextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -1173,7 +1173,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = strings.settingsScreen.csvImportSyncStatus,
+                            text = strings.settingsScreen.anixartImportSyncStatus,
                             color = TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -1196,7 +1196,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = strings.settingsScreen.csvImportSyncRating,
+                            text = strings.settingsScreen.anixartImportSyncRating,
                             color = TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
@@ -1225,7 +1225,7 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(text = strings.misc.ready, fontWeight = FontWeight.Bold)
+                    Text(text = strings.settingsScreen.importAction, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1249,7 +1249,7 @@ fun SettingsScreen(
             onDismissRequest = {},
             title = {
                 Text(
-                    text = strings.settingsScreen.csvImportProcessing,
+                    text = strings.settingsScreen.anixartImportProcessing,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
@@ -1266,7 +1266,7 @@ fun SettingsScreen(
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
-                        text = strings.settingsScreen.csvImportProgressDesc,
+                        text = strings.settingsScreen.anixartImportProgressDesc,
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -1275,15 +1275,15 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = strings.settingsScreen.csvImportSuccessText, color = CyberTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(text = strings.settingsScreen.anixartImportSuccessText, color = CyberTeal, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(text = importState.processedSuccessCount.toString(), color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = strings.settingsScreen.csvImportFailedText, color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(text = strings.settingsScreen.anixartImportFailedText, color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(text = importState.failedCount.toString(), color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = strings.settingsScreen.csvImportTotalText, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text(text = strings.settingsScreen.anixartImportTotalText, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text(text = importState.totalRecords.toString(), color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -1318,7 +1318,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = strings.settingsScreen.csvImportHeader,
+                            text = strings.settingsScreen.anixartImportHeader,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
@@ -1339,7 +1339,7 @@ fun SettingsScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = strings.settingsScreen.csvImportSuccessCount
+                                text = strings.settingsScreen.anixartImportSuccessCount
                                     .replace("{success}", importState.processedSuccessCount.toString())
                                     .replace("{total}", importState.totalRecords.toString()),
                                 color = CyberTeal,
@@ -1349,7 +1349,7 @@ fun SettingsScreen(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = strings.settingsScreen.csvImportFailedCount
+                                text = strings.settingsScreen.anixartImportFailedCount
                                     .replace("{failed}", importState.failedCount.toString()),
                                 color = Color(0xFFEF4444),
                                 fontSize = 13.sp,
@@ -1365,7 +1365,7 @@ fun SettingsScreen(
                         if (importState.failedImports.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = strings.settingsScreen.csvImportAllMapped,
+                                    text = strings.settingsScreen.anixartImportAllMapped,
                                     color = TextSecondary,
                                     fontSize = 14.sp
                                 )
@@ -1418,7 +1418,7 @@ fun SettingsScreen(
                                                 modifier = Modifier.height(32.dp)
                                             ) {
                                                 Text(
-                                                    text = if (item.isResolving) strings.libraryScreen.cancel else strings.settingsScreen.csvImportResolveManually,
+                                                    text = if (item.isResolving) strings.libraryScreen.cancel else strings.settingsScreen.anixartImportResolveManually,
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -1430,7 +1430,7 @@ fun SettingsScreen(
                                             OutlinedTextField(
                                                 value = item.searchQuery,
                                                 onValueChange = { importViewModel.updateSearchQuery(item.id, it) },
-                                                placeholder = { Text(text = strings.settingsScreen.csvImportSearchAnime, fontSize = 11.sp, color = TextSecondary) },
+                                                placeholder = { Text(text = strings.settingsScreen.anixartImportSearchAnime, fontSize = 11.sp, color = TextSecondary) },
                                                 modifier = Modifier.fillMaxWidth(),
                                                 textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = TextPrimary),
                                                 singleLine = true,
@@ -1480,7 +1480,7 @@ fun SettingsScreen(
                                             } else if (item.searchQuery.isNotBlank() && !item.isSearching) {
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 Text(
-                                                    text = strings.settingsScreen.csvImportNoResults,
+                                                    text = strings.settingsScreen.anixartImportNoResults,
                                                     color = TextSecondary,
                                                     fontSize = 11.sp,
                                                     modifier = Modifier.padding(start = 4.dp)

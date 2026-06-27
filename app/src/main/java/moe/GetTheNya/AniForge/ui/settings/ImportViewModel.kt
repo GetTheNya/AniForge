@@ -215,8 +215,8 @@ class ImportViewModel @Inject constructor(
         // 1. Favorites Handling
         if (favoritesVal == "Добавлено") {
             val strings = localizationService.activeLocaleStrings.value
-            val collectionTitle = strings.settingsScreen.csvImportCollectionTitle
-            val collectionDesc = strings.settingsScreen.csvImportCollectionDesc
+            val collectionTitle = strings.settingsScreen.anixartImportCollectionTitle
+            val collectionDesc = strings.settingsScreen.anixartImportCollectionDesc
             
             val collection = collectionDao.getCollectionByTitle(collectionTitle)
             val collectionId = if (collection != null) {
