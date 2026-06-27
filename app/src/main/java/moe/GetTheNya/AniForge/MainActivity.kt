@@ -485,10 +485,11 @@ class MainActivity : ComponentActivity() {
                                                     modifier = Modifier.fillMaxSize()
                                                 ) { page ->
                                                     when (page) {
-                                                        0 -> HomeScreen(
+                                                         0 -> HomeScreen(
                                                             viewModel = homeViewModel,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
-                                                            onSettingsClick = { navController.navigate(Screen.Settings) },
+                                                            onSettingsClick = { navController.navigate(Screen.Settings()) },
+                                                            onUpdateClick = { navController.navigate(Screen.Settings(initialTab = 2)) },
                                                             onGenreClick = { genreSlug ->
                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
                                                                 coroutineScope.launch {
@@ -834,6 +835,7 @@ class MainActivity : ComponentActivity() {
                                                         moe.GetTheNya.AniForge.ui.settings.SettingsScreen(
                                                             viewModel = scopedViewModel,
                                                             navController = navController,
+                                                            initialTab = (entry.screen as Screen.Settings).initialTab,
                                                             modifier = Modifier.padding(innerPadding),
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )

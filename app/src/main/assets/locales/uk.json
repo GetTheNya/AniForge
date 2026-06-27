@@ -184,6 +184,9 @@
   },
   "settingsScreen": {
     "title": "Налаштування",
+    "tabAppearance": "Вигляд",
+    "tabDataManagement": "Дані",
+    "tabAbout": "Про додаток",
     "language": "Мова додатку",
     "preferUkTitle": "Перевага українським назвам",
     "preferUkDesc": "Використовувати перекладені назви, якщо вони є",

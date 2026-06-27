@@ -196,6 +196,9 @@ data class ProfileScreenStrings(
 @Serializable
 data class SettingsScreenStrings(
     val title: String = "[settingsScreen.title]",
+    val tabAppearance: String = "[settingsScreen.tabAppearance]",
+    val tabDataManagement: String = "[settingsScreen.tabDataManagement]",
+    val tabAbout: String = "[settingsScreen.tabAbout]",
     val language: String = "[settingsScreen.language]",
     val preferUkTitle: String = "[settingsScreen.preferUkTitle]",
     val preferUkDesc: String = "[settingsScreen.preferUkDesc]",

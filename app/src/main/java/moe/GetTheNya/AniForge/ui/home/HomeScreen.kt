@@ -271,6 +271,7 @@ fun HomeScreen(
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
+    onUpdateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -848,6 +849,7 @@ fun HomeScreen(
                             onCollectionClick = onCollectionClick,
                             onStatusClick = onStatusClick,
                             onSettingsClick = onSettingsClick,
+                            onUpdateClick = onUpdateClick,
                             onAddWidgetsClick = {
                                 viewModel.enterEditMode()
                                 showRestorationSheet = true
@@ -1679,6 +1681,7 @@ fun HomeScreenGrid(
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
+    onUpdateClick: () -> Unit,
     onAddWidgetsClick: () -> Unit,
     onDragRelease: (String, Offset, Offset, Float, Float, Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -1862,7 +1865,7 @@ fun HomeScreenGrid(
                             ),
                             RoundedCornerShape(16.dp)
                         )
-                        .clickable { onSettingsClick() }
+                        .clickable { onUpdateClick() }
                         .padding(16.dp)
                 ) {
                     Row(
@@ -1885,7 +1888,7 @@ fun HomeScreenGrid(
                             )
                         }
                         Button(
-                            onClick = onSettingsClick,
+                            onClick = onUpdateClick,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = NeonCoral,
                                 contentColor = BackgroundDark

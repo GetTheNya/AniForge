@@ -179,6 +179,9 @@
   },
   "settingsScreen": {
     "title": "Settings",
+    "tabAppearance": "Appearance",
+    "tabDataManagement": "Data",
+    "tabAbout": "About",
     "language": "App Language",
     "preferUkTitle": "Prefer Ukrainian Titles",
     "preferUkDesc": "Use translated titles when available",

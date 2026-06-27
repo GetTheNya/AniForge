@@ -107,7 +107,7 @@ fun ProfileScreen(
                 letterSpacing = (-0.5).sp
             )
             IconButton(
-                onClick = { navController.navigate(Screen.Settings) },
+                onClick = { navController.navigate(Screen.Settings()) },
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(SurfaceDark)
