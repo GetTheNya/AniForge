@@ -1228,7 +1228,7 @@ fun DetailContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = anime.descriptionUk ?: anime.descriptionEn ?: strings.detailScreen.noDescription,
+                            text = anime.getDisplayDescription(preferUk = preferUk) ?: strings.detailScreen.noDescription,
                             color = TextSecondary,
                             fontSize = 14.sp,
                             lineHeight = 22.sp

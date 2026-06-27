@@ -459,7 +459,8 @@ fun BentoStatsCard(stats: UserStats) {
 @Composable
 fun FeaturedBentoCard(
     anime: Anime,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    preferUk: Boolean = true
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     Box(
@@ -517,7 +518,7 @@ fun FeaturedBentoCard(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = anime.getDisplayTitle(preferUk = true),
+                text = anime.getDisplayTitle(preferUk = preferUk),
                 color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -525,7 +526,7 @@ fun FeaturedBentoCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = anime.descriptionUk ?: anime.descriptionEn ?: "",
+                text = anime.getDisplayDescription(preferUk = preferUk) ?: "",
                 color = TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 2,

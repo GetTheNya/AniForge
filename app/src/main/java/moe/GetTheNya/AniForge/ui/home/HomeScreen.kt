@@ -15,12 +15,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
@@ -28,9 +25,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
 import androidx.compose.material3.*
@@ -39,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -50,21 +44,17 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.stopScroll
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,15 +62,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity
-import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.update.UpdateManager
 import moe.GetTheNya.AniForge.ui.bento.*
-import moe.GetTheNya.AniForge.ui.dashboard.BentoStatsCard
-import moe.GetTheNya.AniForge.ui.dashboard.FeaturedBentoCard
 import moe.GetTheNya.AniForge.ui.localization.LocaleStrings
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -2253,86 +2238,6 @@ fun HomeScreenGrid(
         }
 
 
-    }
-}
-
-@Composable
-fun HomeFeaturedCard(
-    anime: Anime,
-    preferUk: Boolean,
-    onClick: () -> Unit
-) {
-    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-    ) {
-        AsyncImage(
-            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                .data(anime.bannerImage ?: anime.coverLarge)
-                .precision(coil.size.Precision.EXACT)
-                .allowHardware(true)
-                .crossfade(true)
-                .build(),
-            contentDescription = anime.titleRomaji,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color(0x99000000), Color(0xEE000000))
-                    )
-                )
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = null,
-                    tint = NeonCoral,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "${strings.misc.featured}  •  ${anime.scoreMal ?: 8.5}",
-                    color = NeonCoral,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = anime.getDisplayTitle(preferUk = preferUk),
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = anime.descriptionUk ?: anime.descriptionEn ?: "",
-                color = TextSecondary,
-                fontSize = 12.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
     }
 }
 

@@ -49,6 +49,15 @@ data class Anime(
         }
     }
 
+    // Helper to get the display description/synopsis based on preference or fallback
+    fun getDisplayDescription(preferUk: Boolean = true): String? {
+        return if (preferUk) {
+            descriptionUk?.ifBlank { null } ?: descriptionEn?.ifBlank { null }
+        } else {
+            descriptionEn?.ifBlank { null }
+        }
+    }
+
     /** Returns true when the anime has not started airing yet.
      *  Only PLANNING is a meaningful list status in this state. */
     fun isNotYetReleased(): Boolean =
