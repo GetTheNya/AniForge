@@ -3,6 +3,8 @@ package moe.GetTheNya.AniForge.core.database.di
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,7 +13,24 @@ import dagger.hilt.components.SingletonComponent
 import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import moe.GetTheNya.AniForge.core.database.UserDatabase
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.dao.PendingImportDao
 import javax.inject.Singleton
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `pending_imports` (" +
+            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`raw_row_text` TEXT NOT NULL, " +
+            "`russian_title` TEXT NOT NULL, " +
+            "`original_title` TEXT NOT NULL, " +
+            "`alternative_titles` TEXT NOT NULL, " +
+            "`target_status` TEXT NOT NULL, " +
+            "`target_score` REAL, " +
+            "`is_favorite` INTEGER NOT NULL)"
+        )
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -28,6 +47,7 @@ object DatabaseModule {
             "user_data.db"
         )
         .openHelperFactory(RequerySQLiteOpenHelperFactory())
+        .addMigrations(MIGRATION_1_2)
         
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebuggable) {
@@ -43,6 +63,14 @@ object DatabaseModule {
         userDatabase: UserDatabase
     ): UserTrackingDao {
         return userDatabase.userTrackingDao()
+    }
+
+    @Provides
+    @Singleton
+    fun providePendingImportDao(
+        userDatabase: UserDatabase
+    ): PendingImportDao {
+        return userDatabase.pendingImportDao()
     }
 
     @Provides

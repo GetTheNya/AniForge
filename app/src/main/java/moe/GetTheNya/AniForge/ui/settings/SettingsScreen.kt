@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Delete
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -98,6 +100,8 @@ fun SettingsScreen(
     val matchPriority by importViewModel.matchPriority.collectAsState()
     val importSyncStatus by importViewModel.syncStatus.collectAsState()
     val importSyncRating by importViewModel.syncRating.collectAsState()
+    val pendingCount by importViewModel.pendingImportsCount.collectAsState()
+    val failedImports by importViewModel.failedImports.collectAsState()
 
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -571,6 +575,62 @@ fun SettingsScreen(
             }
 
             HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+            if (pendingCount > 0) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF2E1A47), Color(0xFF1F1035))
+                            )
+                        )
+                        .border(1.dp, Color(0xFF9067C6).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = strings.settingsScreen.incompleteImportTitle,
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = strings.settingsScreen.incompleteImportSubtitle.replace("{count}", pendingCount.toString()),
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                        
+                        Button(
+                            onClick = { importViewModel.resumeImportResolution() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = NeonCoral,
+                                contentColor = BackgroundDark
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(
+                                text = strings.settingsScreen.incompleteImportResumeBtn,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                
+                HorizontalDivider(color = CardBorder, thickness = 1.dp)
+            }
 
             // Import from Anixart Row (Active Trigger)
             Row(
@@ -1362,7 +1422,7 @@ fun SettingsScreen(
 
                     // Scrollable failed items LazyColumn area
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        if (importState.failedImports.isEmpty()) {
+                        if (failedImports.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text(
                                     text = strings.settingsScreen.anixartImportAllMapped,
@@ -1376,52 +1436,116 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 items(
-                                    items = importState.failedImports,
+                                    items = failedImports,
                                     key = { it.id }
                                 ) { item ->
                                     Column(
                                         modifier = Modifier
+                                            .animateItem()
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(SurfaceCardDark)
                                             .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                                             .padding(12.dp)
                                     ) {
+                                        Text(
+                                            text = item.russianTitle.ifEmpty { item.originalTitle },
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        if (item.russianTitle.isNotEmpty() && item.originalTitle.isNotEmpty()) {
+                                            Text(
+                                                text = item.originalTitle,
+                                                color = TextSecondary,
+                                                fontSize = 11.sp,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                                Text(
-                                                    text = item.russianTitle.ifEmpty { item.originalTitle },
-                                                    color = TextPrimary,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                if (item.russianTitle.isNotEmpty() && item.originalTitle.isNotEmpty()) {
-                                                    Text(
-                                                        text = item.originalTitle,
-                                                        color = TextSecondary,
-                                                        fontSize = 11.sp
+                                            val statusLabel = when (item.targetStatus) {
+                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.CURRENT -> strings.misc.watching
+                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.PLANNING -> strings.misc.planning
+                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.COMPLETED -> strings.misc.completed
+                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.PAUSED -> strings.misc.paused
+                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.DROPPED -> strings.misc.dropped
+                                                else -> ""
+                                            }
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                if (item.isFavorite) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Star,
+                                                        contentDescription = "Favorite",
+                                                        tint = Color(0xFFFFD700),
+                                                        modifier = Modifier.size(14.dp)
                                                     )
                                                 }
+                                                if (statusLabel.isNotEmpty()) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color(0x1Fffffff))
+                                                            .border(0.5.dp, Color(0x33ffffff), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "${strings.settingsScreen.targetListPrefix} $statusLabel",
+                                                            color = TextSecondary,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                }
                                             }
-                                            Button(
-                                                onClick = { importViewModel.toggleResolving(item.id) },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = if (item.isResolving) Color(0x33FFFFFF) else NeonCoral,
-                                                    contentColor = if (item.isResolving) TextPrimary else BackgroundDark
-                                                ),
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                                modifier = Modifier.height(32.dp)
+
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = if (item.isResolving) strings.libraryScreen.cancel else strings.settingsScreen.anixartImportResolveManually,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(32.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                                                        .clickable { importViewModel.deletePendingImport(item.id) },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = strings.settingsScreen.removeFromImportTooltip,
+                                                        tint = Color(0xFFEF4444),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+
+                                                Button(
+                                                    onClick = { importViewModel.toggleResolving(item.id) },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = if (item.isResolving) Color(0x33FFFFFF) else NeonCoral,
+                                                        contentColor = if (item.isResolving) TextPrimary else BackgroundDark
+                                                    ),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                    modifier = Modifier.height(32.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (item.isResolving) strings.libraryScreen.cancel else strings.settingsScreen.anixartImportResolveManually,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
 

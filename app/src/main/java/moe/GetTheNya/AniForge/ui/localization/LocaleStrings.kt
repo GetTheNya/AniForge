@@ -246,6 +246,11 @@ data class SettingsScreenStrings(
     // Data Management
     val dataManagementHeader: String = "[settingsScreen.dataManagementHeader]",
     val importAction: String = "[settingsScreen.importAction]",
+    val incompleteImportTitle: String = "[settingsScreen.incompleteImportTitle]",
+    val incompleteImportSubtitle: String = "[settingsScreen.incompleteImportSubtitle]",
+    val incompleteImportResumeBtn: String = "[settingsScreen.incompleteImportResumeBtn]",
+    val targetListPrefix: String = "[settingsScreen.targetListPrefix]",
+    val removeFromImportTooltip: String = "[settingsScreen.removeFromImportTooltip]",
     val exportDataTitle: String = "[settingsScreen.exportDataTitle]",
     val exportDataComingSoon: String = "[settingsScreen.exportDataComingSoon]",
     val importAnixartTitle: String = "[settingsScreen.importAnixartTitle]",

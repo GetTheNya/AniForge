@@ -9,13 +9,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.dao.CollectionDao
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.dao.PendingImportDao
 import moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef
 import moe.GetTheNya.AniForge.core.database.entity.CollectionEntity
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
+import moe.GetTheNya.AniForge.core.database.entity.PendingImportEntity
+import moe.GetTheNya.AniForge.core.database.entity.TargetStatus
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 import moe.GetTheNya.AniForge.ui.localization.LocalizationService
@@ -46,6 +52,15 @@ data class FailedImport(
     val isResolving: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Anime> = emptyList(),
+    val isSearching: Boolean = false,
+    val targetStatus: TargetStatus = TargetStatus.UNKNOWN,
+    val isFavorite: Boolean = false
+)
+
+data class FailedImportState(
+    val isResolving: Boolean = false,
+    val searchQuery: String = "",
+    val searchResults: List<Anime> = emptyList(),
     val isSearching: Boolean = false
 )
 
@@ -66,6 +81,7 @@ class ImportViewModel @Inject constructor(
     private val userTrackingRepository: UserTrackingRepository,
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: CollectionDao,
+    private val pendingImportDao: PendingImportDao,
     private val localizationService: LocalizationService
 ) : ViewModel() {
 
@@ -81,6 +97,44 @@ class ImportViewModel @Inject constructor(
     private val _syncRating = MutableStateFlow(true)
     val syncRating: StateFlow<Boolean> = _syncRating.asStateFlow()
 
+    private val _resolvingStates = MutableStateFlow<Map<String, FailedImportState>>(emptyMap())
+
+    val pendingImportsCount: StateFlow<Int> = pendingImportDao.observeCount()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
+    val failedImports: StateFlow<List<FailedImport>> = combine(
+        pendingImportDao.observeAll(),
+        _resolvingStates
+    ) { entities, states ->
+        entities.map { entity ->
+            val stateKey = entity.id.toString()
+            val state = states[stateKey] ?: FailedImportState()
+            val jsonArray = org.json.JSONArray(entity.rawRowText)
+            val rawRow = List(jsonArray.length()) { jsonArray.getString(it) }
+            FailedImport(
+                id = stateKey,
+                russianTitle = entity.russianTitle,
+                originalTitle = entity.originalTitle,
+                alternativeTitle = entity.alternativeTitles,
+                rawRow = rawRow,
+                isResolving = state.isResolving,
+                searchQuery = state.searchQuery,
+                searchResults = state.searchResults,
+                isSearching = state.isSearching,
+                targetStatus = entity.targetStatus,
+                isFavorite = entity.isFavorite
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     fun setMatchPriority(priority: MatchPriority) {
         _matchPriority.value = priority
     }
@@ -91,6 +145,33 @@ class ImportViewModel @Inject constructor(
 
     fun setSyncRating(enabled: Boolean) {
         _syncRating.value = enabled
+    }
+
+    fun resumeImportResolution() {
+        _state.value = _state.value.copy(
+            showSummary = true,
+            totalRecords = pendingImportsCount.value,
+            failedCount = pendingImportsCount.value,
+            processedSuccessCount = 0
+        )
+    }
+
+    fun deletePendingImport(failedImportId: String) {
+        viewModelScope.launch {
+            val failedIdLong = failedImportId.toLongOrNull() ?: return@launch
+            withContext(Dispatchers.IO) {
+                pendingImportDao.deleteById(failedIdLong)
+            }
+            val currentStates = _resolvingStates.value.toMutableMap()
+            currentStates.remove(failedImportId)
+            _resolvingStates.value = currentStates
+
+            // Mapped counts update
+            val currentFailedCount = pendingImportsCount.value
+            _state.value = _state.value.copy(
+                failedCount = currentFailedCount
+            )
+        }
     }
 
     fun startImport(context: Context, uri: Uri) {
@@ -115,6 +196,9 @@ class ImportViewModel @Inject constructor(
                 val failedList = mutableListOf<FailedImport>()
 
                 withContext(Dispatchers.IO) {
+                    // Clean previous pending imports
+                    pendingImportDao.deleteAll()
+
                     for (row in rows) {
                         if (row.size < 7) continue // Skip invalid rows
                         
@@ -158,13 +242,37 @@ class ImportViewModel @Inject constructor(
                         )
                     }
 
+                    // Save failed list to DB
+                    if (failedList.isNotEmpty()) {
+                        val pendingEntities = failedList.map { failed ->
+                            val favoritesVal = failed.rawRow.getOrNull(4)?.trim() ?: ""
+                            val statusVal = failed.rawRow.getOrNull(5)?.trim() ?: ""
+                            val ratingVal = failed.rawRow.getOrNull(6)?.trim() ?: ""
+
+                            val isFavorite = (favoritesVal == "Добавлено")
+                            val targetStatus = mapRussianStatusToEnum(statusVal)
+                            val targetScore = if (ratingVal == "Не оценено") null else ratingVal.toDoubleOrNull()
+                            
+                            PendingImportEntity(
+                                rawRowText = org.json.JSONArray(failed.rawRow).toString(),
+                                russianTitle = failed.russianTitle,
+                                originalTitle = failed.originalTitle,
+                                alternativeTitles = failed.alternativeTitle,
+                                targetStatus = targetStatus,
+                                targetScore = targetScore,
+                                isFavorite = isFavorite
+                            )
+                        }
+                        pendingImportDao.insertAll(pendingEntities)
+                    }
+
                     userTrackingRepository.recalculateTotalWatchTime()
                 }
 
                 _state.value = _state.value.copy(
                     isProcessing = false,
                     successfulImports = successList,
-                    failedImports = failedList,
+                    failedImports = emptyList(), // we keep failedImports empty in volatile state as they are observed from DB
                     showSummary = true
                 )
 
@@ -172,6 +280,17 @@ class ImportViewModel @Inject constructor(
                 e.printStackTrace()
                 _state.value = ImportState(error = e.localizedMessage ?: "Unknown error occurred")
             }
+        }
+    }
+
+    private fun mapRussianStatusToEnum(statusVal: String): TargetStatus {
+        return when (statusVal) {
+            "Смотрю" -> TargetStatus.CURRENT
+            "В планах" -> TargetStatus.PLANNING
+            "Просмотрено" -> TargetStatus.COMPLETED
+            "Отложено" -> TargetStatus.PAUSED
+            "Брошено" -> TargetStatus.DROPPED
+            else -> TargetStatus.UNKNOWN
         }
     }
 
@@ -296,87 +415,84 @@ class ImportViewModel @Inject constructor(
     }
 
     fun toggleResolving(failedImportId: String) {
-        val currentImports = _state.value.failedImports.map { item ->
-            if (item.id == failedImportId) {
-                val nextResolving = !item.isResolving
-                item.copy(
-                    isResolving = nextResolving,
-                    searchQuery = if (nextResolving) item.russianTitle.ifEmpty { item.originalTitle } else "",
-                    searchResults = emptyList()
-                ).apply {
-                    if (nextResolving) {
-                        searchManual(this)
-                    }
-                }
-            } else {
-                item
-            }
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[failedImportId] ?: FailedImportState()
+        val nextResolving = !state.isResolving
+
+        val item = failedImports.value.find { it.id == failedImportId }
+        val defaultQuery = if (nextResolving) {
+            item?.russianTitle?.ifEmpty { item.originalTitle } ?: ""
+        } else {
+            ""
         }
-        _state.value = _state.value.copy(failedImports = currentImports)
+
+        currentStates[failedImportId] = state.copy(
+            isResolving = nextResolving,
+            searchQuery = defaultQuery,
+            searchResults = emptyList()
+        )
+        _resolvingStates.value = currentStates
+
+        if (nextResolving) {
+            searchManual(failedImportId, defaultQuery)
+        }
     }
 
     fun updateSearchQuery(failedImportId: String, query: String) {
-        val currentImports = _state.value.failedImports.map { item ->
-            if (item.id == failedImportId) {
-                item.copy(searchQuery = query).apply {
-                    searchManual(this)
-                }
-            } else {
-                item
-            }
-        }
-        _state.value = _state.value.copy(failedImports = currentImports)
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[failedImportId] ?: FailedImportState()
+        currentStates[failedImportId] = state.copy(searchQuery = query)
+        _resolvingStates.value = currentStates
+
+        searchManual(failedImportId, query)
     }
 
-    private fun searchManual(item: FailedImport) {
+    private fun searchManual(failedImportId: String, query: String) {
         viewModelScope.launch {
-            val query = item.searchQuery
             if (query.isBlank()) {
-                updateItemSearchResults(item.id, emptyList())
+                updateItemSearchResults(failedImportId, emptyList())
                 return@launch
             }
-            updateItemSearching(item.id, true)
+            updateItemSearching(failedImportId, true)
             val results = withContext(Dispatchers.IO) {
                 animeRepository.queryAnime(
                     SearchFilterQuery(textQuery = query, sortBy = SortOption.RELEVANCE)
                 )
             }
-            updateItemSearchResults(item.id, results.take(10))
+            updateItemSearchResults(failedImportId, results.take(10))
         }
     }
 
     private fun updateItemSearching(id: String, isSearching: Boolean) {
-        val currentImports = _state.value.failedImports.map { item ->
-            if (item.id == id) {
-                item.copy(isSearching = isSearching)
-            } else {
-                item
-            }
-        }
-        _state.value = _state.value.copy(failedImports = currentImports)
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id] ?: FailedImportState()
+        currentStates[id] = state.copy(isSearching = isSearching)
+        _resolvingStates.value = currentStates
     }
 
     private fun updateItemSearchResults(id: String, results: List<Anime>) {
-        val currentImports = _state.value.failedImports.map { item ->
-            if (item.id == id) {
-                item.copy(searchResults = results, isSearching = false)
-            } else {
-                item
-            }
-        }
-        _state.value = _state.value.copy(failedImports = currentImports)
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id] ?: FailedImportState()
+        currentStates[id] = state.copy(searchResults = results, isSearching = false)
+        _resolvingStates.value = currentStates
     }
 
     fun resolveManualBind(failedImportId: String, anime: Anime) {
         viewModelScope.launch {
-            val item = _state.value.failedImports.find { it.id == failedImportId } ?: return@launch
+            val failedIdLong = failedImportId.toLongOrNull() ?: return@launch
+            val item = failedImports.value.find { it.id == failedImportId } ?: return@launch
             
             withContext(Dispatchers.IO) {
                 importRecordDirect(anime.anilistId, item.rawRow)
+                pendingImportDao.deleteById(failedIdLong)
                 userTrackingRepository.recalculateTotalWatchTime()
             }
 
-            val updatedFailed = _state.value.failedImports.filter { it.id != failedImportId }
+            // Clean up resolving state for this item
+            val currentStates = _resolvingStates.value.toMutableMap()
+            currentStates.remove(failedImportId)
+            _resolvingStates.value = currentStates
+
             val updatedSuccess = _state.value.successfulImports + SuccessfulImport(
                 animeId = anime.anilistId,
                 animeTitle = anime.titleUk ?: anime.titleRomaji,
@@ -385,11 +501,11 @@ class ImportViewModel @Inject constructor(
                 alternativeTitle = item.alternativeTitle
             )
 
+            val currentFailedCount = pendingImportsCount.value
             _state.value = _state.value.copy(
-                failedImports = updatedFailed,
                 successfulImports = updatedSuccess,
                 processedSuccessCount = updatedSuccess.size,
-                failedCount = updatedFailed.size
+                failedCount = currentFailedCount
             )
         }
     }
