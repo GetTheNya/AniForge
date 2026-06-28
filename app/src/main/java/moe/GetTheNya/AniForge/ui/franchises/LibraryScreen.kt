@@ -649,6 +649,7 @@ fun LibraryScreen(
             exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.8f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .padding(bottom = 180.dp) // Float above the trigger pill / thumb position
                 .zIndex(15f)
         ) {
@@ -674,6 +675,7 @@ fun LibraryScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
                     .padding(bottom = 100.dp) // Float above bottom bar
                     .zIndex(10f)
             ) {
@@ -840,10 +842,13 @@ fun LibraryScreen(
                 contentWindowInsets = { WindowInsets(0.dp) },
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val customBottomBarHeight = 92.dp
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 40.dp, top = 16.dp),
+                        .navigationBarsPadding()
+                        .padding(bottom = customBottomBarHeight)
+                        .padding(top = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val chooseCategoryText = strings.libraryScreen.chooseCategory ?: "Select Category"

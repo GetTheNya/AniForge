@@ -1029,25 +1029,32 @@ fun FilterBottomSheet(
             }
             
             // Footer Apply Button
-            Button(
-                onClick = {
-                    scope.launch {
-                        sheetState.hide()
-                    }.invokeOnCompletion {
-                        onDismiss()
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricViolet,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(16.dp),
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .height(52.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp)
             ) {
-                Text(text = readyText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Button(
+                    onClick = {
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricViolet,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                        .height(52.dp)
+                ) {
+                    Text(text = readyText, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
     }

@@ -1602,6 +1602,11 @@ fun DetailContent(
                     }
                 }
             }
+            item {
+                val customBottomBarHeight = 92.dp
+                Spacer(modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars))
+                Spacer(modifier = Modifier.height(customBottomBarHeight + 16.dp))
+            }
         }
     }
 }
