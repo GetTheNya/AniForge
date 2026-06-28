@@ -178,6 +178,18 @@ class MainActivity : ComponentActivity() {
         splashScreen.setKeepOnScreenCondition {
             homeViewModel.isInitializing.value
         }
+
+        splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
+            val splashScreenView = splashScreenViewProvider.view
+            splashScreenView.animate()
+                .alpha(0f)
+                .setDuration(250L)
+                .withEndAction {
+                    splashScreenViewProvider.remove()
+                    homeViewModel.setSplashFinished(true)
+                }
+                .start()
+        }
         
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)

@@ -34,6 +34,12 @@ class HomeViewModel @Inject constructor(
     private val updateManager: UpdateManager
 ) : ViewModel() {
 
+    val isSplashFinished = MutableStateFlow(false)
+
+    fun setSplashFinished(finished: Boolean) {
+        isSplashFinished.value = finished
+    }
+
     val updateState: StateFlow<UpdateManager.UpdateState> = updateManager.updateState
 
     init {

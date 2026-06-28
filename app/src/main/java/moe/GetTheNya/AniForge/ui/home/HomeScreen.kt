@@ -2,6 +2,11 @@ package moe.GetTheNya.AniForge.ui.home
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -291,6 +296,18 @@ fun HomeScreen(
         viewModel.isHomeAnimationPlayed = true
     }
 
+    val isSplashFinished by viewModel.isSplashFinished.collectAsState()
+    var startEntranceAnimations by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isSplashFinished) {
+        if (isSplashFinished || isAnimationPlayed) {
+            if (!isAnimationPlayed) {
+                delay(100)
+            }
+            startEntranceAnimations = true
+        }
+    }
+
     // A. Dynamic Title Animation Logic
     val titleText = strings.homeScreen.appName
     val cipherPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#@&?%*"
@@ -305,8 +322,8 @@ fun HomeScreen(
         )
     }
 
-    LaunchedEffect(titleText, currentTitleStyle) {
-        if (!isAnimationPlayed && currentTitleStyle == TitleAnimStyle.DECODING) {
+    LaunchedEffect(titleText, currentTitleStyle, startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations && currentTitleStyle == TitleAnimStyle.DECODING) {
             try {
                 delay(200L)
                 val duration = 380L
@@ -341,8 +358,8 @@ fun HomeScreen(
     var titleGlitchAlpha by remember { mutableStateOf(1f) }
     var titleGlitchTranslationX by remember { mutableStateOf(0f) }
 
-    LaunchedEffect(titleText, currentTitleStyle) {
-        if (!isAnimationPlayed && currentTitleStyle == TitleAnimStyle.GLITCH) {
+    LaunchedEffect(titleText, currentTitleStyle, startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations && currentTitleStyle == TitleAnimStyle.GLITCH) {
             val duration = 300L
             val startTime = System.currentTimeMillis()
             while (true) {
@@ -361,8 +378,8 @@ fun HomeScreen(
     }
 
     val titleProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (!isAnimationPlayed) {
+    LaunchedEffect(startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations) {
             delay(200L)
             titleProgress.animateTo(
                 targetValue = 1f,
@@ -417,8 +434,8 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(strings.homeScreen.welcomeBack, cleanSubtitle, currentSubtitleStyle) {
-        if (!isAnimationPlayed && currentSubtitleStyle == SubtitleAnimStyle.TYPEWRITER) {
+    LaunchedEffect(strings.homeScreen.welcomeBack, cleanSubtitle, currentSubtitleStyle, startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations && currentSubtitleStyle == SubtitleAnimStyle.TYPEWRITER) {
             val fullGreeting = strings.homeScreen.welcomeBack.replace("!", "")
             typedGreeting = ""
             typedSubtitle = ""
@@ -446,8 +463,8 @@ fun HomeScreen(
     }
 
     val headerProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
-    LaunchedEffect(currentSubtitleStyle) {
-        if (!isAnimationPlayed && (currentSubtitleStyle == SubtitleAnimStyle.BLUR_FADE || currentSubtitleStyle == SubtitleAnimStyle.WORD_BY_WORD)) {
+    LaunchedEffect(currentSubtitleStyle, startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations && (currentSubtitleStyle == SubtitleAnimStyle.BLUR_FADE || currentSubtitleStyle == SubtitleAnimStyle.WORD_BY_WORD)) {
             delay(200L) // breathing room delay (synchronized with title decoding)
             headerProgress.animateTo(
                 targetValue = 1f,
@@ -461,8 +478,8 @@ fun HomeScreen(
 
     // C. Digital Power-Up for Bento widgets
     val contentProgress = remember { Animatable(if (isAnimationPlayed) 1f else 0f) }
-    LaunchedEffect(currentContentStyle) {
-        if (!isAnimationPlayed && currentContentStyle != ContentAnimStyle.NONE) {
+    LaunchedEffect(currentContentStyle, startEntranceAnimations) {
+        if (!isAnimationPlayed && startEntranceAnimations && currentContentStyle != ContentAnimStyle.NONE) {
             delay(180L) // 180ms delay from launch
             val duration = if (currentContentStyle == ContentAnimStyle.FLIP_3D) 450 else 400
             contentProgress.animateTo(
@@ -474,6 +491,21 @@ fun HomeScreen(
             )
         }
     }
+
+    val topBarTranslationY by animateFloatAsState(
+        targetValue = if (isAnimationPlayed || startEntranceAnimations) 0f else -100f,
+        animationSpec = if (isAnimationPlayed) snap() else spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "topBarTranslationY"
+    )
+
+    val topBarAlpha by animateFloatAsState(
+        targetValue = if (isAnimationPlayed || startEntranceAnimations) 1f else 0f,
+        animationSpec = if (isAnimationPlayed) snap() else tween(durationMillis = 400),
+        label = "topBarAlpha"
+    )
 
     val isEditMode by viewModel.isEditMode.collectAsState()
     BackHandler(enabled = isEditMode) {
@@ -865,6 +897,8 @@ fun HomeScreen(
                                     placingHeight = height
                                 }
                             },
+                            startEntranceAnimations = startEntranceAnimations,
+                            isAnimationPlayed = isAnimationPlayed,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
@@ -872,7 +906,7 @@ fun HomeScreen(
                                     alpha = progress
                                     when (currentContentStyle) {
                                         ContentAnimStyle.NONE -> {
-                                            alpha = 1f
+                                            alpha = if (!isAnimationPlayed && !startEntranceAnimations) 0f else 1f
                                             scaleX = 1f
                                             scaleY = 1f
                                             translationY = 0f
@@ -951,11 +985,15 @@ fun HomeScreen(
                                     targetValue = if (isOverDeleteZone) Color(0xFFD32F2F).copy(alpha = 0.9f) else headerBgColor,
                                     animationSpec = tween(350, easing = FastOutSlowInEasing),
                                     label = "topBarBg"
-                                ).value,
+                               ).value,
                                 Color.Transparent
                             )
                         )
                     )
+                    .graphicsLayer {
+                        translationY = if (isAnimationPlayed) 0f else topBarTranslationY.dp.toPx()
+                        alpha = if (isAnimationPlayed) 1f else topBarAlpha
+                    }
                     .padding(horizontal = 24.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -1595,6 +1633,8 @@ private fun HomeScreenWidget(
     onStatusClick: (String) -> Unit,
     onLongClick: (() -> Unit)?,
     isEditMode: Boolean = false,
+    startEntranceAnimations: Boolean = true,
+    isAnimationPlayed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     when (widgetId) {
@@ -1616,11 +1656,22 @@ private fun HomeScreenWidget(
             )
         }
         "chaos_meter" -> {
+            val chaosScale by animateFloatAsState(
+                targetValue = if (isAnimationPlayed || startEntranceAnimations) 1f else 0.7f,
+                animationSpec = if (isAnimationPlayed) snap() else spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "chaosMeterScale"
+            )
             ChaosMeterWidget(
                 count = state.userStats.chaosMeterCount,
                 onLongClick = onLongClick,
                 isEditMode = isEditMode,
-                modifier = modifier
+                modifier = modifier.graphicsLayer {
+                    scaleX = chaosScale
+                    scaleY = chaosScale
+                }
             )
         }
         "personal_collections" -> {
@@ -1684,6 +1735,8 @@ fun HomeScreenGrid(
     onUpdateClick: () -> Unit,
     onAddWidgetsClick: () -> Unit,
     onDragRelease: (String, Offset, Offset, Float, Float, Boolean) -> Unit,
+    startEntranceAnimations: Boolean = true,
+    isAnimationPlayed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -1909,49 +1962,61 @@ fun HomeScreenGrid(
         // Seasonal Top Section (replacing Spotlight)
         if (!isEditMode && state.seasonalAnimeList.isNotEmpty()) {
             item(span = { GridItemSpan(2) }, key = "spotlight_header") {
-                Text(
-                    text = state.seasonalTitle,
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                AnimatedVisibility(
+                    visible = isAnimationPlayed || startEntranceAnimations,
+                    enter = fadeIn(animationSpec = tween(500, delayMillis = 100)) +
+                            slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(500, delayMillis = 100))
+                ) {
+                    Text(
+                        text = state.seasonalTitle,
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
             item(span = { GridItemSpan(2) }, key = "spotlight_card") {
-                val seasonalRowState = rememberLazyListState()
-                LazyRow(
-                    state = seasonalRowState,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                AnimatedVisibility(
+                    visible = isAnimationPlayed || startEntranceAnimations,
+                    enter = fadeIn(animationSpec = tween(500, delayMillis = 100)) +
+                            slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(500, delayMillis = 100))
                 ) {
-                    items(
-                        items = state.seasonalAnimeList,
-                        key = { it.anilistId }
-                    ) { anime ->
-                        Box(
-                            modifier = Modifier.size(width = 150.dp, height = 180.dp)
-                        ) {
-                            AnimeBentoCard(
-                                anime = anime,
-                                status = null,
-                                preferUk = state.preferUk,
-                                onGestureActionTriggered = { action, _ ->
-                                    if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                        if (seasonalRowState.isScrollInProgress) {
-                                            coroutineScope.launch { seasonalRowState.stopScroll() }
-                                        } else {
-                                            onAnimeClick(anime.anilistId)
+                    val seasonalRowState = rememberLazyListState()
+                    LazyRow(
+                        state = seasonalRowState,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(
+                            items = state.seasonalAnimeList,
+                            key = { it.anilistId }
+                        ) { anime ->
+                            Box(
+                                modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                            ) {
+                                AnimeBentoCard(
+                                    anime = anime,
+                                    status = null,
+                                    preferUk = state.preferUk,
+                                    onGestureActionTriggered = { action, _ ->
+                                        if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                            if (seasonalRowState.isScrollInProgress) {
+                                                coroutineScope.launch { seasonalRowState.stopScroll() }
+                                            } else {
+                                                onAnimeClick(anime.anilistId)
+                                            }
                                         }
-                                    }
-                                },
-                                gestureCenter = QuickGestureAction.Immediate.None,
-                                gestureUp = QuickGestureAction.Immediate.None,
-                                gestureDown = QuickGestureAction.Immediate.None,
-                                gestureLeft = QuickGestureAction.Immediate.None,
-                                gestureRight = QuickGestureAction.Immediate.None,
-                                clickAction = QuickGestureAction.Immediate.OpenDetails,
-                                enableGestures = false,
-                                cardHeight = 180.dp
-                            )
+                                    },
+                                    gestureCenter = QuickGestureAction.Immediate.None,
+                                    gestureUp = QuickGestureAction.Immediate.None,
+                                    gestureDown = QuickGestureAction.Immediate.None,
+                                    gestureLeft = QuickGestureAction.Immediate.None,
+                                    gestureRight = QuickGestureAction.Immediate.None,
+                                    clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                    enableGestures = false,
+                                    cardHeight = 180.dp
+                                )
+                            }
                         }
                     }
                 }
@@ -1964,67 +2029,74 @@ fun HomeScreenGrid(
         if (!isEditMode) {
             if (state.continueWatchingList.isNotEmpty()) {
                 item(span = { GridItemSpan(2) }, key = "continue_watching_section") {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    AnimatedVisibility(
+                        visible = isAnimationPlayed || startEntranceAnimations,
+                        enter = fadeIn(animationSpec = tween(500, delayMillis = 150)) +
+                                slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(500, delayMillis = 150)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = strings.homeScreen.continueWatching,
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            IconButton(
-                                onClick = { onStatusClick("CURRENT") }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowForward,
-                                    contentDescription = strings.homeScreen.continueWatching,
-                                    tint = TextPrimary
-                                )
-                            }
-                        }
-
-                        val continueWatchingRowState = rememberLazyListState()
-                        LazyRow(
-                            state = continueWatchingRowState,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(
-                                items = state.continueWatchingList,
-                                key = { it.anilistId }
-                            ) { anime ->
-                                Box(
-                                    modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = strings.homeScreen.continueWatching,
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                IconButton(
+                                    onClick = { onStatusClick("CURRENT") }
                                 ) {
-                                    AnimeBentoCard(
-                                        anime = anime,
-                                        status = "CURRENT",
-                                        preferUk = state.preferUk,
-                                        onGestureActionTriggered = { action, _ ->
-                                            if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                if (continueWatchingRowState.isScrollInProgress) {
-                                                    coroutineScope.launch { continueWatchingRowState.stopScroll() }
-                                                } else {
-                                                    onAnimeClick(anime.anilistId)
-                                                }
-                                            }
-                                        },
-                                        gestureCenter = QuickGestureAction.Immediate.None,
-                                        gestureUp = QuickGestureAction.Immediate.None,
-                                        gestureDown = QuickGestureAction.Immediate.None,
-                                        gestureLeft = QuickGestureAction.Immediate.None,
-                                        gestureRight = QuickGestureAction.Immediate.None,
-                                        clickAction = QuickGestureAction.Immediate.OpenDetails,
-                                        enableGestures = false,
-                                        cardHeight = 180.dp
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowForward,
+                                        contentDescription = strings.homeScreen.continueWatching,
+                                        tint = TextPrimary
                                     )
+                                }
+                            }
+
+                            val continueWatchingRowState = rememberLazyListState()
+                            LazyRow(
+                                state = continueWatchingRowState,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(
+                                    items = state.continueWatchingList,
+                                    key = { it.anilistId }
+                                ) { anime ->
+                                    Box(
+                                        modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                                    ) {
+                                        AnimeBentoCard(
+                                            anime = anime,
+                                            status = "CURRENT",
+                                            preferUk = state.preferUk,
+                                            onGestureActionTriggered = { action, _ ->
+                                                if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                    if (continueWatchingRowState.isScrollInProgress) {
+                                                        coroutineScope.launch { continueWatchingRowState.stopScroll() }
+                                                    } else {
+                                                        onAnimeClick(anime.anilistId)
+                                                    }
+                                                }
+                                            },
+                                            gestureCenter = QuickGestureAction.Immediate.None,
+                                            gestureUp = QuickGestureAction.Immediate.None,
+                                            gestureDown = QuickGestureAction.Immediate.None,
+                                            gestureLeft = QuickGestureAction.Immediate.None,
+                                            gestureRight = QuickGestureAction.Immediate.None,
+                                            clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                            enableGestures = false,
+                                            cardHeight = 180.dp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2034,67 +2106,74 @@ fun HomeScreenGrid(
 
             if (state.nextUpList.isNotEmpty()) {
                 item(span = { GridItemSpan(2) }, key = "next_up_section") {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    AnimatedVisibility(
+                        visible = isAnimationPlayed || startEntranceAnimations,
+                        enter = fadeIn(animationSpec = tween(500, delayMillis = 200)) +
+                                slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(500, delayMillis = 200)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = strings.homeScreen.nextUp,
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            IconButton(
-                                onClick = { onStatusClick("PLANNING") }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowForward,
-                                    contentDescription = strings.homeScreen.nextUp,
-                                    tint = TextPrimary
-                                )
-                            }
-                        }
-
-                        val nextUpRowState = rememberLazyListState()
-                        LazyRow(
-                            state = nextUpRowState,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(
-                                items = state.nextUpList,
-                                key = { it.anilistId }
-                            ) { anime ->
-                                Box(
-                                    modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = strings.homeScreen.nextUp,
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                IconButton(
+                                    onClick = { onStatusClick("PLANNING") }
                                 ) {
-                                    AnimeBentoCard(
-                                        anime = anime,
-                                        status = "PLANNING",
-                                        preferUk = state.preferUk,
-                                        onGestureActionTriggered = { action, _ ->
-                                            if (action == QuickGestureAction.Immediate.OpenDetails) {
-                                                if (nextUpRowState.isScrollInProgress) {
-                                                    coroutineScope.launch { nextUpRowState.stopScroll() }
-                                                } else {
-                                                    onAnimeClick(anime.anilistId)
-                                                }
-                                            }
-                                        },
-                                        gestureCenter = QuickGestureAction.Immediate.None,
-                                        gestureUp = QuickGestureAction.Immediate.None,
-                                        gestureDown = QuickGestureAction.Immediate.None,
-                                        gestureLeft = QuickGestureAction.Immediate.None,
-                                        gestureRight = QuickGestureAction.Immediate.None,
-                                        clickAction = QuickGestureAction.Immediate.OpenDetails,
-                                        enableGestures = false,
-                                        cardHeight = 180.dp
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowForward,
+                                        contentDescription = strings.homeScreen.nextUp,
+                                        tint = TextPrimary
                                     )
+                                }
+                            }
+
+                            val nextUpRowState = rememberLazyListState()
+                            LazyRow(
+                                state = nextUpRowState,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(
+                                    items = state.nextUpList,
+                                    key = { it.anilistId }
+                                ) { anime ->
+                                    Box(
+                                        modifier = Modifier.size(width = 150.dp, height = 180.dp)
+                                    ) {
+                                        AnimeBentoCard(
+                                            anime = anime,
+                                            status = "PLANNING",
+                                            preferUk = state.preferUk,
+                                            onGestureActionTriggered = { action, _ ->
+                                                if (action == QuickGestureAction.Immediate.OpenDetails) {
+                                                    if (nextUpRowState.isScrollInProgress) {
+                                                        coroutineScope.launch { nextUpRowState.stopScroll() }
+                                                    } else {
+                                                        onAnimeClick(anime.anilistId)
+                                                    }
+                                                }
+                                            },
+                                            gestureCenter = QuickGestureAction.Immediate.None,
+                                            gestureUp = QuickGestureAction.Immediate.None,
+                                            gestureDown = QuickGestureAction.Immediate.None,
+                                            gestureLeft = QuickGestureAction.Immediate.None,
+                                            gestureRight = QuickGestureAction.Immediate.None,
+                                            clickAction = QuickGestureAction.Immediate.OpenDetails,
+                                            enableGestures = false,
+                                            cardHeight = 180.dp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2234,7 +2313,9 @@ fun HomeScreenGrid(
                         onCollectionClick = onCollectionClick,
                         onStatusClick = onStatusClick,
                         onLongClick = if (isEditMode) null else { { viewModel.enterEditMode() } },
-                        isEditMode = isEditMode
+                        isEditMode = isEditMode,
+                        startEntranceAnimations = startEntranceAnimations,
+                        isAnimationPlayed = isAnimationPlayed
                     )
                 }
             }
