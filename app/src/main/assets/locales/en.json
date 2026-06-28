@@ -95,7 +95,16 @@
       "many": "%d Selected"
     },
     "deleteSelectedConfirm": "Delete selected collections?",
-    "deleteSelectedCollections": "Delete"
+    "deleteSelectedCollections": "Delete",
+    "chooseCategory": "Select Category",
+    "searchPlaceholder": "Search...",
+    "randomEmpty": "No anime to pick from!",
+    "emptyState": "No titles found in this list",
+    "rouletteExhausted": "You've rolled through all anime in this list!",
+    "sortByPersonalScore": "Personal Score",
+    "sortByProgress": "Episode Progress",
+    "sortByDateAdded": "Date Added",
+    "sortByAlphabetical": "Alphabetical"
   },
   "dashboardScreen": {
     "name": "Anime",
@@ -288,16 +297,6 @@
     "recalculateButton": "Recalculate",
     "watchTimeCacheRebuilt": "Watch time cache successfully rebuilt!"
   },
-  "trackedListScreen": {
-    "searchPlaceholder": "Search by title...",
-    "randomEmpty": "No anime to pick from!",
-    "emptyState": "No titles found in this list",
-    "rouletteExhausted": "You've rolled through all anime in this list!",
-    "sortByPersonalScore": "Personal Score",
-    "sortByProgress": "Episode Progress",
-    "sortByDateAdded": "Date Added",
-    "sortByAlphabetical": "Alphabetical"
-  },
   "formats": {
     "tv": "TV",
     "tvShort": "TV Short",
@@ -357,7 +356,7 @@
   "mediaStatuses": {
     "finished": "Finished",
     "releasing": "Releasing",
-    "notYetReleased": "Not Yet Released",
+    "notYetReleased": "Announced",
     "cancelled": "Cancelled",
     "hiatus": "Hiatus"
   },

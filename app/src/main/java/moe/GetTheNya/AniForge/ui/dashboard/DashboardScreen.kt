@@ -3,6 +3,14 @@ package moe.GetTheNya.AniForge.ui.dashboard
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import moe.GetTheNya.AniForge.ui.franchises.FranchiseBentoCard
+import moe.GetTheNya.AniForge.ui.navigation.NavController
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -67,52 +75,12 @@ import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 fun DashboardScreen(
     onAnimeClick: (Long) -> Unit,
     viewModel: DashboardViewModel,
+    navController: NavController,
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
-    val focusManager = LocalFocusManager.current
-    val isKeyboardVisible = WindowInsets.isImeVisible
-    LaunchedEffect(isKeyboardVisible) {
-        if (!isKeyboardVisible) {
-            focusManager.clearFocus()
-        }
-    }
-    val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
-    val filteredCount by viewModel.filteredCount.collectAsState()
-    val searchFilter by viewModel.searchFilter.collectAsState()
-    val allTracking by viewModel.allTracking.collectAsState()
-    var showFilterSheet by remember { mutableStateOf(false) }
-
-    val gestureCenter by viewModel.gestureCenter.collectAsState()
-    val gestureUp by viewModel.gestureUp.collectAsState()
-    val gestureDown by viewModel.gestureDown.collectAsState()
-    val gestureLeft by viewModel.gestureLeft.collectAsState()
-    val gestureRight by viewModel.gestureRight.collectAsState()
-
-    val hasActiveFilters = remember(searchFilter) {
-        searchFilter.genres.isNotEmpty() ||
-        searchFilter.excludedGenres.isNotEmpty() ||
-        searchFilter.studios.isNotEmpty() ||
-        searchFilter.excludedStudios.isNotEmpty() ||
-        searchFilter.tags.isNotEmpty() ||
-        searchFilter.excludedTags.isNotEmpty() ||
-        searchFilter.staff.isNotEmpty() ||
-        searchFilter.excludedStaff.isNotEmpty() ||
-        searchFilter.minScore != null ||
-        searchFilter.maxScore != null ||
-        searchFilter.episodeGroups.isNotEmpty() ||
-        searchFilter.excludedEpisodeGroups.isNotEmpty() ||
-        searchFilter.formats.isNotEmpty() ||
-        searchFilter.excludedFormats.isNotEmpty() ||
-        searchFilter.hasUkTranslation == true ||
-        searchFilter.trackingStatuses.isNotEmpty() ||
-        searchFilter.excludedTrackingStatuses.isNotEmpty() ||
-        searchFilter.mediaStatuses.isNotEmpty() ||
-        searchFilter.excludedMediaStatuses.isNotEmpty() ||
-        searchFilter.mediaSources.isNotEmpty() ||
-        searchFilter.excludedMediaSources.isNotEmpty()
-    }
+    val activeSubTab by viewModel.activeSubTab.collectAsState()
 
     Column(
         modifier = modifier
@@ -120,92 +88,208 @@ fun DashboardScreen(
             .background(BackgroundDark)
             .statusBarsPadding()
     ) {
-        // Sticky Header & Search Bar with Filter Icon
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SearchBar(
-                query = searchFilter.textQuery,
-                onQueryChange = viewModel::updateSearchQuery,
-                modifier = Modifier.weight(1f)
-            )
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            Box {
-                IconButton(
-                    onClick = { showFilterSheet = true },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
-                    ),
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = strings.dashboardScreen.filterTooltip,
-                        tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
+        Crossfade(
+            targetState = activeSubTab,
+            animationSpec = androidx.compose.animation.core.tween(durationMillis = 300),
+            modifier = Modifier.fillMaxSize()
+        ) { subTab ->
+            when (subTab) {
+                DashboardSubTab.SEARCH -> {
+                    val focusManager = LocalFocusManager.current
+                    val isKeyboardVisible = WindowInsets.isImeVisible
+                    LaunchedEffect(isKeyboardVisible) {
+                        if (!isKeyboardVisible) {
+                            focusManager.clearFocus()
+                        }
+                    }
+                    val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
+                    val filteredCount by viewModel.filteredCount.collectAsState()
+                    val searchFilter by viewModel.searchFilter.collectAsState()
+                    val allTracking by viewModel.allTracking.collectAsState()
+                    var showFilterSheet by remember { mutableStateOf(false) }
+
+                    val gestureCenter by viewModel.gestureCenter.collectAsState()
+                    val gestureUp by viewModel.gestureUp.collectAsState()
+                    val gestureDown by viewModel.gestureDown.collectAsState()
+                    val gestureLeft by viewModel.gestureLeft.collectAsState()
+                    val gestureRight by viewModel.gestureRight.collectAsState()
+
+                    val hasActiveFilters = remember(searchFilter) {
+                        searchFilter.genres.isNotEmpty() ||
+                        searchFilter.excludedGenres.isNotEmpty() ||
+                        searchFilter.studios.isNotEmpty() ||
+                        searchFilter.excludedStudios.isNotEmpty() ||
+                        searchFilter.tags.isNotEmpty() ||
+                        searchFilter.excludedTags.isNotEmpty() ||
+                        searchFilter.staff.isNotEmpty() ||
+                        searchFilter.excludedStaff.isNotEmpty() ||
+                        searchFilter.minScore != null ||
+                        searchFilter.maxScore != null ||
+                        searchFilter.episodeGroups.isNotEmpty() ||
+                        searchFilter.excludedEpisodeGroups.isNotEmpty() ||
+                        searchFilter.formats.isNotEmpty() ||
+                        searchFilter.excludedFormats.isNotEmpty() ||
+                        searchFilter.hasUkTranslation == true ||
+                        searchFilter.trackingStatuses.isNotEmpty() ||
+                        searchFilter.excludedTrackingStatuses.isNotEmpty() ||
+                        searchFilter.mediaStatuses.isNotEmpty() ||
+                        searchFilter.excludedMediaStatuses.isNotEmpty() ||
+                        searchFilter.mediaSources.isNotEmpty() ||
+                        searchFilter.excludedMediaSources.isNotEmpty()
+                    }
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SearchBar(
+                                query = searchFilter.textQuery,
+                                onQueryChange = viewModel::updateSearchQuery,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Box {
+                                IconButton(
+                                    onClick = { showFilterSheet = true },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
+                                    ),
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = strings.dashboardScreen.filterTooltip,
+                                        tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                if (hasActiveFilters) {
+                                    Badge(
+                                        containerColor = NeonCoral,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(10.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        val refreshState = lazyPagingItems.loadState.refresh
+                        if (refreshState is LoadState.Loading && lazyPagingItems.itemCount == 0) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = NeonCoral)
+                            }
+                        } else if (refreshState is LoadState.Error && lazyPagingItems.itemCount == 0) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val errorMessage = refreshState.error.message ?: strings.dashboardScreen.unknownError
+                                Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
+                            }
+                        } else {
+                            DashboardContent(
+                                lazyPagingItems = lazyPagingItems,
+                                filteredCount = filteredCount,
+                                allTracking = allTracking,
+                                gestureCenter = gestureCenter,
+                                gestureUp = gestureUp,
+                                gestureDown = gestureDown,
+                                gestureLeft = gestureLeft,
+                                gestureRight = gestureRight,
+                                preferUk = preferUk,
+                                onAnimeClick = onAnimeClick,
+                                onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) },
+                                onScoreChange = { anilistId, score -> viewModel.updateScore(anilistId, score) },
+                                onEpisodeChange = { anilistId, progress -> viewModel.updateEpisodeProgress(anilistId, progress) }
+                            )
+                        }
+                    }
+
+                    if (showFilterSheet) {
+                        FilterBottomSheet(
+                            viewModel = viewModel,
+                            onDismiss = { showFilterSheet = false }
+                        )
+                    }
                 }
-                if (hasActiveFilters) {
-                    Badge(
-                        containerColor = NeonCoral,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(10.dp)
-                    )
+                DashboardSubTab.FRANCHISES -> {
+                    val focusManager = LocalFocusManager.current
+                    val isKeyboardVisible = WindowInsets.isImeVisible
+                    LaunchedEffect(isKeyboardVisible) {
+                        if (!isKeyboardVisible) {
+                            focusManager.clearFocus()
+                        }
+                    }
+                    val franchiseSearchQuery by viewModel.franchiseSearchQuery.collectAsState()
+                    val lazyFranchiseItems = viewModel.pagingFranchisesFlow.collectAsLazyPagingItems()
+                    val isFranchisesLoading = lazyFranchiseItems.loadState.refresh is LoadState.Loading && lazyFranchiseItems.itemCount == 0
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SearchBar(
+                                query = franchiseSearchQuery,
+                                onQueryChange = viewModel::updateFranchiseSearchQuery,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        if (isFranchisesLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = ElectricViolet)
+                            }
+                        } else {
+                            val franchisesLazyListState = rememberLazyListState()
+                            LazyColumn(
+                                state = franchisesLazyListState,
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(bottom = 110.dp), // Space for bottom navigation
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 20.dp)
+                            ) {
+                                items(
+                                    count = lazyFranchiseItems.itemCount,
+                                    key = lazyFranchiseItems.itemKey { it.franchise.franchiseId },
+                                    contentType = lazyFranchiseItems.itemContentType { "franchise_card" }
+                                ) { index ->
+                                    val item = lazyFranchiseItems[index]
+                                    if (item != null) {
+                                        FranchiseBentoCard(
+                                            item = item,
+                                            preferUk = preferUk,
+                                            onClick = {
+                                                navController.navigate(Screen.FranchiseTree(item.franchise.franchiseId))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        // Main Bento list container
-        val refreshState = lazyPagingItems.loadState.refresh
-        if (refreshState is LoadState.Loading && lazyPagingItems.itemCount == 0) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = NeonCoral)
-            }
-        } else if (refreshState is LoadState.Error && lazyPagingItems.itemCount == 0) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                val errorMessage = refreshState.error.message ?: strings.dashboardScreen.unknownError
-                Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral)
-            }
-        } else {
-            DashboardContent(
-                lazyPagingItems = lazyPagingItems,
-                filteredCount = filteredCount,
-                allTracking = allTracking,
-                gestureCenter = gestureCenter,
-                gestureUp = gestureUp,
-                gestureDown = gestureDown,
-                gestureLeft = gestureLeft,
-                gestureRight = gestureRight,
-                preferUk = preferUk,
-                onAnimeClick = onAnimeClick,
-                onStatusChange = { anilistId, status -> viewModel.updateWatchStatus(anilistId, status) },
-                onScoreChange = { anilistId, score -> viewModel.updateScore(anilistId, score) },
-                onEpisodeChange = { anilistId, progress -> viewModel.updateEpisodeProgress(anilistId, progress) }
-            )
-        }
-    }
-
-    if (showFilterSheet) {
-        FilterBottomSheet(
-            viewModel = viewModel,
-            onDismiss = { showFilterSheet = false }
-        )
     }
 }
 

@@ -18,9 +18,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -61,9 +67,11 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,10 +109,12 @@ import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.ui.franchises.LibraryScreen
 import moe.GetTheNya.AniForge.ui.franchises.LibraryViewModel
+import moe.GetTheNya.AniForge.ui.franchises.LibraryFilter
 import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeScreen
 import moe.GetTheNya.AniForge.ui.franchises.FranchiseTreeViewModel
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardScreen
 import moe.GetTheNya.AniForge.ui.dashboard.DashboardViewModel
+import moe.GetTheNya.AniForge.ui.dashboard.DashboardSubTab
 import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 import moe.GetTheNya.AniForge.ui.detail.DetailScreen
 import moe.GetTheNya.AniForge.ui.detail.DetailViewModel
@@ -117,10 +127,12 @@ import moe.GetTheNya.AniForge.ui.navigation.rememberNavController
 import moe.GetTheNya.AniForge.ui.profile.LogViewerScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileScreen
 import moe.GetTheNya.AniForge.ui.profile.ProfileViewModel
-import moe.GetTheNya.AniForge.ui.profile.TrackedListScreen
-import moe.GetTheNya.AniForge.ui.profile.TrackedListViewModel
 import moe.GetTheNya.AniForge.ui.theme.AniForgeTheme
 import moe.GetTheNya.AniForge.ui.theme.CardBorder
+import moe.GetTheNya.AniForge.ui.theme.NeonCoral
+import moe.GetTheNya.AniForge.ui.theme.ElectricViolet
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
 import javax.inject.Inject
 
 enum class TabScreen {
@@ -209,8 +221,14 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val pagerState = rememberPagerState(initialPage = 0) { TabScreen.entries.size }
             val coroutineScope = rememberCoroutineScope()
+            var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+            LaunchedEffect(pagerState.settledPage) {
+                selectedTab = pagerState.settledPage
+            }
             
             navController.onSelectTab = { tab ->
+                selectedTab = tab.ordinal
                 coroutineScope.launch {
                     pagerState.animateScrollToPage(tab.ordinal)
                 }
@@ -275,6 +293,7 @@ class MainActivity : ComponentActivity() {
                 if (topEntry != null && topEntry.screen != Screen.Tabs) {
                     triggerDismissAnimation(topEntry)
                 } else if (pagerState.currentPage != 0) {
+                    selectedTab = 0
                     coroutineScope.launch {
                         pagerState.animateScrollToPage(0)
                     }
@@ -320,7 +339,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // Reset bottom bar visibility when switching tabs
-                        LaunchedEffect(pagerState.currentPage) {
+                        LaunchedEffect(selectedTab) {
                             isBottomBarVisible = true
                         }
 
@@ -349,18 +368,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Optimized selection state to avoid root recomposition
-                        val selectedTabState = remember {
-                            derivedStateOf {
-                                when (pagerState.currentPage) {
-                                    0 -> TabScreen.Home
-                                    1 -> TabScreen.Anime
-                                    2 -> TabScreen.Library
-                                    3 -> TabScreen.Profile
-                                    else -> TabScreen.Home
-                                }
-                            }
-                        }
+
 
                         val navigationBarsHeight = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                         val bottomBarOffset by animateDpAsState(
@@ -490,30 +498,45 @@ class MainActivity : ComponentActivity() {
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
                                                             onSettingsClick = { navController.navigate(Screen.Settings()) },
                                                             onUpdateClick = { navController.navigate(Screen.Settings(initialTab = 2)) },
-                                                            onGenreClick = { genreSlug ->
-                                                                dashboardViewModel.selectGenreOnly(genreSlug)
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                }
-                                                            },
-                                                            onStudioClick = { studioId ->
-                                                                dashboardViewModel.selectStudioOnly(studioId)
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                }
-                                                            },
-                                                            onCollectionClick = {
-                                                                libraryViewModel.activeLibraryTab.value = 1
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Library.ordinal)
-                                                                }
-                                                            },
-                                                            onStatusClick = { statusId ->
-                                                                navController.navigate(Screen.TrackedList(statusId))
-                                                            }
+                                                             onGenreClick = { genreSlug ->
+                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                 selectedTab = TabScreen.Anime.ordinal
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                 }
+                                                             },
+                                                             onStudioClick = { studioId ->
+                                                                 dashboardViewModel.selectStudioOnly(studioId)
+                                                                 selectedTab = TabScreen.Anime.ordinal
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                 }
+                                                             },
+                                                             onCollectionClick = {
+                                                                  libraryViewModel.setActiveFilter(LibraryFilter.COLLECTIONS)
+                                                                  selectedTab = TabScreen.Library.ordinal
+                                                                  coroutineScope.launch {
+                                                                      pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                  }
+                                                              },
+                                                             onStatusClick = { statusId ->
+                                                                 val targetFilter = when (statusId) {
+                                                                     "CURRENT" -> LibraryFilter.WATCHING
+                                                                     "PLANNING" -> LibraryFilter.PLANNING
+                                                                     "COMPLETED" -> LibraryFilter.COMPLETED
+                                                                     "PAUSED" -> LibraryFilter.PAUSED
+                                                                     "DROPPED" -> LibraryFilter.DROPPED
+                                                                     else -> LibraryFilter.WATCHING
+                                                                 }
+                                                                 libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                 }
+                                                             }
                                                         )
                                                         1 -> DashboardScreen(
                                                             viewModel = dashboardViewModel,
+                                                            navController = navController,
                                                             preferUk = preferUk,
                                                             onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
                                                         )
@@ -522,43 +545,67 @@ class MainActivity : ComponentActivity() {
                                                             navController = navController,
                                                             preferUk = preferUk
                                                         )
-                                                        3 -> ProfileScreen(
-                                                            viewModel = profileViewModel,
-                                                            navController = navController,
-                                                            onGenreClick = { genreSlug ->
-                                                                dashboardViewModel.selectGenreOnly(genreSlug)
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                }
-                                                            },
-                                                            onStudioClick = { studioId ->
-                                                                dashboardViewModel.selectStudioOnly(studioId)
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                }
-                                                            },
-                                                            onCollectionClick = {
-                                                                libraryViewModel.activeLibraryTab.value = 1
-                                                                coroutineScope.launch {
-                                                                    pagerState.animateScrollToPage(TabScreen.Library.ordinal)
-                                                                }
-                                                            }
-                                                        )
+                                                         3 -> ProfileScreen(
+                                                             viewModel = profileViewModel,
+                                                             navController = navController,
+                                                             onGenreClick = { genreSlug ->
+                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                 selectedTab = TabScreen.Anime.ordinal
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                 }
+                                                             },
+                                                             onStudioClick = { studioId ->
+                                                                 dashboardViewModel.selectStudioOnly(studioId)
+                                                                 selectedTab = TabScreen.Anime.ordinal
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                 }
+                                                             },
+                                                             onCollectionClick = {
+                                                                 libraryViewModel.setActiveFilter(LibraryFilter.COLLECTIONS)
+                                                                 selectedTab = TabScreen.Library.ordinal
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                 }
+                                                             },
+                                                             onStatusClick = { statusId ->
+                                                                 val targetFilter = when (statusId) {
+                                                                     "CURRENT" -> LibraryFilter.WATCHING
+                                                                     "PLANNING" -> LibraryFilter.PLANNING
+                                                                     "COMPLETED" -> LibraryFilter.COMPLETED
+                                                                     "PAUSED" -> LibraryFilter.PAUSED
+                                                                     "DROPPED" -> LibraryFilter.DROPPED
+                                                                     else -> LibraryFilter.WATCHING
+                                                                 }
+                                                                 libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)
+                                                                 coroutineScope.launch {
+                                                                     pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                 }
+                                                             }
+                                                         )
                                                     }
                                                 }
                                             }
 
-                                            // Floating Bottom Navigation Bar (optimized with selectedTabState lambda)
+                                            val activeSubTab by dashboardViewModel.activeSubTab.collectAsState()
+
+                                            // Floating Bottom Navigation Bar (optimized with selectedTab lambda)
                                             FloatingBottomNavigation(
-                                                selectedTab = { selectedTabState.value },
+                                                selectedTab = { TabScreen.entries[selectedTab] },
                                                 onTabSelected = { tab ->
-                                                    if (tab == TabScreen.Library && pagerState.currentPage == TabScreen.Library.ordinal) {
+                                                    if (tab == TabScreen.Library && selectedTab == TabScreen.Library.ordinal) {
                                                         navController.onLibraryClick?.invoke()
                                                     } else {
+                                                        selectedTab = tab.ordinal
                                                         coroutineScope.launch {
                                                             pagerState.animateScrollToPage(tab.ordinal)
                                                         }
                                                     }
+                                                },
+                                                activeSubTab = activeSubTab,
+                                                onSubTabChanged = { subTab ->
+                                                    dashboardViewModel.activeSubTab.value = subTab
                                                 },
                                                 contentLayer = contentLayer,
                                                 pagerWindowPositionState = pagerWindowPosition,
@@ -860,18 +907,6 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         )
                                                     }
-                                                    is Screen.TrackedList -> {
-                                                        val scopedViewModel = remember(entry) {
-                                                            ViewModelProvider(entry)[TrackedListViewModel::class.java]
-                                                        }
-                                                        TrackedListScreen(
-                                                            initialStatusId = screen.initialStatusId,
-                                                            viewModel = scopedViewModel,
-                                                            navController = navController,
-                                                            modifier = Modifier.padding(innerPadding),
-                                                            onBack = { triggerDismissAnimation(entry) }
-                                                        )
-                                                    }
                                                     is Screen.Tabs -> {} /*
                                                          val scopedViewModel = remember(entry) {
                                                              ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {
@@ -926,6 +961,8 @@ class MainActivity : ComponentActivity() {
 fun FloatingBottomNavigation(
     selectedTab: () -> TabScreen,
     onTabSelected: (TabScreen) -> Unit,
+    activeSubTab: DashboardSubTab,
+    onSubTabChanged: (DashboardSubTab) -> Unit,
     contentLayer: GraphicsLayer,
     pagerWindowPositionState: State<Offset>,
     bottomBarWindowPositionState: MutableState<Offset>,
@@ -993,53 +1030,7 @@ fun FloatingBottomNavigation(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp)
-                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                .drawWithContent {
-                    // Draw base static layer (opaque white base mask)
-                    drawContent()
-                    
-                    val scrollPos = scrollPosition().coerceIn(0f, 3f)
-                    val tabWidth = size.width / 4f
-                    val sliderX = scrollPos * tabWidth
-                    val w = size.width.coerceAtLeast(1f)
-                    
-                    val baseIndex = scrollPos.toInt()
-                    val fraction = scrollPos - baseIndex
-                    
-                    val boundaryX = (baseIndex + 1) * tabWidth
-                    
-                    val f1 = (sliderX / w).coerceIn(0f, 1f)
-                    val f2 = (boundaryX / w).coerceIn(0f, 1f)
-                    val f3 = ((sliderX + tabWidth) / w).coerceIn(0f, 1f)
-                    
-                    val activeColor1 = tabColors[baseIndex]
-                    val activeColor2 = tabColors[(baseIndex + 1).coerceAtMost(3)]
-                    val restColorVal = Color(0x66FFFFFF)
-                    
-                    // Create color stops with duplicate coordinate stops for razor-sharp borders
-                    val colorStops = arrayOf(
-                        0.0f to restColorVal,
-                        f1 to restColorVal,
-                        f1 to activeColor1,
-                        f2 to activeColor1,
-                        f2 to activeColor2,
-                        f3 to activeColor2,
-                        f3 to restColorVal,
-                        1.0f to restColorVal
-                    )
-                    
-                    val brush = Brush.linearGradient(
-                        colorStops = colorStops,
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, 0f)
-                    )
-                    
-                    drawRect(
-                        brush = brush,
-                        blendMode = BlendMode.SrcIn
-                    )
-                },
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1050,35 +1041,276 @@ fun FloatingBottomNavigation(
                 TabScreen.Library to (Icons.Default.Layers to strings.libraryScreen.name),
                 TabScreen.Profile to (Icons.Default.Person to strings.profileScreen.name)
             )
- 
+
+            val scrollPos = scrollPosition().coerceIn(0f, 3f)
+
+            val isAnimeSelected = selectedTab() == TabScreen.Anime
+            val animeWeightState = animateFloatAsState(
+                targetValue = if (isAnimeSelected) 3.0f else 1.0f,
+                label = "anime_weight"
+            )
+            val animeWeight = animeWeightState.value
+
+            val activeSubTabOffsetFraction by animateFloatAsState(
+                targetValue = if (activeSubTab == DashboardSubTab.SEARCH) 0f else 0.5f,
+                animationSpec = tween(durationMillis = 300),
+                label = "sub_tab_offset"
+            )
+
             tabs.forEachIndexed { index, (tab, pair) ->
                 val (icon, label) = pair
                 val isSelected = selectedTab() == tab
-                val itemColor = Color.White
-                
-                Column(
+                val activeColor = tabColors[index]
+
+                val targetWeight = if (tab == TabScreen.Anime && isSelected) 3.0f else 1.0f
+                val weight by animateFloatAsState(targetValue = targetWeight)
+
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { onTabSelected(tab) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .weight(weight)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = itemColor,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = label,
-                        color = itemColor,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                    )
+                    AnimatedContent(
+                        targetState = tab == TabScreen.Anime && isSelected,
+                        label = "anime_tab_morph",
+                        modifier = Modifier.fillMaxSize()
+                    ) { isAnimeActive ->
+                        if (isAnimeActive) {
+                            // Parent capsule layout wrapper (background & border)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(vertical = 8.dp, horizontal = 4.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                    .padding(2.dp)
+                            ) {
+                                // Transparent Row performing local stencil masking on cutout texts
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                                        .drawWithContent {
+                                            // 1. Draw white text cutouts
+                                            drawContent()
+
+                                            // Layout math inside draw pass
+                                            val w0 = 1.0f
+                                            val w1 = animeWeight
+                                            val w2 = 1.0f
+                                            val w3 = 1.0f
+                                            val totalW = w0 + w1 + w2 + w3
+                                            
+                                            val u = size.width / animeWeight
+                                            val leftOffset = 1.0f * u
+                                            
+                                            val c0 = 0.5f * u
+                                            val c1 = (1.0f + (0.25f + activeSubTabOffsetFraction) * animeWeight) * u
+                                            val c2 = (1.5f + animeWeight) * u
+                                            val c3 = (2.5f + animeWeight) * u
+                                            
+                                            val sliderCenter = when {
+                                                scrollPos <= 1f -> {
+                                                    val fraction = scrollPos
+                                                    c0 + (c1 - c0) * fraction
+                                                }
+                                                scrollPos <= 2f -> {
+                                                    val fraction = scrollPos - 1f
+                                                    c1 + (c2 - c1) * fraction
+                                                }
+                                                else -> {
+                                                    val fraction = (scrollPos - 2f).coerceIn(0f, 1f)
+                                                    c2 + (c3 - c2) * fraction
+                                                }
+                                            }
+                                            
+                                            val animeActiveFraction = ((animeWeight - 1.0f) / 2.0f).coerceIn(0f, 1f)
+                                            val wTab1 = u * (1f - animeActiveFraction) + (animeWeight * u / 2f) * animeActiveFraction
+                                            
+                                            val sliderWidth = when {
+                                                scrollPos <= 1f -> {
+                                                    val fraction = scrollPos
+                                                    val wStart = u
+                                                    val wEnd = wTab1
+                                                    wStart + (wEnd - wStart) * fraction
+                                                }
+                                                scrollPos <= 2f -> {
+                                                    val fraction = scrollPos - 1f
+                                                    val wStart = wTab1
+                                                    val wEnd = u
+                                                    wStart + (wEnd - wStart) * fraction
+                                                }
+                                                else -> {
+                                                    u
+                                                }
+                                            }
+                                            
+                                            val localLeft = (sliderCenter - sliderWidth / 2f) - leftOffset
+                                            val w = size.width.coerceAtLeast(1f)
+                                            val fStart = (localLeft / w).coerceIn(0f, 1f)
+                                            val fEnd = ((localLeft + sliderWidth) / w).coerceIn(0f, 1f)
+                                            
+                                            val colorStops = arrayOf(
+                                                0.0f to restColor,
+                                                fStart to restColor,
+                                                fStart to activeColor,
+                                                fEnd to activeColor,
+                                                fEnd to restColor,
+                                                1.0f to restColor
+                                            )
+                                            val brush = Brush.linearGradient(
+                                                colorStops = colorStops,
+                                                start = Offset(0f, 0f),
+                                                end = Offset(size.width, 0f)
+                                            )
+
+                                            drawRect(
+                                                brush = brush,
+                                                blendMode = BlendMode.SrcIn
+                                            )
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    listOf(DashboardSubTab.SEARCH, DashboardSubTab.FRANCHISES).forEach { subTab ->
+                                        val tabText = if (subTab == DashboardSubTab.SEARCH) strings.dashboardScreen.name else strings.libraryScreen.franchises
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) { onSubTabChanged(subTab) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = tabText,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                                    .drawWithContent {
+                                        // Draw base static layer
+                                        drawContent()
+
+                                        // Layout math inside draw pass
+                                        val w0 = 1.0f
+                                        val w1 = animeWeight
+                                        val w2 = 1.0f
+                                        val w3 = 1.0f
+                                        val totalW = w0 + w1 + w2 + w3
+                                        
+                                        val u = size.width / 1.0f // standard tab has weight 1.0f
+                                        val leftOffset = when (index) {
+                                            0 -> 0f
+                                            1 -> 1.0f * u
+                                            2 -> (1.0f + animeWeight) * u
+                                            3 -> (2.0f + animeWeight) * u
+                                            else -> 0f
+                                        }
+                                        
+                                        val c0 = 0.5f * u
+                                        val c1 = (1.0f + (0.25f + activeSubTabOffsetFraction) * animeWeight) * u
+                                        val c2 = (1.5f + animeWeight) * u
+                                        val c3 = (2.5f + animeWeight) * u
+                                        
+                                        val sliderCenter = when {
+                                            scrollPos <= 1f -> {
+                                                val fraction = scrollPos
+                                                c0 + (c1 - c0) * fraction
+                                            }
+                                            scrollPos <= 2f -> {
+                                                val fraction = scrollPos - 1f
+                                                c1 + (c2 - c1) * fraction
+                                            }
+                                            else -> {
+                                                val fraction = (scrollPos - 2f).coerceIn(0f, 1f)
+                                                c2 + (c3 - c2) * fraction
+                                            }
+                                        }
+                                        
+                                        val animeActiveFraction = ((animeWeight - 1.0f) / 2.0f).coerceIn(0f, 1f)
+                                        val wTab1 = u * (1f - animeActiveFraction) + (animeWeight * u / 2f) * animeActiveFraction
+                                        
+                                        val sliderWidth = when {
+                                            scrollPos <= 1f -> {
+                                                val fraction = scrollPos
+                                                val wStart = u
+                                                val wEnd = wTab1
+                                                wStart + (wEnd - wStart) * fraction
+                                            }
+                                            scrollPos <= 2f -> {
+                                                val fraction = scrollPos - 1f
+                                                val wStart = wTab1
+                                                val wEnd = u
+                                                wStart + (wEnd - wStart) * fraction
+                                            }
+                                            else -> {
+                                                u
+                                            }
+                                        }
+                                        
+                                        val localLeft = (sliderCenter - sliderWidth / 2f) - leftOffset
+                                        val w = size.width.coerceAtLeast(1f)
+                                        val fStart = (localLeft / w).coerceIn(0f, 1f)
+                                        val fEnd = ((localLeft + sliderWidth) / w).coerceIn(0f, 1f)
+                                        
+                                        val colorStops = arrayOf(
+                                            0.0f to restColor,
+                                            fStart to restColor,
+                                            fStart to activeColor,
+                                            fEnd to activeColor,
+                                            fEnd to restColor,
+                                            1.0f to restColor
+                                        )
+                                        val brush = Brush.linearGradient(
+                                            colorStops = colorStops,
+                                            start = Offset(0f, 0f),
+                                            end = Offset(size.width, 0f)
+                                        )
+
+                                        drawRect(
+                                            brush = brush,
+                                            blendMode = BlendMode.SrcIn
+                                        )
+                                    }
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { onTabSelected(tab) },
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = label,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = label,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

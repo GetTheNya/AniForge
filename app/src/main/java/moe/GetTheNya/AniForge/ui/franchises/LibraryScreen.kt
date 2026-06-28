@@ -8,7 +8,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,6 +28,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.FilterList
+import android.widget.Toast
+import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -33,6 +41,7 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -55,8 +64,17 @@ import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.utils.AnimeStatusColors
 import moe.GetTheNya.AniForge.ui.utils.disableSplitTouch
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
+import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
+import moe.GetTheNya.AniForge.ui.dashboard.handleQuickGestureAction
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
@@ -66,8 +84,253 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun LibraryFilterChip(
+    label: String,
+    isSelected: Boolean,
+    color: Color,
+    onClick: () -> Unit
+) {
+    val bgColor = if (isSelected) color.copy(alpha = 0.15f) else SurfaceDark
+    val borderColor = if (isSelected) color else CardBorder
+    val textColor = if (isSelected) color else TextSecondary
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = textColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+fun LibraryFilter.getLabel(strings: moe.GetTheNya.AniForge.ui.localization.LocaleStrings): String {
+    return when (this) {
+        LibraryFilter.WATCHING -> strings.misc.watching
+        LibraryFilter.PLANNING -> strings.misc.planning
+        LibraryFilter.COMPLETED -> strings.misc.completed
+        LibraryFilter.PAUSED -> strings.misc.paused
+        LibraryFilter.DROPPED -> strings.misc.dropped
+        LibraryFilter.COLLECTIONS -> strings.libraryScreen.collections
+    }
+}
+
+fun LibraryFilter.getColor(): Color {
+    val matched = statusConfigs.firstOrNull { it.id == this.dbStatus }
+    return matched?.color ?: ElectricViolet
+}
+
+@Composable
+fun UserTrackedListContent(
+    animeList: List<Anime>,
+    viewModel: LibraryViewModel,
+    navController: NavController,
+    preferUk: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+
+    if (animeList.isEmpty()) {
+        val searchQuery by viewModel.searchQuery.collectAsState()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (searchQuery.isNotBlank()) strings.libraryScreen.randomEmpty else strings.libraryScreen.emptyState,
+                color = TextSecondary,
+                fontSize = 14.sp
+            )
+        }
+    } else {
+        val lazyGridState = rememberLazyGridState()
+        var activeMenuAnimeId by remember { mutableStateOf<Long?>(null) }
+        var scrollEnabled by remember { mutableStateOf(true) }
+        var isSliderActive by remember { mutableStateOf(false) }
+
+        val gestureCenter by viewModel.gestureCenter.collectAsState()
+        val gestureUp by viewModel.gestureUp.collectAsState()
+        val gestureDown by viewModel.gestureDown.collectAsState()
+        val gestureLeft by viewModel.gestureLeft.collectAsState()
+        val gestureRight by viewModel.gestureRight.collectAsState()
+
+        val trackingMap by viewModel.trackingMap.collectAsState()
+        val trackingEntitiesMap by viewModel.trackingEntitiesMap.collectAsState()
+
+        if (lazyGridState.isScrollInProgress) {
+            LaunchedEffect(lazyGridState.isScrollInProgress) {
+                activeMenuAnimeId = null
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(if (isSliderActive) 16.dp else 0.dp)
+        ) {
+            LazyVerticalGrid(
+                state = lazyGridState,
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp, top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .disableSplitTouch(),
+                userScrollEnabled = scrollEnabled
+            ) {
+                items(
+                    items = animeList,
+                    key = { it.anilistId }
+                ) { anime ->
+                    val trackingEntity = trackingEntitiesMap[anime.anilistId]
+                    AnimeBentoCard(
+                        anime = anime,
+                        status = trackingMap[anime.anilistId],
+                        preferUk = preferUk,
+                        onGestureActionTriggered = { action, value ->
+                            handleQuickGestureAction(
+                                context = context,
+                                anime = anime,
+                                action = action,
+                                value = value,
+                                onOpenDetails = { navController.navigate(Screen.Detail(anime.anilistId, sourceStatusId = null)) },
+                                onOpenWatchStatusPicker = { activeMenuAnimeId = anime.anilistId },
+                                onScoreChange = { newScore -> viewModel.updateScore(anime.anilistId, newScore) },
+                                onEpisodeChange = { newEp -> viewModel.updateEpisodeProgress(anime.anilistId, newEp) }
+                            )
+                        },
+                        onStatusChange = { newStatus -> viewModel.updateWatchStatus(anime.anilistId, newStatus) },
+                        isMenuVisible = activeMenuAnimeId == anime.anilistId,
+                        onMenuDismiss = { activeMenuAnimeId = null },
+                        initialScore = trackingEntity?.score,
+                        initialEpisode = trackingEntity?.episodeProgress ?: 0,
+                        onDragStateChanged = { isDragging -> scrollEnabled = !isDragging },
+                        onSliderStateChanged = { isActive -> isSliderActive = isActive },
+                        gestureCenter = gestureCenter,
+                        gestureUp = gestureUp,
+                        gestureDown = gestureDown,
+                        gestureLeft = gestureLeft,
+                        gestureRight = gestureRight
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun getCenteredItemIndex(lazyListState: androidx.compose.foundation.lazy.LazyListState): Int {
+    val layoutInfo = lazyListState.layoutInfo
+    val visibleItems = layoutInfo.visibleItemsInfo
+    if (visibleItems.isEmpty()) return 0
+    val viewportCenter = (layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset) / 2f
+    val closest = visibleItems.minByOrNull {
+        val itemCenter = it.offset + it.size / 2f
+        kotlin.math.abs(itemCenter - viewportCenter)
+    }
+    return closest?.index ?: 0
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CategorySelectionRotor(
+    lazyListState: androidx.compose.foundation.lazy.LazyListState,
+    strings: moe.GetTheNya.AniForge.ui.localization.LocaleStrings,
+    onItemClick: (LibraryFilter) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .width(240.dp)
+            .height(200.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(SurfaceDark.copy(alpha = 0.95f))
+            .border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        // Center highlighted slot overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(Color.White.copy(alpha = 0.05f))
+                .border(1.dp, CardBorder.copy(alpha = 0.5f))
+        )
+
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(vertical = 72.dp),
+            flingBehavior = rememberSnapFlingBehavior(lazyListState = lazyListState),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(LibraryFilter.values()) { idx, filter ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .graphicsLayer {
+                            val layoutInfo = lazyListState.layoutInfo
+                            val visibleItems = layoutInfo.visibleItemsInfo
+                            val itemInfo = visibleItems.firstOrNull { it.index == idx }
+                            if (itemInfo != null) {
+                                val viewportCenter = (layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset) / 2f
+                                val itemCenter = itemInfo.offset + itemInfo.size / 2f
+                                val distanceFromCenter = kotlin.math.abs(itemCenter - viewportCenter)
+
+                                val maxDistance = ((layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2f).coerceAtLeast(1f)
+                                val fraction = (distanceFromCenter / maxDistance).coerceIn(0f, 1f)
+                                scaleX = 1f - 0.35f * fraction
+                                scaleY = 1f - 0.35f * fraction
+                                alpha = 1f - 0.7f * fraction
+                            } else {
+                                alpha = 0.3f
+                                scaleX = 0.65f
+                                scaleY = 0.65f
+                            }
+                        }
+                        .clickable {
+                            onItemClick(filter)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = filter.getLabel(strings),
+                        color = filter.getColor(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
@@ -83,76 +346,65 @@ fun LibraryScreen(
             focusManager.clearFocus()
         }
     }
-    val lazyFranchiseItems = viewModel.pagingFranchisesFlow.collectAsLazyPagingItems()
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val isLoading = lazyFranchiseItems.loadState.refresh is LoadState.Loading && lazyFranchiseItems.itemCount == 0
 
     val selectedCollectionIds by viewModel.selectedCollectionIds.collectAsState()
     val isInSelectionMode by viewModel.isInSelectionMode.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    val activeLibraryTab by viewModel.activeLibraryTab.collectAsState()
-    val pagerState = rememberPagerState(initialPage = activeLibraryTab ?: 0) { 2 }
-    val coroutineScope = rememberCoroutineScope()
+    val activeFilter by viewModel.activeFilter.collectAsState()
+    val activeSectionData by viewModel.activeSectionData.collectAsState()
 
-    val franchisesLazyListState = rememberLazyListState()
-    val collectionsLazyGridState = rememberLazyGridState()
-
-    val scrollOffset = remember {
-        derivedStateOf {
-            if (pagerState.currentPage == 0) {
-                if (franchisesLazyListState.firstVisibleItemIndex == 0) {
-                    franchisesLazyListState.firstVisibleItemScrollOffset
-                } else {
-                    100000
-                }
-            } else {
-                if (collectionsLazyGridState.firstVisibleItemIndex == 0) {
-                    collectionsLazyGridState.firstVisibleItemScrollOffset
-                } else {
-                    100000
-                }
-            }
-        }
+    val listFilterState by viewModel.listFilterState.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val hasActiveFilters = remember(listFilterState) {
+        listFilterState.genres.isNotEmpty() ||
+        listFilterState.excludedGenres.isNotEmpty() ||
+        listFilterState.formats.isNotEmpty() ||
+        listFilterState.excludedFormats.isNotEmpty()
     }
 
-    val density = LocalDensity.current
-    val expandedTitleHeightPx = remember { with(density) { 78.dp.toPx() } }
-    val collapsedTitleHeightPx = remember { with(density) { 56.dp.toPx() } }
-    val maxScrollPx = remember { (expandedTitleHeightPx - collapsedTitleHeightPx).coerceAtLeast(1f) }
-
-    val collapseFraction = remember {
-        derivedStateOf {
-            if (isInSelectionMode) {
-                1f
-            } else {
-                (scrollOffset.value.toFloat() / maxScrollPx).coerceIn(0f, 1f)
-            }
-        }
-    }
-
-    LaunchedEffect(pagerState.currentPage) {
+    LaunchedEffect(activeFilter) {
         viewModel.clearSelection()
     }
 
-    LaunchedEffect(activeLibraryTab) {
-        activeLibraryTab?.let { tab ->
-            if (pagerState.currentPage != tab) {
-                pagerState.animateScrollToPage(tab)
-            }
-            viewModel.activeLibraryTab.value = null
-        }
-    }
-
-    DisposableEffect(navController, pagerState) {
+    DisposableEffect(navController) {
         navController.onLibraryClick = {
-            coroutineScope.launch {
-                val nextPage = if (pagerState.currentPage == 0) 1 else 0
-                pagerState.animateScrollToPage(nextPage)
-            }
+            viewModel.setActiveFilter(LibraryFilter.WATCHING)
         }
         onDispose {
             navController.onLibraryClick = null
+        }
+    }
+
+    var showRotor by remember { mutableStateOf(false) }
+    var isPressed by remember { mutableStateOf(false) }
+    var isDraggingByLongPress by remember { mutableStateOf(false) }
+    var showDragOverlay by remember { mutableStateOf(false) }
+    val dragLazyListState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    var touchPosition by remember { mutableStateOf(Offset.Zero) }
+
+    val dragCenterIndex by remember {
+        derivedStateOf {
+            getCenteredItemIndex(dragLazyListState)
+        }
+    }
+
+    // Scroll to current active filter index when long press starts
+    LaunchedEffect(showDragOverlay) {
+        if (showDragOverlay) {
+            val index = LibraryFilter.values().indexOf(activeFilter)
+            if (index >= 0) {
+                dragLazyListState.scrollToItem(index)
+            }
+        }
+    }
+
+    // Micro-haptic tick when center index changes during gesture drag
+    LaunchedEffect(dragCenterIndex) {
+        if (isDraggingByLongPress) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
 
@@ -162,143 +414,23 @@ fun LibraryScreen(
             .background(BackgroundDark)
             .statusBarsPadding()
     ) {
-        HorizontalPager(
-            state = pagerState,
-            userScrollEnabled = false,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-                when (page) {
-                    0 -> {
-                        // Franchises Page
-                        if (isLoading) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(color = ElectricViolet)
-                            }
-                        } else {
-                            LazyColumn(
-                                state = franchisesLazyListState,
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                contentPadding = PaddingValues(bottom = 100.dp), // Space for bottom navigation
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 20.dp)
-                            ) {
-                                item(key = "header_spacer") {
-                                    Spacer(modifier = Modifier.height(220.dp))
-                                }
-                                items(
-                                    count = lazyFranchiseItems.itemCount,
-                                    key = lazyFranchiseItems.itemKey { it.franchise.franchiseId },
-                                    contentType = lazyFranchiseItems.itemContentType { "franchise_card" }
-                                ) { index ->
-                                    val item = lazyFranchiseItems[index]
-                                    if (item != null) {
-                                        FranchiseBentoCard(
-                                            item = item,
-                                            preferUk = preferUk,
-                                            onClick = {
-                                                navController.navigate(Screen.FranchiseTree(item.franchise.franchiseId))
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    1 -> {
-                        // Collections Page
-                        val collectionsList by viewModel.filteredCollections.collectAsState()
-                        var showCreateDialog by remember { mutableStateOf(false) }
-
-                        if (showCreateDialog) {
-                            CollectionFormDialog(
-                                initialTitle = "",
-                                initialDescription = "",
-                                dialogTitle = strings.libraryScreen.newCollection,
-                                confirmButtonText = strings.libraryScreen.create,
-                                descriptionLabel = strings.libraryScreen.descriptionOptional,
-                                onDismissRequest = { showCreateDialog = false },
-                                onConfirm = { title, description ->
-                                    viewModel.createCollection(title, description)
-                                    showCreateDialog = false
-                                }
-                            )
-                        }
-
-                        LazyVerticalGrid(
-                            state = collectionsLazyGridState,
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(bottom = 100.dp), // Space for bottom navigation
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 20.dp)
-                                .disableSplitTouch()
-                        ) {
-                            item(span = { GridItemSpan(2) }, key = "header_spacer") {
-                                Spacer(modifier = Modifier.height(220.dp))
-                            }
-                            item {
-                                CreationSlotCard(onClick = { showCreateDialog = true })
-                            }
-                            items(
-                                items = collectionsList,
-                                key = { it.collection.id }
-                            ) { item ->
-                                val collectionId = item.collection.id.toLong()
-                                val isSelected = selectedCollectionIds.contains(collectionId)
-                                CollectionBentoCard(
-                                    collection = item.collection,
-                                    posters = item.posters,
-                                    totalCount = item.totalCount,
-                                    statusCounts = item.statusCounts,
-                                    isSelected = isSelected,
-                                    onClick = {
-                                        if (isInSelectionMode) {
-                                            viewModel.toggleCollectionSelection(collectionId)
-                                        } else {
-                                            navController.navigate(Screen.CollectionDetail(item.collection.id))
-                                        }
-                                    },
-                                    onLongClick = {
-                                        if (!isInSelectionMode) {
-                                            viewModel.toggleCollectionSelection(collectionId)
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-        // Floating Header Overlay Column
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(BackgroundDark)
-                .padding(horizontal = 20.dp)
-                .zIndex(5f)
+                .fillMaxSize()
         ) {
-            val topPadding = lerp(20.dp, 0.dp, collapseFraction.value)
-            val bottomPadding = lerp(10.dp, 0.dp, collapseFraction.value)
-            val contentHeight = lerp(48.dp, 56.dp, collapseFraction.value)
-            val titleSize = (28 - (28 - 20) * collapseFraction.value).sp
-
-            Box(
+            // Sticky Header Column
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = topPadding, bottom = bottomPadding)
-                    .height(contentHeight),
-                contentAlignment = Alignment.CenterStart
+                    .background(BackgroundDark)
+                    .padding(horizontal = 20.dp)
             ) {
-                if (isInSelectionMode) {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (isInSelectionMode && activeFilter == LibraryFilter.COLLECTIONS) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -340,67 +472,399 @@ fun LibraryScreen(
                     Text(
                         text = strings.libraryScreen.name,
                         color = TextPrimary,
-                        fontSize = titleSize,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(SurfaceDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val tabTitles = listOf(strings.libraryScreen.franchises, strings.libraryScreen.collections)
-                tabTitles.forEachIndexed { index, title ->
-                    val pageOffset = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                    val fraction = (1f - kotlin.math.abs(pageOffset - index)).coerceIn(0f, 1f)
-                    
-                    val bgColor = androidx.compose.ui.graphics.lerp(Color.Transparent, ElectricViolet, fraction)
-                    val textColor = androidx.compose.ui.graphics.lerp(TextSecondary, BackgroundDark, fraction)
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(bgColor)
-                            .clickable {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
+                val searchQuery by viewModel.searchQuery.collectAsState()
+                val searchPlaceholder = if (activeFilter == LibraryFilter.COLLECTIONS) {
+                    strings.libraryScreen.searchCollections
+                } else {
+                    strings.libraryScreen.searchPlaceholder
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        LibrarySearchBar(
+                            query = searchQuery,
+                            onQueryChange = { viewModel.searchQuery.value = it },
+                            placeholder = searchPlaceholder,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (activeFilter != LibraryFilter.COLLECTIONS) {
+                        val context = LocalContext.current
+                        Box {
+                            IconButton(
+                                onClick = { showFilterSheet = true },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
+                                ),
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = strings.dashboardScreen.filterTooltip,
+                                    tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            if (hasActiveFilters) {
+                                Badge(
+                                    containerColor = NeonCoral,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .size(10.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val success = viewModel.pickRandomAnime(navController)
+                                if (!success) {
+                                    Toast.makeText(context, strings.libraryScreen.randomEmpty, Toast.LENGTH_SHORT).show()
                                 }
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = title,
-                            color = textColor,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Casino,
+                                contentDescription = "Random Anime",
+                                tint = TextPrimary
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            AnimatedContent(
+                targetState = activeFilter,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                },
+                label = "library_filter_transition",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) { filter ->
+                when (filter) {
+                    LibraryFilter.COLLECTIONS -> {
+                        // Collections Page
+                        val collectionsList = (activeSectionData as? LibrarySectionData.Collections)?.list ?: emptyList()
+                        var showCreateDialog by remember { mutableStateOf(false) }
 
-            val searchPlaceholder = if (pagerState.currentPage == 0) {
-                strings.libraryScreen.searchFranchises
-            } else {
-                strings.libraryScreen.searchCollections
+                        if (showCreateDialog) {
+                            CollectionFormDialog(
+                                initialTitle = "",
+                                initialDescription = "",
+                                dialogTitle = strings.libraryScreen.newCollection,
+                                confirmButtonText = strings.libraryScreen.create,
+                                descriptionLabel = strings.libraryScreen.descriptionOptional,
+                                onDismissRequest = { showCreateDialog = false },
+                                onConfirm = { title, description ->
+                                    viewModel.createCollection(title, description)
+                                    showCreateDialog = false
+                                }
+                            )
+                        }
+
+                        val collectionsLazyGridState = rememberLazyGridState()
+                        LazyVerticalGrid(
+                            state = collectionsLazyGridState,
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(bottom = 110.dp, start = 20.dp, end = 20.dp, top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .disableSplitTouch()
+                        ) {
+                            item {
+                                CreationSlotCard(onClick = { showCreateDialog = true })
+                            }
+                            items(
+                                items = collectionsList,
+                                key = { it.collection.id }
+                            ) { item ->
+                                val collectionId = item.collection.id.toLong()
+                                val isSelected = selectedCollectionIds.contains(collectionId)
+                                CollectionBentoCard(
+                                    collection = item.collection,
+                                    posters = item.posters,
+                                    totalCount = item.totalCount,
+                                    statusCounts = item.statusCounts,
+                                    isSelected = isSelected,
+                                    onClick = {
+                                        if (isInSelectionMode) {
+                                            viewModel.toggleCollectionSelection(collectionId)
+                                        } else {
+                                            navController.navigate(Screen.CollectionDetail(item.collection.id))
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (!isInSelectionMode) {
+                                            viewModel.toggleCollectionSelection(collectionId)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        val animeList = (activeSectionData as? LibrarySectionData.TrackedAnime)?.list ?: emptyList()
+                        UserTrackedListContent(
+                            animeList = animeList,
+                            viewModel = viewModel,
+                            navController = navController,
+                            preferUk = preferUk
+                        )
+                    }
+                }
+            }
+        }
+
+        // Floating Selector Overlay for Mode B (Continuous Drag Gesture)
+        AnimatedVisibility(
+            visible = showDragOverlay,
+            enter = fadeIn(tween(250)) + scaleIn(tween(250), initialScale = 0.8f),
+            exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.8f),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 180.dp) // Float above the trigger pill / thumb position
+                .zIndex(15f)
+        ) {
+            CategorySelectionRotor(
+                lazyListState = dragLazyListState,
+                strings = strings,
+                onItemClick = { filter ->
+                    viewModel.setActiveFilter(filter)
+                    showDragOverlay = false
+                }
+            )
+        }
+
+        // Floating Glass Trigger Pill at bottom center
+        if (!isInSelectionMode || activeFilter != LibraryFilter.COLLECTIONS) {
+            val isPillPressed = isPressed || isDraggingByLongPress
+            val pillScale by animateFloatAsState(
+                targetValue = if (isPillPressed) 0.92f else 1.0f,
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "pill_scale"
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 100.dp) // Float above bottom bar
+                    .zIndex(10f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = pillScale
+                            scaleY = pillScale
+                        }
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    SurfaceDark.copy(alpha = 0.8f),
+                                    SurfaceDark.copy(alpha = 0.95f)
+                                )
+                            )
+                        )
+                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                        .pointerInput(activeFilter) {
+                            coroutineScope {
+                                while (true) {
+                                    val down = awaitPointerEventScope {
+                                        awaitFirstDown(requireUnconsumed = false)
+                                    }
+                                    val touchSlop = viewConfiguration.touchSlop
+                                    val initialTouchAnchor = down.position
+                                    var prevPosition = down.position
+                                    var isPressedLocal = true
+                                    var isDragged = false
+                                    isPressed = true
+                                    isDraggingByLongPress = false
+                                    showDragOverlay = false
+                                    
+                                    val timerJob = launch {
+                                        delay(500L)
+                                        if (isPressedLocal && !isDragged) {
+                                            isDraggingByLongPress = true
+                                            showDragOverlay = true
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
+                                    }
+                                    
+                                    var isNormalRelease = false
+                                    try {
+                                        awaitPointerEventScope {
+                                            val dragId = down.id
+                                            while (true) {
+                                                val event = awaitPointerEvent(PointerEventPass.Main)
+                                                val dragEvent = event.changes.firstOrNull { it.id == dragId }
+                                                if (dragEvent == null || !dragEvent.pressed) {
+                                                    break
+                                                }
+                                                
+                                                val position = dragEvent.position
+                                                touchPosition = position
+                                                
+                                                val vector = position - initialTouchAnchor
+                                                val distancePx = vector.getDistance()
+                                                
+                                                if (!isDraggingByLongPress && distancePx > touchSlop) {
+                                                    timerJob.cancel()
+                                                    isDragged = true
+                                                }
+                                                
+                                                if (isDraggingByLongPress) {
+                                                    dragEvent.consume()
+                                                    val dy = position.y - prevPosition.y
+                                                    dragLazyListState.dispatchRawDelta(dy)
+                                                }
+                                                prevPosition = position
+                                            }
+                                        }
+                                        isNormalRelease = true
+                                    } finally {
+                                        timerJob.cancel()
+                                        isPressed = false
+                                        isPressedLocal = false
+                                        
+                                        if (isDraggingByLongPress) {
+                                            isDraggingByLongPress = false
+                                            showDragOverlay = false
+                                            
+                                            if (isNormalRelease) {
+                                                val finalIndex = getCenteredItemIndex(dragLazyListState)
+                                                val targetFilter = LibraryFilter.values()[finalIndex]
+                                                viewModel.setActiveFilter(targetFilter)
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                        } else {
+                                            if (isNormalRelease && !isDragged) {
+                                                showRotor = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = activeFilter.getLabel(strings),
+                        color = activeFilter.getColor(),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = activeFilter.getColor(),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // Bottom-Sheet Ergonomic Selector Wheel
+        if (showRotor) {
+            var lastCenteredIndex by remember { mutableStateOf(LibraryFilter.values().indexOf(activeFilter).coerceAtLeast(0)) }
+            var tempSelectedFilter by remember { mutableStateOf(activeFilter) }
+            val lazyListState = rememberLazyListState()
+            val haptic = LocalHapticFeedback.current
+
+            // scroll to active filter when sheet opens
+            LaunchedEffect(showRotor) {
+                if (showRotor) {
+                    val index = LibraryFilter.values().indexOf(activeFilter)
+                    if (index >= 0) {
+                        lazyListState.scrollToItem(index)
+                    }
+                }
             }
 
-            LibrarySearchBar(
-                query = searchQuery,
-                onQueryChange = { viewModel.searchQuery.value = it },
-                placeholder = searchPlaceholder,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // Trigger haptic click and update temp select on snap
+            LaunchedEffect(lazyListState.firstVisibleItemIndex, lazyListState.firstVisibleItemScrollOffset) {
+                val layoutInfo = lazyListState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                if (visibleItems.isNotEmpty()) {
+                    val viewportCenter = (layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset) / 2f
+                    val closestItem = visibleItems.minByOrNull {
+                        val itemCenter = it.offset + it.size / 2f
+                        kotlin.math.abs(itemCenter - viewportCenter)
+                    }
+                    closestItem?.let {
+                        if (it.index != lastCenteredIndex) {
+                            lastCenteredIndex = it.index
+                            tempSelectedFilter = LibraryFilter.values()[it.index]
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
+                }
+            }
+
+            ModalBottomSheet(
+                onDismissRequest = {
+                    viewModel.setActiveFilter(tempSelectedFilter)
+                    showRotor = false
+                },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = BackgroundDark,
+                dragHandle = null,
+                contentWindowInsets = { WindowInsets(0.dp) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 40.dp, top = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val chooseCategoryText = strings.libraryScreen.chooseCategory ?: "Select Category"
+                    Text(
+                        text = chooseCategoryText,
+                        color = TextSecondary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    CategorySelectionRotor(
+                        lazyListState = lazyListState,
+                        strings = strings,
+                        onItemClick = { filter ->
+                            viewModel.setActiveFilter(filter)
+                            showRotor = false
+                        }
+                    )
+                }
+            }
         }
 
         if (showDeleteConfirmation) {
@@ -433,6 +897,30 @@ fun LibraryScreen(
                 },
                 containerColor = AlertBackground,
                 shape = RoundedCornerShape(24.dp)
+            )
+        }
+
+        if (showFilterSheet) {
+            val genres by viewModel.allGenres.collectAsState()
+            val tags by viewModel.allTags.collectAsState()
+            val studios by viewModel.allStudios.collectAsState()
+            val staff by viewModel.allStaff.collectAsState()
+
+            FilterBottomSheet(
+                isCatalog = false,
+                onDismiss = { showFilterSheet = false },
+                allGenres = genres,
+                allTags = tags,
+                allStudios = studios,
+                allStaff = staff,
+                preferUkTitles = preferUk,
+                trackedListFilter = listFilterState,
+                filteredCount = (activeSectionData as? LibrarySectionData.TrackedAnime)?.list?.size ?: 0,
+                onClearAllFilters = { viewModel.clearAllFilters() },
+                onListSortOptionSelected = { viewModel.updateSortOrder(it) },
+                onFormatToggled = { viewModel.toggleFormatType(it) },
+                onGenreFilterToggled = { viewModel.toggleGenreFilterState(it) },
+                onClearGenreFilters = { viewModel.clearGenreFilters() }
             )
         }
     }

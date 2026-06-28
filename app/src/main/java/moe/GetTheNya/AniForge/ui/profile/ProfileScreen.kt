@@ -36,6 +36,7 @@ fun ProfileScreen(
     onStudioClick: (Long) -> Unit,
     onGenreClick: (String) -> Unit,
     onCollectionClick: () -> Unit,
+    onStatusClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -75,9 +76,7 @@ fun ProfileScreen(
                 onStudioClick = onStudioClick,
                 onGenreClick = onGenreClick,
                 onCollectionClick = onCollectionClick,
-                onStatusClick = { statusId ->
-                    navController.navigate(Screen.TrackedList(statusId))
-                }
+                onStatusClick = onStatusClick
             )
 
             Spacer(modifier = Modifier.height(110.dp))

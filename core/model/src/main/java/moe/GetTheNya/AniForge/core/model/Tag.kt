@@ -12,4 +12,8 @@ data class Tag(
     fun getDisplayName(preferUk: Boolean = true): String {
         return if (preferUk) nameUk ?: nameEn else nameEn
     }
+
+    fun isNsfw(): Boolean {
+        return category?.equals("Sexual Content", ignoreCase = true) == true
+    }
 }

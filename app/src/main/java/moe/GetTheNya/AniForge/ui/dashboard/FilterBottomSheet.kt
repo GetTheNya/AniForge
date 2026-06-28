@@ -498,10 +498,10 @@ fun FilterBottomSheet(
                             }
 
                             val sortCategories = listOf(
-                                ListSortCategory.DATE_ADDED to strings.trackedListScreen.sortByDateAdded,
-                                ListSortCategory.SCORE to strings.trackedListScreen.sortByPersonalScore,
-                                ListSortCategory.PROGRESS to strings.trackedListScreen.sortByProgress,
-                                ListSortCategory.ALPHABETICAL to strings.trackedListScreen.sortByAlphabetical
+                                ListSortCategory.DATE_ADDED to strings.libraryScreen.sortByDateAdded,
+                                ListSortCategory.SCORE to strings.libraryScreen.sortByPersonalScore,
+                                ListSortCategory.PROGRESS to strings.libraryScreen.sortByProgress,
+                                ListSortCategory.ALPHABETICAL to strings.libraryScreen.sortByAlphabetical
                             )
                             
                             Row(

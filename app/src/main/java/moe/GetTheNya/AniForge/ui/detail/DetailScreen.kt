@@ -118,7 +118,7 @@ fun DetailScreen(
                 is DetailUiEvent.Navigate -> navController.navigate(event.screen)
                 is DetailUiEvent.ShowToast -> {
                     val text = if (event.messageKey == "rouletteExhausted") {
-                        strings.trackedListScreen.rouletteExhausted
+                        strings.libraryScreen.rouletteExhausted
                     } else {
                         event.messageKey
                     }

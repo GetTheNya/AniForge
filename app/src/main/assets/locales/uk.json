@@ -98,7 +98,16 @@
       "many": "Виділено: %d"
     },
     "deleteSelectedConfirm": "Видалити виділені колекції?",
-    "deleteSelectedCollections": "Видалити"
+    "deleteSelectedCollections": "Видалити",
+    "chooseCategory": "Оберіть категорію",
+    "searchPlaceholder": "Пошук...",
+    "randomEmpty": "У цьому списку немає тайтлів!",
+    "emptyState": "У цьому списку немає тайтлів",
+    "rouletteExhausted": "Рандомні аніме в цьому списку закінчились!",
+    "sortByPersonalScore": "Особиста оцінка",
+    "sortByProgress": "Прогрес серій",
+    "sortByDateAdded": "Дата додавання",
+    "sortByAlphabetical": "Алфавітний порядок"
   },
   "dashboardScreen": {
     "name": "Аніме",
@@ -293,16 +302,6 @@
     "recalculateButton": "Перерахувати",
     "watchTimeCacheRebuilt": "Кеш часу перегляду успішно перебудовано!"
   },
-  "trackedListScreen": {
-    "searchPlaceholder": "Пошук за назвою...",
-    "randomEmpty": "У цьому списку немає тайтлів!",
-    "emptyState": "У цьому списку немає тайтлів",
-    "rouletteExhausted": "Рандомні аніме в цьому списку закінчились!",
-    "sortByPersonalScore": "Особиста оцінка",
-    "sortByProgress": "Прогрес серій",
-    "sortByDateAdded": "Дата додавання",
-    "sortByAlphabetical": "Алфавітний порядок"
-  },
   "formats": {
     "tv": "ТВ",
     "tvShort": "Міні-ТВ",
@@ -366,7 +365,7 @@
   "mediaStatuses": {
     "finished": "Завершено",
     "releasing": "Виходить",
-    "notYetReleased": "Ще не вийшло",
+    "notYetReleased": "Анонсовано",
     "cancelled": "Скасовано",
     "hiatus": "Призупинено"
   },

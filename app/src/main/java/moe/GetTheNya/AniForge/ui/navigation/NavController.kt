@@ -34,7 +34,7 @@ sealed interface Screen {
     data class Settings(val initialTab: Int = 0) : Screen
     data object DevSettings : Screen
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
-    data class TrackedList(val initialStatusId: String) : Screen
+    data object Library : Screen
     data class FranchiseTree(val franchiseId: Long) : Screen
     data class CollectionDetail(val collectionId: Int) : Screen
 }
@@ -62,9 +62,6 @@ class BackStackEntry(
                     put("rouletteCount", s.rouletteCount)
                     put("visitedIds", s.visitedIds)
                 }
-                is Screen.TrackedList -> {
-                    put("initialStatusId", s.initialStatusId)
-                }
                 is Screen.FranchiseTree -> {
                     put("franchiseId", s.franchiseId)
                 }
@@ -89,9 +86,6 @@ class BackStackEntry(
                     s.sourceStatusId?.let { bundle.putString("sourceStatusId", it) }
                     bundle.putInt("rouletteCount", s.rouletteCount)
                     bundle.putString("visitedIds", s.visitedIds)
-                }
-                is Screen.TrackedList -> {
-                    bundle.putString("initialStatusId", s.initialStatusId)
                 }
                 is Screen.FranchiseTree -> {
                     bundle.putLong("franchiseId", s.franchiseId)
@@ -124,6 +118,13 @@ class NavController(
     )
 
     fun navigate(screen: Screen) {
+        if (screen is Screen.Library) {
+            while (backStack.size > 1) {
+                backStack.removeAt(backStack.lastIndex).clear()
+            }
+            onSelectTab?.invoke(moe.GetTheNya.AniForge.TabScreen.Library)
+            return
+        }
         if (screen is Screen.FranchiseTree) {
             val existingIndex = backStack.indexOfFirst { entry ->
                 val s = entry.screen

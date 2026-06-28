@@ -17,7 +17,6 @@ data class LocaleStrings(
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
     val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
     val devSettings: DevSettingsStrings = DevSettingsStrings(),
-    val trackedListScreen: TrackedListScreenStrings = TrackedListScreenStrings(),
     val formats: FormatStrings = FormatStrings(),
     val seasons: SeasonStrings = SeasonStrings(),
     val relationTypes: Map<String, String> = emptyMap(),
@@ -110,7 +109,16 @@ data class LibraryScreenStrings(
     val itemsCount: Map<String, String> = emptyMap(),
     val selectedCount: Map<String, String> = emptyMap(),
     val deleteSelectedConfirm: String = "[libraryScreen.deleteSelectedConfirm]",
-    val deleteSelectedCollections: String = "[libraryScreen.deleteSelectedCollections]"
+    val deleteSelectedCollections: String = "[libraryScreen.deleteSelectedCollections]",
+    val chooseCategory: String = "[libraryScreen.chooseCategory]",
+    val searchPlaceholder: String = "[libraryScreen.searchPlaceholder]",
+    val randomEmpty: String = "[libraryScreen.randomEmpty]",
+    val emptyState: String = "[libraryScreen.emptyState]",
+    val rouletteExhausted: String = "[libraryScreen.rouletteExhausted]",
+    val sortByPersonalScore: String = "[libraryScreen.sortByPersonalScore]",
+    val sortByProgress: String = "[libraryScreen.sortByProgress]",
+    val sortByDateAdded: String = "[libraryScreen.sortByDateAdded]",
+    val sortByAlphabetical: String = "[libraryScreen.sortByAlphabetical]"
 )
 
 @Serializable
@@ -312,17 +320,6 @@ data class DevSettingsStrings(
     val watchTimeCacheRebuilt: String = "[devSettings.watchTimeCacheRebuilt]"
 )
 
-@Serializable
-data class TrackedListScreenStrings(
-    val searchPlaceholder: String = "[trackedListScreen.searchPlaceholder]",
-    val randomEmpty: String = "[trackedListScreen.randomEmpty]",
-    val emptyState: String = "[trackedListScreen.emptyState]",
-    val rouletteExhausted: String = "[trackedListScreen.rouletteExhausted]",
-    val sortByPersonalScore: String = "[trackedListScreen.sortByPersonalScore]",
-    val sortByProgress: String = "[trackedListScreen.sortByProgress]",
-    val sortByDateAdded: String = "[trackedListScreen.sortByDateAdded]",
-    val sortByAlphabetical: String = "[trackedListScreen.sortByAlphabetical]"
-)
 
 fun DevSettingsStrings.getAnimationLabel(key: String): String {
     return when (key) {

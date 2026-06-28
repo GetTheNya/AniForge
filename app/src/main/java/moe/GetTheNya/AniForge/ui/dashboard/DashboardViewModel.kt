@@ -26,7 +26,14 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import moe.GetTheNya.AniForge.core.model.AnimeWithTracking
 import moe.GetTheNya.AniForge.core.database.repository.AnimeCatalogPagingSource
+import moe.GetTheNya.AniForge.ui.franchises.FranchiseItem
+import moe.GetTheNya.AniForge.ui.franchises.FranchiseCatalogPagingSource
 import javax.inject.Inject
+
+enum class DashboardSubTab {
+    SEARCH,
+    FRANCHISES
+}
 
 @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -36,6 +43,36 @@ class DashboardViewModel @Inject constructor(
     private val settingsProvider: SettingsProvider,
     private val userTrackingRepository: UserTrackingRepository
 ) : ViewModel() {
+
+    val activeSubTab = MutableStateFlow<DashboardSubTab>(DashboardSubTab.SEARCH)
+
+    val franchiseSearchQuery = MutableStateFlow("")
+
+    val pagingFranchisesFlow: Flow<PagingData<FranchiseItem>> = franchiseSearchQuery
+        .debounce { query ->
+            if (query.isEmpty()) 0L else 250L
+        }
+        .flatMapLatest { query ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 20,
+                    enablePlaceholders = false,
+                    prefetchDistance = 5
+                ),
+                pagingSourceFactory = {
+                    FranchiseCatalogPagingSource(
+                        animeRepository = animeRepository,
+                        query = query,
+                        pageSize = 20
+                    )
+                }
+            ).flow
+        }
+        .cachedIn(viewModelScope)
+
+    fun updateFranchiseSearchQuery(query: String) {
+        franchiseSearchQuery.value = query
+    }
 
     private val _searchFilter = MutableStateFlow(SearchFilterQuery())
     val searchFilter = _searchFilter.asStateFlow()
@@ -80,9 +117,7 @@ class DashboardViewModel @Inject constructor(
                 if (show18) {
                     emit(tags)
                 } else {
-                    emit(tags.filter { tag ->
-                        tag.category?.equals("Sexual Content", ignoreCase = true) != true
-                    })
+                    emit(tags.filter { !it.isNsfw() })
                 }
             }
         }
@@ -109,9 +144,7 @@ class DashboardViewModel @Inject constructor(
                     }
                     
                     val tags = animeRepository.getAllTags()
-                    val nsfwTagIds = tags.filter { tag ->
-                        tag.category?.equals("Sexual Content", ignoreCase = true) == true
-                    }.map { it.tagId }.toSet()
+                    val nsfwTagIds = tags.filter { it.isNsfw() }.map { it.tagId }.toSet()
                     
                     val cleanTags = currentFilter.tags.filter { !nsfwTagIds.contains(it) }
                     val cleanExcludedTags = currentFilter.excludedTags.filter { !nsfwTagIds.contains(it) }
