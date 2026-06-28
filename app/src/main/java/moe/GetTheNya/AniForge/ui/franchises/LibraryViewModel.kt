@@ -46,8 +46,8 @@ data class CollectionWithData(
 )
 
 enum class LibraryFilter(val dbStatus: String?) {
-    WATCHING("CURRENT"),
     PLANNING("PLANNING"),
+    WATCHING("CURRENT"),
     COMPLETED("COMPLETED"),
     PAUSED("PAUSED"),
     DROPPED("DROPPED"),
