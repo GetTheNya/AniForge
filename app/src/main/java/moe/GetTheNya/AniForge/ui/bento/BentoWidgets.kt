@@ -246,6 +246,28 @@ fun ChaosMeterWidget(
         label = "animatedChaosCount"
     )
 
+    val infiniteTransition = rememberInfiniteTransition(label = "chaosMeterInfinite")
+
+    val bobbingValue by infiniteTransition.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "chaosMeterBobbing"
+    )
+
+    val wobbleValue by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "chaosMeterWobble"
+    )
+
     BentoCard(
         modifier = modifier.height(115.dp),
         onLongClick = onLongClick,
@@ -260,7 +282,8 @@ fun ChaosMeterWidget(
                 .align(Alignment.Center)
                 .offset(x = 16.dp, y = 16.dp)
                 .graphicsLayer {
-                    rotationZ = -20f
+                    translationY = bobbingValue.dp.toPx()
+                    rotationZ = -20f + wobbleValue
                 }
         )
 
