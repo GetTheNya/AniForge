@@ -81,13 +81,37 @@ fun SettingsScreen(
 
     val nestedScrollConnection = remember(screenWidthPx, currentEntry) {
         object : NestedScrollConnection {
+            override fun onPreScroll(
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                // If we are currently in the middle of a swipe-back drag (accumulatedDragX > 0f)
+                if (pagerState.currentPage == 0 && accumulatedDragX > 0f) {
+                    val dragChange = available.x
+                    val newDrag = (accumulatedDragX + dragChange).coerceAtLeast(0f)
+                    val consumed = newDrag - accumulatedDragX
+                    accumulatedDragX = newDrag
+                    currentEntry?.let { entry ->
+                        if (accumulatedDragX > 0f) {
+                            entry.isDragging = true
+                            entry.dragOffset = accumulatedDragX
+                        } else {
+                            entry.isDragging = false
+                            entry.dragOffset = 0f
+                        }
+                    }
+                    return Offset(consumed, 0f)
+                }
+                return Offset.Zero
+            }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // If we are at the first tab (index 0) and the user is swiping from left to right or dragging back
-                if (pagerState.currentPage == 0 && (available.x > 0f || accumulatedDragX > 0f)) {
+                // If we are at the first tab (index 0) and the user is swiping from left to right to start the drag
+                if (pagerState.currentPage == 0 && available.x > 0f) {
                     accumulatedDragX = (accumulatedDragX + available.x).coerceAtLeast(0f)
                     currentEntry?.let { entry ->
                         if (accumulatedDragX > 0f) {
