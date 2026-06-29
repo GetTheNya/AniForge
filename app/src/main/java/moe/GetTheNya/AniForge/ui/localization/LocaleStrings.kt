@@ -285,7 +285,23 @@ data class SettingsScreenStrings(
     val anixartImportTotalText: String = "[settingsScreen.anixartImportTotalText]",
     val anixartImportAllMapped: String = "[settingsScreen.anixartImportAllMapped]",
     val anixartImportCollectionTitle: String = "[settingsScreen.anixartImportCollectionTitle]",
-    val anixartImportCollectionDesc: String = "[settingsScreen.anixartImportCollectionDesc]"
+    val anixartImportCollectionDesc: String = "[settingsScreen.anixartImportCollectionDesc]",
+    val exportBackupTitle: String = "[settingsScreen.exportBackupTitle]",
+    val exportBackupDesc: String = "[settingsScreen.exportBackupDesc]",
+    val importBackupTitle: String = "[settingsScreen.importBackupTitle]",
+    val importBackupDesc: String = "[settingsScreen.importBackupDesc]",
+    val moduleSettings: String = "[settingsScreen.moduleSettings]",
+    val moduleTracking: String = "[settingsScreen.moduleTracking]",
+    val moduleCollections: String = "[settingsScreen.moduleCollections]",
+    val backupExportSuccess: String = "[settingsScreen.backupExportSuccess]",
+    val backupImportSuccess: String = "[settingsScreen.backupImportSuccess]",
+    val backupExportError: String = "[settingsScreen.backupExportError]",
+    val backupImportError: String = "[settingsScreen.backupImportError]",
+    val incompatibleBackupHeader: String = "[settingsScreen.incompatibleBackupHeader]",
+    val incompatibleBackupDesc: String = "[settingsScreen.incompatibleBackupDesc]",
+    val preparingImport: String = "[settingsScreen.preparingImport]",
+    val exportingBackup: String = "[settingsScreen.exportingBackup]",
+    val restoringBackup: String = "[settingsScreen.restoringBackup]"
 )
 
 @Serializable

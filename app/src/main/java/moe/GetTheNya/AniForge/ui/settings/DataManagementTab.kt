@@ -62,6 +62,53 @@ fun DataManagementTab(
         }
     }
 
+    val isExporting by viewModel.isExporting.collectAsState()
+    val isRestoring by viewModel.isRestoring.collectAsState()
+    val isPreparingImport by viewModel.isPreparingImport.collectAsState()
+    val backupMetadata by viewModel.backupMetadata.collectAsState()
+    val backupError by viewModel.backupError.collectAsState()
+
+    var selectedRestoreUri by remember { mutableStateOf<Uri?>(null) }
+
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    // Module checkboxes for export
+    var includeSettings by remember { mutableStateOf(true) }
+    var includeTracking by remember { mutableStateOf(true) }
+    var includeCollections by remember { mutableStateOf(true) }
+
+    // Module checkboxes for restore
+    var restoreSettings by remember { mutableStateOf(true) }
+    var restoreTracking by remember { mutableStateOf(true) }
+    var restoreCollections by remember { mutableStateOf(true) }
+
+    val dateFormat = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US) }
+
+    val backupCreateLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.performExport(
+                uri = uri,
+                includeSettings = includeSettings,
+                includeTracking = includeTracking,
+                includeCollections = includeCollections,
+                onSuccess = {
+                    android.widget.Toast.makeText(context, strings.settingsScreen.backupExportSuccess, android.widget.Toast.LENGTH_LONG).show()
+                }
+            )
+        }
+    }
+
+    val backupOpenLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            selectedRestoreUri = uri
+            viewModel.parseBackupFile(uri)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -188,7 +235,7 @@ fun DataManagementTab(
             }
         }
 
-        // Data Management Card
+        // Group 1: Create Backup (Export)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -200,26 +247,102 @@ fun DataManagementTab(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column {
-                    Text(
-                        text = strings.settingsScreen.dataManagementHeader,
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Storage,
+                    contentDescription = null,
+                    tint = NeonCoral
+                )
+                Text(
+                    text = strings.settingsScreen.exportBackupTitle,
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = strings.settingsScreen.exportBackupDesc,
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+
+            Button(
+                onClick = { showExportDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonCoral,
+                    contentColor = BackgroundDark
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text(
+                    text = strings.settingsScreen.exportBackupTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        // Group 2: Restore Data (Import)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(SurfaceDark)
+                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudUpload,
+                    contentDescription = null,
+                    tint = CyberTeal
+                )
+                Text(
+                    text = strings.settingsScreen.importBackupTitle,
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Text(
+                text = strings.settingsScreen.importBackupDesc,
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+
+            Button(
+                onClick = { backupOpenLauncher.launch(arrayOf("*/*")) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CyberTeal,
+                    contentColor = BackgroundDark
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text(
+                    text = strings.settingsScreen.importBackupTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
 
             HorizontalDivider(color = CardBorder, thickness = 1.dp)
 
-            // Export Data Row (Disabled placeholder)
+            // Import from Anixart Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer(alpha = 0.5f)
+                    .clickable { filePickerLauncher.launch("text/*") }
                     .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -229,28 +352,27 @@ fun DataManagementTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Storage,
+                        imageVector = Icons.Default.CloudUpload,
                         contentDescription = null,
-                        tint = TextSecondary
+                        tint = NeonCoral
                     )
                     Text(
-                        text = strings.settingsScreen.exportDataTitle,
+                        text = strings.settingsScreen.importAnixartTitle,
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                Text(
-                    text = strings.settingsScreen.exportDataComingSoon,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = TextSecondary
                 )
             }
 
-            HorizontalDivider(color = CardBorder, thickness = 1.dp)
-
             if (pendingCount > 0) {
+                HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -302,40 +424,6 @@ fun DataManagementTab(
                         }
                     }
                 }
-
-                HorizontalDivider(color = CardBorder, thickness = 1.dp)
-            }
-
-            // Import from Anixart Row (Active Trigger)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { filePickerLauncher.launch("text/*") }
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null,
-                        tint = NeonCoral
-                    )
-                    Text(
-                        text = strings.settingsScreen.importAnixartTitle,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = TextSecondary
-                )
             }
         }
 
@@ -826,6 +914,304 @@ fun DataManagementTab(
                     ) {
                         Text(text = strings.libraryScreen.done, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
+                }
+            }
+        }
+    }
+
+    // Export Choice Dialog
+    if (showExportDialog) {
+        AlertDialog(
+            modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+            onDismissRequest = { showExportDialog = false },
+            title = {
+                Text(
+                    text = strings.settingsScreen.exportBackupTitle,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.settingsScreen.exportBackupDesc,
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { includeSettings = !includeSettings }.padding(vertical = 4.dp)
+                    ) {
+                        Checkbox(
+                            checked = includeSettings,
+                            onCheckedChange = { includeSettings = it },
+                            colors = CheckboxDefaults.colors(checkedColor = NeonCoral, uncheckedColor = TextSecondary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = strings.settingsScreen.moduleSettings, color = TextPrimary, fontSize = 14.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { includeTracking = !includeTracking }.padding(vertical = 4.dp)
+                    ) {
+                        Checkbox(
+                            checked = includeTracking,
+                            onCheckedChange = { includeTracking = it },
+                            colors = CheckboxDefaults.colors(checkedColor = NeonCoral, uncheckedColor = TextSecondary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = strings.settingsScreen.moduleTracking, color = TextPrimary, fontSize = 14.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { includeCollections = !includeCollections }.padding(vertical = 4.dp)
+                    ) {
+                        Checkbox(
+                            checked = includeCollections,
+                            onCheckedChange = { includeCollections = it },
+                            colors = CheckboxDefaults.colors(checkedColor = NeonCoral, uncheckedColor = TextSecondary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = strings.settingsScreen.moduleCollections, color = TextPrimary, fontSize = 14.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExportDialog = false
+                        val dateStr = dateFormat.format(java.util.Date())
+                        backupCreateLauncher.launch("aniforge_backup_$dateStr.forge")
+                    },
+                    enabled = includeSettings || includeTracking || includeCollections,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(text = strings.misc.save, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text(text = strings.misc.back, color = TextSecondary)
+                }
+            },
+            containerColor = AlertBackground,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Restore Choice Dialog
+    val parsedBackupMetadata = backupMetadata
+    if (parsedBackupMetadata != null && selectedRestoreUri != null) {
+        LaunchedEffect(parsedBackupMetadata) {
+            restoreSettings = parsedBackupMetadata.includeSettings
+            restoreTracking = parsedBackupMetadata.includeTracking
+            restoreCollections = parsedBackupMetadata.includeCollections
+        }
+
+        AlertDialog(
+            modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+            onDismissRequest = {
+                viewModel.clearParsedMetadata()
+                selectedRestoreUri = null
+            },
+            title = {
+                Text(
+                    text = strings.settingsScreen.importBackupTitle,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = strings.settingsScreen.importBackupDesc,
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+
+                    if (parsedBackupMetadata.includeSettings) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { restoreSettings = !restoreSettings }.padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = restoreSettings,
+                                onCheckedChange = { restoreSettings = it },
+                                colors = CheckboxDefaults.colors(checkedColor = CyberTeal, uncheckedColor = TextSecondary)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = strings.settingsScreen.moduleSettings, color = TextPrimary, fontSize = 14.sp)
+                        }
+                    }
+
+                    if (parsedBackupMetadata.includeTracking) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { restoreTracking = !restoreTracking }.padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = restoreTracking,
+                                onCheckedChange = { restoreTracking = it },
+                                colors = CheckboxDefaults.colors(checkedColor = CyberTeal, uncheckedColor = TextSecondary)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = strings.settingsScreen.moduleTracking, color = TextPrimary, fontSize = 14.sp)
+                        }
+                    }
+
+                    if (parsedBackupMetadata.includeCollections) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { restoreCollections = !restoreCollections }.padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = restoreCollections,
+                                onCheckedChange = { restoreCollections = it },
+                                colors = CheckboxDefaults.colors(checkedColor = CyberTeal, uncheckedColor = TextSecondary)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = strings.settingsScreen.moduleCollections, color = TextPrimary, fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val uri = selectedRestoreUri!!
+                        viewModel.performRestore(
+                            uri = uri,
+                            restoreSettings = restoreSettings && parsedBackupMetadata.includeSettings,
+                            restoreTracking = restoreTracking && parsedBackupMetadata.includeTracking,
+                            restoreCollections = restoreCollections && parsedBackupMetadata.includeCollections,
+                            onSuccess = {
+                                viewModel.clearParsedMetadata()
+                                selectedRestoreUri = null
+                            }
+                        )
+                    },
+                    enabled = (restoreSettings && parsedBackupMetadata.includeSettings) || 
+                              (restoreTracking && parsedBackupMetadata.includeTracking) || 
+                              (restoreCollections && parsedBackupMetadata.includeCollections),
+                    colors = ButtonDefaults.buttonColors(containerColor = CyberTeal, contentColor = BackgroundDark),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(text = strings.misc.save, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.clearParsedMetadata()
+                    selectedRestoreUri = null
+                }) {
+                    Text(text = strings.misc.back, color = TextSecondary)
+                }
+            },
+            containerColor = AlertBackground,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Incompatible Backup or Error Dialog
+    val errorMsg = backupError
+    if (errorMsg != null) {
+        val isIncompatible = errorMsg.contains("Incompatible Backup", ignoreCase = true)
+        AlertDialog(
+            modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+            onDismissRequest = {
+                viewModel.clearBackupError()
+                selectedRestoreUri = null
+            },
+            title = {
+                Text(
+                    text = if (isIncompatible) strings.settingsScreen.incompatibleBackupHeader else strings.misc.error,
+                    color = NeonCoral,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = errorMsg,
+                    color = TextPrimary,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearBackupError()
+                        selectedRestoreUri = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(text = "OK", fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = AlertBackground,
+            shape = RoundedCornerShape(24.dp)
+        )
+    }
+
+    // Preparing Import loading overlay
+    if (isPreparingImport) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(150.dp)
+                    .background(SurfaceDark, shape = RoundedCornerShape(16.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = CyberTeal)
+                    Text(
+                        text = strings.settingsScreen.preparingImport,
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+
+    // Exporting/Restoring progress overlay
+    if (isExporting || isRestoring) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(150.dp)
+                    .background(SurfaceDark, shape = RoundedCornerShape(16.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = if (isExporting) NeonCoral else CyberTeal)
+                    Text(
+                        text = if (isExporting) strings.settingsScreen.exportingBackup else strings.settingsScreen.restoringBackup,
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

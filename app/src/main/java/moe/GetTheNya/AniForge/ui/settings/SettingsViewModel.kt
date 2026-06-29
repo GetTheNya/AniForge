@@ -16,6 +16,11 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.repository.CatalogMetadata
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
+import moe.GetTheNya.AniForge.core.database.util.BackupManager
+import moe.GetTheNya.AniForge.core.database.util.BackupMetadata
+import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import moe.GetTheNya.AniForge.core.network.api.GitHubApiService
@@ -24,12 +29,15 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val localizationService: LocalizationService,
     private val databaseManager: DatabaseManager,
     private val animeRepository: AnimeRepository,
     private val settingsProvider: SettingsProvider,
-    private val gitHubApiService: GitHubApiService
+    private val gitHubApiService: GitHubApiService,
+    private val backupManager: BackupManager,
+    private val userTrackingRepository: UserTrackingRepository
 ) : ViewModel() {
 
     enum class UpdateStatus {
@@ -171,5 +179,135 @@ class SettingsViewModel @Inject constructor(
 
     fun setGestureRight(value: String) {
         settingsProvider.setGestureRight(value)
+    }
+
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
+
+    private val _isRestoring = MutableStateFlow(false)
+    val isRestoring: StateFlow<Boolean> = _isRestoring.asStateFlow()
+
+    private val _isPreparingImport = MutableStateFlow(false)
+    val isPreparingImport: StateFlow<Boolean> = _isPreparingImport.asStateFlow()
+
+    private val _backupMetadata = MutableStateFlow<BackupMetadata?>(null)
+    val backupMetadata: StateFlow<BackupMetadata?> = _backupMetadata.asStateFlow()
+
+    private val _backupError = MutableStateFlow<String?>(null)
+    val backupError: StateFlow<String?> = _backupError.asStateFlow()
+
+    fun parseBackupFile(uri: android.net.Uri) {
+        _isPreparingImport.value = true
+        _backupError.value = null
+        _backupMetadata.value = null
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = backupManager.parseBackupMetadata(uri)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                _isPreparingImport.value = false
+                result.onSuccess { metadata ->
+                    _backupMetadata.value = metadata
+                }
+                .onFailure { exception ->
+                    AppLogger.e("SettingsViewModel", "Failed to parse backup metadata", exception)
+                    _backupError.value = exception.message ?: "Failed to parse backup file"
+                }
+            }
+        }
+    }
+
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
+    fun performRestore(
+        uri: android.net.Uri,
+        restoreSettings: Boolean,
+        restoreTracking: Boolean,
+        restoreCollections: Boolean,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isRestoring.value = true
+            _backupError.value = null
+            
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                backupManager.restoreBackup(uri, restoreSettings, restoreTracking, restoreCollections)
+            }
+            if (result.isSuccess) {
+                // 1. Recalculate watch time stats if tracking lists were restored
+                if (restoreTracking) {
+                    try {
+                        userTrackingRepository.recalculateTotalWatchTime()
+                        AppLogger.i("SettingsViewModel", "Watch time stats recalculated successfully during restore.")
+                    } catch (e: Exception) {
+                        AppLogger.e("SettingsViewModel", "Failed to recalculate watch time stats", e)
+                    }
+                }
+
+                // 2. Clear Coil Image Cache
+                try {
+                    val imageLoader = coil.Coil.imageLoader(context)
+                    imageLoader.memoryCache?.clear()
+                    imageLoader.diskCache?.clear()
+                    AppLogger.i("SettingsViewModel", "Coil image cache cleared.")
+                } catch (e: Exception) {
+                    AppLogger.e("SettingsViewModel", "Failed to clear Coil cache", e)
+                }
+
+                // 3. Show Toast and trigger UI success
+                android.widget.Toast.makeText(
+                    context,
+                    "Import successful. Restarting AniForge to apply data...",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+
+                _isRestoring.value = false
+                onSuccess()
+
+                try {
+                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    context.startActivity(intent)
+                    Runtime.getRuntime().exit(0)
+                } catch (e: Exception) {
+                    AppLogger.e("SettingsViewModel", "Failed to restart application", e)
+                }
+            } else {
+                _isRestoring.value = false
+                val exception = result.exceptionOrNull()
+                AppLogger.e("SettingsViewModel", "Failed to restore backup", exception)
+                _backupError.value = exception?.message ?: "Failed to restore database tables"
+            }
+        }
+    }
+
+    fun performExport(
+        uri: android.net.Uri,
+        includeSettings: Boolean,
+        includeTracking: Boolean,
+        includeCollections: Boolean,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isExporting.value = true
+            _backupError.value = null
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                backupManager.exportBackup(uri, includeSettings, includeTracking, includeCollections)
+            }
+            _isExporting.value = false
+            result.onSuccess {
+                onSuccess()
+            }
+            .onFailure { exception ->
+                AppLogger.e("SettingsViewModel", "Failed to export backup", exception)
+                _backupError.value = exception.message ?: "Failed to write backup package"
+            }
+        }
+    }
+
+    fun clearBackupError() {
+        _backupError.value = null
+    }
+
+    fun clearParsedMetadata() {
+        _backupMetadata.value = null
     }
 }
