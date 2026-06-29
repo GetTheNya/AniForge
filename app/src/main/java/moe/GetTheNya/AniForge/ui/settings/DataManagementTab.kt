@@ -3,6 +3,7 @@ package moe.GetTheNya.AniForge.ui.settings
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +32,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.theme.*
+import coil.compose.AsyncImage
+import moe.GetTheNya.AniForge.core.database.entity.ImportStatus
+import moe.GetTheNya.AniForge.core.database.entity.TargetStatus
+import moe.GetTheNya.AniForge.ui.settings.PendingImportItem
+import moe.GetTheNya.AniForge.ui.utils.AnimeStatusColors
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
+import moe.GetTheNya.AniForge.core.model.SortOption
+import moe.GetTheNya.AniForge.core.model.Anime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,7 +62,8 @@ fun DataManagementTab(
     val importSyncStatus by importViewModel.syncStatus.collectAsState()
     val importSyncRating by importViewModel.syncRating.collectAsState()
     val pendingCount by importViewModel.pendingImportsCount.collectAsState()
-    val failedImports by importViewModel.failedImports.collectAsState()
+    val preFlightCollisions by importViewModel.preFlightCollisions.collectAsState()
+
 
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -646,6 +659,30 @@ fun DataManagementTab(
 
     // Summary and Resolution fullscreen dialog
     if (importState.showSummary) {
+        val pendingItems by importViewModel.pendingImportItems.collectAsState()
+        
+        val readyItems = remember(pendingItems) { pendingItems.filter { it.entity.importStatus == ImportStatus.SUCCESS || it.entity.importStatus == ImportStatus.RESOLVED } }
+        val ambiguousItems = remember(pendingItems) { pendingItems.filter { it.entity.importStatus == ImportStatus.AMBIGUOUS } }
+        val notFoundItems = remember(pendingItems) { pendingItems.filter { it.entity.importStatus == ImportStatus.NOT_FOUND } }
+
+        var selectedTabIndex by remember { mutableStateOf(0) }
+        var skipUnresolved by remember { mutableStateOf(false) }
+
+        var selectedAmbiguousItem by remember { mutableStateOf<PendingImportItem?>(null) }
+        var showAmbiguousDialog by remember { mutableStateOf(false) }
+
+        var showManualSearchByRemember by remember(showAmbiguousDialog) {
+            mutableStateOf(selectedAmbiguousItem?.entity?.importStatus == ImportStatus.NOT_FOUND)
+        }
+        var manualSearchQuery by remember(showAmbiguousDialog) { mutableStateOf("") }
+        var manualSearchResults by remember(showAmbiguousDialog) { mutableStateOf<List<Anime>>(emptyList()) }
+        var isManualSearching by remember(showAmbiguousDialog) { mutableStateOf(false) }
+        val dialogCoroutineScope = rememberCoroutineScope()
+
+        val candidates by importViewModel.ambiguousCandidates.collectAsState()
+        val isFetchingCandidates by importViewModel.isFetchingCandidates.collectAsState()
+        val isCommitting by importViewModel.isCommitting.collectAsState()
+
         Dialog(
             onDismissRequest = { importViewModel.clearSummary() },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -677,31 +714,45 @@ fun DataManagementTab(
                         }
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF0F0F13))
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = strings.settingsScreen.anixartImportSuccessCount
-                                    .replace("{success}", importState.processedSuccessCount.toString())
-                                    .replace("{total}", importState.totalRecords.toString()),
-                                color = CyberTeal,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+
+
+                    val tabs = listOf(
+                        strings.settingsScreen.importTabAmbiguous to ambiguousItems.size,
+                        strings.settingsScreen.importTabNotFound to notFoundItems.size,
+                        strings.settingsScreen.importTabReady to readyItems.size
+                    )
+
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = BackgroundDark,
+                        contentColor = CyberTeal,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                color = CyberTeal
                             )
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = strings.settingsScreen.anixartImportFailedCount
-                                    .replace("{failed}", importState.failedCount.toString()),
-                                color = Color(0xFFEF4444),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                    ) {
+                        tabs.forEachIndexed { index, (title, count) ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Badge(
+                                            containerColor = if (selectedTabIndex == index) CyberTeal else CardBorder,
+                                            contentColor = if (selectedTabIndex == index) BackgroundDark else TextSecondary
+                                        ) {
+                                            Text(text = count.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                },
+                                selectedContentColor = CyberTeal,
+                                unselectedContentColor = TextSecondary
                             )
                         }
                     }
@@ -709,193 +760,418 @@ fun DataManagementTab(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        if (failedImports.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = strings.settingsScreen.anixartImportAllMapped,
-                                    color = TextSecondary,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(
-                                    items = failedImports,
-                                    key = { it.id }
-                                ) { item ->
-                                    Column(
-                                        modifier = Modifier
-                                            .animateItem()
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(SurfaceCardDark)
-                                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                                            .padding(12.dp)
+                        when (selectedTabIndex) {
+                            0 -> { // Ambiguous list
+                                if (ambiguousItems.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(text = strings.settingsScreen.anixartImportAllMapped, color = TextSecondary, fontSize = 14.sp)
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Text(
-                                            text = item.russianTitle.ifEmpty { item.originalTitle },
-                                            color = TextPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                        if (item.russianTitle.isNotEmpty() && item.originalTitle.isNotEmpty()) {
-                                            Text(
-                                                text = item.originalTitle,
-                                                color = TextSecondary,
-                                                fontSize = 11.sp,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            val statusLabel = when (item.targetStatus) {
-                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.CURRENT -> strings.misc.watching
-                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.PLANNING -> strings.misc.planning
-                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.COMPLETED -> strings.misc.completed
-                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.PAUSED -> strings.misc.paused
-                                                moe.GetTheNya.AniForge.core.database.entity.TargetStatus.DROPPED -> strings.misc.dropped
-                                                else -> ""
-                                            }
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.weight(1f)
+                                        items(items = ambiguousItems, key = { it.entity.id }) { item ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .animateItem()
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(SurfaceCardDark)
+                                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                    .padding(12.dp)
                                             ) {
-                                                if (item.isFavorite) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Star,
-                                                        contentDescription = "Favorite",
-                                                        tint = Color(0xFFFFD700),
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                }
-                                                if (statusLabel.isNotEmpty()) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(Color(0x1Fffffff))
-                                                            .border(0.5.dp, Color(0x33ffffff), RoundedCornerShape(4.dp))
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "${strings.settingsScreen.targetListPrefix} $statusLabel",
-                                                            color = TextSecondary,
-                                                            fontSize = 10.sp,
-                                                            fontWeight = FontWeight.Medium
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
-                                                        .clickable { importViewModel.deletePendingImport(item.id) },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Delete,
-                                                        contentDescription = strings.settingsScreen.removeFromImportTooltip,
-                                                        tint = Color(0xFFEF4444),
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
-
-                                                Button(
-                                                    onClick = { importViewModel.toggleResolving(item.id) },
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = if (item.isResolving) Color(0x33FFFFFF) else NeonCoral,
-                                                        contentColor = if (item.isResolving) TextPrimary else BackgroundDark
-                                                    ),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                                    modifier = Modifier.height(32.dp)
-                                                ) {
+                                                // Top row: full width title
+                                                Text(
+                                                    text = item.entity.russianTitle.ifEmpty { item.entity.originalTitle },
+                                                    color = TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                if (item.entity.russianTitle.isNotEmpty() && item.entity.originalTitle.isNotEmpty()) {
                                                     Text(
-                                                        text = if (item.isResolving) strings.libraryScreen.cancel else strings.settingsScreen.anixartImportResolveManually,
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold
+                                                        text = item.entity.originalTitle,
+                                                        color = TextSecondary,
+                                                        fontSize = 11.sp,
+                                                        modifier = Modifier.fillMaxWidth()
                                                     )
+                                                }
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                // Bottom row: target status list badge + action buttons
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        val statusLabel = when (item.entity.targetStatus) {
+                                                            TargetStatus.CURRENT -> strings.misc.watching
+                                                            TargetStatus.PLANNING -> strings.misc.planning
+                                                            TargetStatus.COMPLETED -> strings.misc.completed
+                                                            TargetStatus.PAUSED -> strings.misc.paused
+                                                            TargetStatus.DROPPED -> strings.misc.dropped
+                                                            else -> ""
+                                                        }
+                                                        if (statusLabel.isNotEmpty()) {
+                                                            val statusColor = AnimeStatusColors[item.entity.targetStatus.name] ?: Color.Gray
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(statusColor.copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${strings.settingsScreen.targetListPrefix} $statusLabel",
+                                                                    color = statusColor,
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+
+                                                        if (item.entity.isFavorite) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(Color(0xFFFFD700).copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, Color(0xFFFFD700).copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Star,
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFFFFD700),
+                                                                        modifier = Modifier.size(10.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = strings.settingsScreen.anixartImportCollectionTitle,
+                                                                        color = Color(0xFFFFD700),
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(32.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                                                                .clickable { importViewModel.deletePendingImport(item.entity.id) },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                                                        }
+                                                        Button(
+                                                            onClick = {
+                                                                selectedAmbiguousItem = item
+                                                                importViewModel.fetchCandidatesForAmbiguous(item.entity)
+                                                                showAmbiguousDialog = true
+                                                            },
+                                                            colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                            modifier = Modifier.height(32.dp)
+                                                        ) {
+                                                            Text(text = strings.settingsScreen.anixartImportResolveManually, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
+                                    }
+                                }
+                            }
+                            1 -> { // Not Found list
+                                if (notFoundItems.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(text = strings.settingsScreen.anixartImportAllMapped, color = TextSecondary, fontSize = 14.sp)
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(items = notFoundItems, key = { it.entity.id }) { item ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .animateItem()
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(SurfaceCardDark)
+                                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                    .padding(12.dp)
+                                            ) {
+                                                // Top row: full width title
+                                                Text(
+                                                    text = item.entity.russianTitle.ifEmpty { item.entity.originalTitle },
+                                                    color = TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                                if (item.entity.russianTitle.isNotEmpty() && item.entity.originalTitle.isNotEmpty()) {
+                                                    Text(
+                                                        text = item.entity.originalTitle,
+                                                        color = TextSecondary,
+                                                        fontSize = 11.sp,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                }
 
-                                        if (item.isResolving) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            OutlinedTextField(
-                                                value = item.searchQuery,
-                                                onValueChange = { importViewModel.updateSearchQuery(item.id, it) },
-                                                placeholder = { Text(text = strings.settingsScreen.anixartImportSearchAnime, fontSize = 11.sp, color = TextSecondary) },
-                                                modifier = Modifier.fillMaxWidth(),
-                                                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = TextPrimary),
-                                                singleLine = true,
-                                                trailingIcon = {
-                                                    if (item.isSearching) {
-                                                        CircularProgressIndicator(color = NeonCoral, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                                                    } else {
-                                                        Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                                                    }
-                                                },
-                                                colors = OutlinedTextFieldDefaults.colors(
-                                                    focusedBorderColor = NeonCoral,
-                                                    unfocusedBorderColor = CardBorder,
-                                                    focusedContainerColor = Color(0xFF0F0F13),
-                                                    unfocusedContainerColor = Color(0xFF0F0F13)
-                                                ),
-                                                shape = RoundedCornerShape(8.dp)
-                                            )
-
-                                            if (item.searchResults.isNotEmpty()) {
                                                 Spacer(modifier = Modifier.height(8.dp))
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(Color(0xFF0F0F13))
-                                                        .padding(4.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+
+                                                // Bottom row: target status list badge + action buttons
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    item.searchResults.forEach { anime ->
-                                                        Row(
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        val statusLabel = when (item.entity.targetStatus) {
+                                                            TargetStatus.CURRENT -> strings.misc.watching
+                                                            TargetStatus.PLANNING -> strings.misc.planning
+                                                            TargetStatus.COMPLETED -> strings.misc.completed
+                                                            TargetStatus.PAUSED -> strings.misc.paused
+                                                            TargetStatus.DROPPED -> strings.misc.dropped
+                                                            else -> ""
+                                                        }
+                                                        if (statusLabel.isNotEmpty()) {
+                                                            val statusColor = AnimeStatusColors[item.entity.targetStatus.name] ?: Color.Gray
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(statusColor.copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${strings.settingsScreen.targetListPrefix} $statusLabel",
+                                                                    color = statusColor,
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+
+                                                        if (item.entity.isFavorite) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(Color(0xFFFFD700).copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, Color(0xFFFFD700).copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Star,
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFFFFD700),
+                                                                        modifier = Modifier.size(10.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = strings.settingsScreen.anixartImportCollectionTitle,
+                                                                        color = Color(0xFFFFD700),
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Row(
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Box(
                                                             modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .clickable { importViewModel.resolveManualBind(item.id, anime) }
-                                                                .padding(8.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
+                                                                .size(32.dp)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                                                                .clickable { importViewModel.deletePendingImport(item.entity.id) },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                                                        }
+                                                        Button(
+                                                            onClick = {
+                                                                selectedAmbiguousItem = item
+                                                                showAmbiguousDialog = true
+                                                            },
+                                                            colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
+                                                            shape = RoundedCornerShape(8.dp),
+                                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                            modifier = Modifier.height(32.dp)
                                                         ) {
                                                             Text(
-                                                                text = anime.getDisplayTitle(preferUk = preferUk),
-                                                                color = TextPrimary,
-                                                                fontSize = 12.sp,
-                                                                fontWeight = FontWeight.Medium
+                                                                text = strings.settingsScreen.anixartImportResolveManually,
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold
                                                             )
                                                         }
                                                     }
                                                 }
-                                            } else if (item.searchQuery.isNotBlank() && !item.isSearching) {
-                                                Spacer(modifier = Modifier.height(8.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            2 -> { // Ready list
+                                if (readyItems.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(text = "No records ready to import", color = TextSecondary, fontSize = 14.sp)
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(items = readyItems, key = { it.entity.id }) { item ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .animateItem()
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(SurfaceCardDark)
+                                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                    .padding(12.dp)
+                                            ) {
+                                                // Top row: full width title
                                                 Text(
-                                                    text = strings.settingsScreen.anixartImportNoResults,
-                                                    color = TextSecondary,
-                                                    fontSize = 11.sp,
-                                                    modifier = Modifier.padding(start = 4.dp)
+                                                    text = item.matchedAnime?.getDisplayTitle(preferUk = preferUk)
+                                                        ?: (item.entity.russianTitle.ifEmpty { item.entity.originalTitle }),
+                                                    color = TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.fillMaxWidth()
                                                 )
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                // Bottom row: status badges on the left, delete button on the right
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        val statusLabel = when (item.entity.targetStatus) {
+                                                            TargetStatus.CURRENT -> strings.misc.watching
+                                                            TargetStatus.PLANNING -> strings.misc.planning
+                                                            TargetStatus.COMPLETED -> strings.misc.completed
+                                                            TargetStatus.PAUSED -> strings.misc.paused
+                                                            TargetStatus.DROPPED -> strings.misc.dropped
+                                                            else -> ""
+                                                        }
+                                                        if (statusLabel.isNotEmpty()) {
+                                                            val statusColor = AnimeStatusColors[item.entity.targetStatus.name] ?: Color.Gray
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(statusColor.copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${strings.settingsScreen.targetListPrefix} $statusLabel",
+                                                                    color = statusColor,
+                                                                    fontSize = 10.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+
+                                                        val importLabel = if (item.entity.importStatus == ImportStatus.RESOLVED) {
+                                                            strings.settingsScreen.importResolvedLabel
+                                                        } else {
+                                                            strings.settingsScreen.importSuccessLabel
+                                                        }
+                                                        val badgeColor = if (item.entity.importStatus == ImportStatus.RESOLVED) NeonCoral else CyberTeal
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(badgeColor.copy(alpha = 0.15f))
+                                                                .border(0.5.dp, badgeColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = importLabel,
+                                                                color = badgeColor,
+                                                                fontSize = 10.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+
+                                                        if (item.entity.isFavorite) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(4.dp))
+                                                                    .background(Color(0xFFFFD700).copy(alpha = 0.15f))
+                                                                    .border(0.5.dp, Color(0xFFFFD700).copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            ) {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Star,
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFFFFD700),
+                                                                        modifier = Modifier.size(10.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = strings.settingsScreen.anixartImportCollectionTitle,
+                                                                        color = Color(0xFFFFD700),
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(32.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
+                                                            .clickable { importViewModel.deletePendingImport(item.entity.id) },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -906,13 +1182,550 @@ fun DataManagementTab(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
-                        onClick = { importViewModel.clearSummary() },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { skipUnresolved = !skipUnresolved }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = strings.libraryScreen.done, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Checkbox(
+                            checked = skipUnresolved,
+                            onCheckedChange = { skipUnresolved = it },
+                            colors = CheckboxDefaults.colors(checkedColor = NeonCoral, uncheckedColor = TextSecondary)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = strings.settingsScreen.importSkipUnresolved, color = TextPrimary, fontSize = 13.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { importViewModel.clearSummary() },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, CardBorder)
+                        ) {
+                            Text(text = strings.libraryScreen.cancel, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        }
+
+                        val isImportEnabled = readyItems.isNotEmpty() && ((ambiguousItems.isEmpty() && notFoundItems.isEmpty()) || skipUnresolved)
+
+                        Button(
+                            onClick = {
+                                importViewModel.runPreFlightCheck {
+                                    importViewModel.commitImport(skipUnresolved = skipUnresolved) {
+                                        android.widget.Toast.makeText(context, strings.settingsScreen.anixartImportAllMapped, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            enabled = isImportEnabled,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CyberTeal,
+                                contentColor = BackgroundDark,
+                                disabledContainerColor = Color(0x33FFFFFF),
+                                disabledContentColor = TextSecondary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Text(text = strings.settingsScreen.importAllAction, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Resolution Dialog for Ambiguous items
+        if (showAmbiguousDialog && selectedAmbiguousItem != null) {
+            val item = selectedAmbiguousItem!!
+            AlertDialog(
+                modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+                onDismissRequest = {
+                    showAmbiguousDialog = false
+                    selectedAmbiguousItem = null
+                    importViewModel.clearCandidates()
+                },
+                title = {
+                    Text(
+                        text = strings.settingsScreen.importAmbiguousSelectionHeader,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (!showManualSearchByRemember) {
+                            Text(
+                                text = strings.settingsScreen.importAmbiguousSelectionDesc,
+                                color = TextSecondary,
+                                fontSize = 13.sp
+                            )
+
+                            Text(
+                                text = item.entity.russianTitle.ifEmpty { item.entity.originalTitle },
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+                            if (isFetchingCandidates) {
+                                Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(color = CyberTeal)
+                                }
+                            } else if (candidates.isEmpty()) {
+                                Text(
+                                    text = strings.settingsScreen.anixartImportNoResults,
+                                    color = TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.heightIn(max = 240.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(candidates) { candidate ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(SurfaceCardDark)
+                                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    importViewModel.resolveAmbiguous(item.entity.id, candidate.anilistId)
+                                                    showAmbiguousDialog = false
+                                                    selectedAmbiguousItem = null
+                                                    importViewModel.clearCandidates()
+                                                }
+                                                .padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = candidate.coverLarge,
+                                                contentDescription = candidate.getDisplayTitle(preferUk),
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(50.dp, 70.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = candidate.getDisplayTitle(preferUk),
+                                                    color = TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                val metaStr = listOfNotNull(
+                                                    candidate.format,
+                                                    candidate.seasonYear?.toString()
+                                                ).joinToString(" • ")
+                                                Text(
+                                                    text = metaStr,
+                                                    color = TextSecondary,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = strings.settingsScreen.importSearchManually,
+                                color = TextSecondary,
+                                fontSize = 13.sp
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item.entity.originalTitle.ifEmpty { item.entity.russianTitle },
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                var isNetworkConnected by remember { mutableStateOf(true) }
+                                DisposableEffect(context) {
+                                    val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                                    val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+                                        override fun onAvailable(network: android.net.Network) {
+                                            isNetworkConnected = true
+                                        }
+                                        override fun onLost(network: android.net.Network) {
+                                            isNetworkConnected = isNetworkAvailable(context)
+                                        }
+                                    }
+                                    connectivityManager?.registerDefaultNetworkCallback(callback)
+                                    isNetworkConnected = isNetworkAvailable(context)
+                                    onDispose {
+                                        connectivityManager?.unregisterNetworkCallback(callback)
+                                    }
+                                }
+
+                                var isAniListSearching by remember { mutableStateOf(false) }
+
+                                Button(
+                                    onClick = {
+                                        isAniListSearching = true
+                                        dialogCoroutineScope.launch {
+                                            val queryTitle = item.entity.originalTitle.ifEmpty { item.entity.russianTitle }
+                                            val resolvedId = importViewModel.resolveWithAniList(queryTitle)
+                                            if (resolvedId != null) {
+                                                val idStr = resolvedId.toString()
+                                                manualSearchQuery = idStr
+                                                isManualSearching = true
+                                                val results = importViewModel.searchAnimeCatalog(idStr)
+                                                manualSearchResults = results
+                                                isManualSearching = false
+                                            } else {
+                                                android.widget.Toast.makeText(context, strings.settingsScreen.anixartImportNotFoundOnAniList, android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                            isAniListSearching = false
+                                        }
+                                    },
+                                    enabled = !isAniListSearching && isNetworkConnected,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = CyberTeal,
+                                        contentColor = BackgroundDark,
+                                        disabledContainerColor = Color(0x33FFFFFF),
+                                        disabledContentColor = TextSecondary
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        if (isAniListSearching) {
+                                            CircularProgressIndicator(
+                                                color = BackgroundDark,
+                                                strokeWidth = 2.dp,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = strings.settingsScreen.anixartImportSearchAniList,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
+                            OutlinedTextField(
+                                value = manualSearchQuery,
+                                onValueChange = { query ->
+                                    manualSearchQuery = query
+                                    if (query.isNotBlank()) {
+                                        isManualSearching = true
+                                        dialogCoroutineScope.launch {
+                                            val results = importViewModel.searchAnimeCatalog(query)
+                                            manualSearchResults = results
+                                            isManualSearching = false
+                                        }
+                                    } else {
+                                        manualSearchResults = emptyList()
+                                    }
+                                },
+                                placeholder = { Text(text = strings.settingsScreen.anixartImportSearchAnime, fontSize = 11.sp, color = TextSecondary) },
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = TextPrimary),
+                                singleLine = true,
+                                trailingIcon = {
+                                    if (isManualSearching) {
+                                        CircularProgressIndicator(color = NeonCoral, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                                    } else {
+                                        Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                                    }
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = NeonCoral,
+                                    unfocusedBorderColor = CardBorder,
+                                    focusedContainerColor = Color(0xFF0F0F13),
+                                    unfocusedContainerColor = Color(0xFF0F0F13)
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+
+                            if (manualSearchResults.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LazyColumn(
+                                    modifier = Modifier.heightIn(max = 200.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(manualSearchResults) { candidate ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(SurfaceCardDark)
+                                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    importViewModel.resolveAmbiguous(item.entity.id, candidate.anilistId)
+                                                    showAmbiguousDialog = false
+                                                    selectedAmbiguousItem = null
+                                                    importViewModel.clearCandidates()
+                                                }
+                                                .padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            AsyncImage(
+                                                model = candidate.coverLarge,
+                                                contentDescription = candidate.getDisplayTitle(preferUk),
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(40.dp, 56.dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = candidate.getDisplayTitle(preferUk),
+                                                    color = TextPrimary,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                val metaStr = listOfNotNull(
+                                                    candidate.format,
+                                                    candidate.seasonYear?.toString()
+                                                ).joinToString(" • ")
+                                                if (metaStr.isNotEmpty()) {
+                                                    Text(
+                                                        text = metaStr,
+                                                        color = TextSecondary,
+                                                        fontSize = 10.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if (manualSearchQuery.isNotBlank() && !isManualSearching) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = strings.settingsScreen.anixartImportNoResults,
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    if (!showManualSearchByRemember) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = {
+                                showManualSearchByRemember = true
+                            }) {
+                                Text(
+                                    text = strings.settingsScreen.importNotTheseAnime,
+                                    color = NeonCoral,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            TextButton(onClick = {
+                                showAmbiguousDialog = false
+                                selectedAmbiguousItem = null
+                                importViewModel.clearCandidates()
+                            }) {
+                                Text(text = strings.libraryScreen.cancel, color = TextSecondary)
+                            }
+                        }
+                    } else {
+                        if (selectedAmbiguousItem?.entity?.importStatus == ImportStatus.NOT_FOUND) {
+                            TextButton(onClick = {
+                                showAmbiguousDialog = false
+                                selectedAmbiguousItem = null
+                                importViewModel.clearCandidates()
+                            }) {
+                                Text(text = strings.libraryScreen.cancel, color = TextSecondary)
+                            }
+                        } else {
+                            TextButton(onClick = {
+                                showManualSearchByRemember = false
+                            }) {
+                                Text(text = strings.misc.back, color = TextPrimary, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                },
+                containerColor = AlertBackground,
+                shape = RoundedCornerShape(24.dp)
+            )
+        }
+
+        // Pre-Flight Collision Resolution Dialog
+        if (preFlightCollisions.isNotEmpty()) {
+            AlertDialog(
+                modifier = Modifier.border(1.dp, CardBorder, RoundedCornerShape(24.dp)),
+                onDismissRequest = {
+                    importViewModel.clearPreFlightCollisions()
+                },
+                title = {
+                    Text(
+                        text = strings.settingsScreen.preFlightCollisionTitle,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                },
+                text = {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(preFlightCollisions) { group ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(SurfaceCardDark)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                    .padding(12.dp)
+                            ) {
+                                val desc = String.format(strings.settingsScreen.preFlightCollisionDesc, group.targetAnimeTitle)
+                                Text(
+                                    text = desc,
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                group.conflictingRows.forEachIndexed { index, row ->
+                                    val statusLabel = when (row.targetStatus) {
+                                        TargetStatus.CURRENT -> strings.misc.watching
+                                        TargetStatus.PLANNING -> strings.misc.planning
+                                        TargetStatus.COMPLETED -> strings.misc.completed
+                                        TargetStatus.PAUSED -> strings.misc.paused
+                                        TargetStatus.DROPPED -> strings.misc.dropped
+                                        else -> "Unknown"
+                                    }
+                                    val statusColor = AnimeStatusColors[row.targetStatus.name] ?: Color.Gray
+                                    
+                                    val formattedRow = String.format(strings.settingsScreen.preFlightCollisionRowLabel, index + 1, row.russianTitle.ifEmpty { row.originalTitle })
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = formattedRow,
+                                            color = TextSecondary,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(statusColor.copy(alpha = 0.15f))
+                                                .border(0.5.dp, statusColor.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = statusLabel,
+                                                color = statusColor,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            dialogCoroutineScope.launch {
+                                importViewModel.demoteCollisionsToConflicts()
+                                selectedTabIndex = 0
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCoral, contentColor = BackgroundDark),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(text = strings.settingsScreen.preFlightCollisionCancel, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = {
+                            importViewModel.clearPreFlightCollisions()
+                            importViewModel.commitImport(skipUnresolved = skipUnresolved) {
+                                android.widget.Toast.makeText(context, strings.settingsScreen.anixartImportAllMapped, android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        border = BorderStroke(1.dp, CardBorder),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(text = strings.settingsScreen.preFlightCollisionMerge, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = AlertBackground,
+                shape = RoundedCornerShape(24.dp)
+            )
+        }
+
+        // Committing Overlay
+        if (isCommitting) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(150.dp)
+                        .background(SurfaceDark, shape = RoundedCornerShape(16.dp))
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(color = CyberTeal)
+                        Text(
+                            text = strings.settingsScreen.preparingImport,
+                            color = TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
@@ -1216,4 +2029,13 @@ fun DataManagementTab(
             }
         }
     }
+}
+
+private fun isNetworkAvailable(context: android.content.Context): Boolean {
+    val connectivityManager = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+    val activeNetwork = connectivityManager?.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+    return capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
 }

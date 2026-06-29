@@ -30,6 +30,31 @@ class TargetStatusConverter {
     }
 }
 
+enum class ImportStatus {
+    PENDING,
+    SUCCESS,
+    AMBIGUOUS,
+    NOT_FOUND,
+    RESOLVED,
+    ERROR
+}
+
+class ImportStatusConverter {
+    @TypeConverter
+    fun fromImportStatus(status: ImportStatus): String {
+        return status.name
+    }
+
+    @TypeConverter
+    fun toImportStatus(value: String): ImportStatus {
+        return try {
+            ImportStatus.valueOf(value)
+        } catch (e: Exception) {
+            ImportStatus.PENDING
+        }
+    }
+}
+
 @Entity(tableName = "pending_imports")
 data class PendingImportEntity(
     @PrimaryKey(autoGenerate = true)
@@ -54,5 +79,11 @@ data class PendingImportEntity(
     val targetScore: Double?,
     
     @ColumnInfo(name = "is_favorite")
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+
+    @ColumnInfo(name = "matched_anime_id")
+    val matchedAnimeId: Long? = null,
+
+    @ColumnInfo(name = "import_status")
+    val importStatus: ImportStatus = ImportStatus.PENDING
 )

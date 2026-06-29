@@ -22,12 +22,15 @@ import moe.GetTheNya.AniForge.core.database.entity.CollectionEntity
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.entity.PendingImportEntity
 import moe.GetTheNya.AniForge.core.database.entity.TargetStatus
+import moe.GetTheNya.AniForge.core.database.entity.ImportStatus
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 import moe.GetTheNya.AniForge.ui.localization.LocalizationService
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.core.model.SortOption
+import moe.GetTheNya.AniForge.core.network.api.AniListApiService
+import moe.GetTheNya.AniForge.core.network.model.AniListGraphQLPayload
 import javax.inject.Inject
 
 enum class MatchPriority {
@@ -35,26 +38,13 @@ enum class MatchPriority {
     ALTERNATIVE_TITLE
 }
 
-data class SuccessfulImport(
-    val animeId: Long,
-    val animeTitle: String,
-    val russianTitle: String,
-    val originalTitle: String,
-    val alternativeTitle: String
-)
-
-data class FailedImport(
-    val id: String,
-    val russianTitle: String,
-    val originalTitle: String,
-    val alternativeTitle: String,
-    val rawRow: List<String>,
+data class PendingImportItem(
+    val entity: PendingImportEntity,
+    val matchedAnime: Anime? = null,
     val isResolving: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Anime> = emptyList(),
-    val isSearching: Boolean = false,
-    val targetStatus: TargetStatus = TargetStatus.UNKNOWN,
-    val isFavorite: Boolean = false
+    val isSearching: Boolean = false
 )
 
 data class FailedImportState(
@@ -69,11 +59,16 @@ data class ImportState(
     val totalRecords: Int = 0,
     val processedSuccessCount: Int = 0,
     val failedCount: Int = 0,
-    val successfulImports: List<SuccessfulImport> = emptyList(),
-    val failedImports: List<FailedImport> = emptyList(),
     val showSummary: Boolean = false,
     val error: String? = null
 )
+
+data class PreFlightCollisionGroup(
+    val targetAnimeTitle: String,
+    val targetAnimeId: Long,
+    val conflictingRows: List<PendingImportEntity>
+)
+
 
 @HiltViewModel
 class ImportViewModel @Inject constructor(
@@ -82,7 +77,8 @@ class ImportViewModel @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: CollectionDao,
     private val pendingImportDao: PendingImportDao,
-    private val localizationService: LocalizationService
+    private val localizationService: LocalizationService,
+    private val aniListApiService: AniListApiService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ImportState())
@@ -99,6 +95,18 @@ class ImportViewModel @Inject constructor(
 
     private val _resolvingStates = MutableStateFlow<Map<String, FailedImportState>>(emptyMap())
 
+    private val _ambiguousCandidates = MutableStateFlow<List<Anime>>(emptyList())
+    val ambiguousCandidates: StateFlow<List<Anime>> = _ambiguousCandidates.asStateFlow()
+
+    private val _isFetchingCandidates = MutableStateFlow(false)
+    val isFetchingCandidates: StateFlow<Boolean> = _isFetchingCandidates.asStateFlow()
+
+    private val _isCommitting = MutableStateFlow(false)
+    val isCommitting: StateFlow<Boolean> = _isCommitting.asStateFlow()
+
+    val preFlightCollisions = MutableStateFlow<List<PreFlightCollisionGroup>>(emptyList())
+
+
     val pendingImportsCount: StateFlow<Int> = pendingImportDao.observeCount()
         .stateIn(
             scope = viewModelScope,
@@ -106,27 +114,26 @@ class ImportViewModel @Inject constructor(
             initialValue = 0
         )
 
-    val failedImports: StateFlow<List<FailedImport>> = combine(
+    val pendingImportItems: StateFlow<List<PendingImportItem>> = combine(
         pendingImportDao.observeAll(),
         _resolvingStates
     ) { entities, states ->
+        val matchedIds = entities.mapNotNull { it.matchedAnimeId }.distinct()
+        val animeMap = if (matchedIds.isNotEmpty()) {
+            animeRepository.getAnimeByIds(matchedIds).associateBy { it.anilistId }
+        } else {
+            emptyMap()
+        }
         entities.map { entity ->
             val stateKey = entity.id.toString()
             val state = states[stateKey] ?: FailedImportState()
-            val jsonArray = org.json.JSONArray(entity.rawRowText)
-            val rawRow = List(jsonArray.length()) { jsonArray.getString(it) }
-            FailedImport(
-                id = stateKey,
-                russianTitle = entity.russianTitle,
-                originalTitle = entity.originalTitle,
-                alternativeTitle = entity.alternativeTitles,
-                rawRow = rawRow,
+            PendingImportItem(
+                entity = entity,
+                matchedAnime = animeMap[entity.matchedAnimeId],
                 isResolving = state.isResolving,
                 searchQuery = state.searchQuery,
                 searchResults = state.searchResults,
-                isSearching = state.isSearching,
-                targetStatus = entity.targetStatus,
-                isFavorite = entity.isFavorite
+                isSearching = state.isSearching
             )
         }
     }.stateIn(
@@ -150,27 +157,18 @@ class ImportViewModel @Inject constructor(
     fun resumeImportResolution() {
         _state.value = _state.value.copy(
             showSummary = true,
-            totalRecords = pendingImportsCount.value,
-            failedCount = pendingImportsCount.value,
-            processedSuccessCount = 0
+            totalRecords = pendingImportsCount.value
         )
     }
 
-    fun deletePendingImport(failedImportId: String) {
+    fun deletePendingImport(id: Long) {
         viewModelScope.launch {
-            val failedIdLong = failedImportId.toLongOrNull() ?: return@launch
             withContext(Dispatchers.IO) {
-                pendingImportDao.deleteById(failedIdLong)
+                pendingImportDao.deleteById(id)
             }
             val currentStates = _resolvingStates.value.toMutableMap()
-            currentStates.remove(failedImportId)
+            currentStates.remove(id.toString())
             _resolvingStates.value = currentStates
-
-            // Mapped counts update
-            val currentFailedCount = pendingImportsCount.value
-            _state.value = _state.value.copy(
-                failedCount = currentFailedCount
-            )
         }
     }
 
@@ -184,103 +182,350 @@ class ImportViewModel @Inject constructor(
                     } ?: throw Exception("Failed to open input stream")
                 }
                 
-                val rows = parseCsv(csvText)
+                val rows = parseAnixartTxt(csvText)
                 if (rows.isEmpty()) {
-                    _state.value = ImportState(error = "CSV file is empty or invalid")
+                    _state.value = ImportState(error = "TXT file is empty or invalid")
                     return@launch
                 }
 
                 _state.value = _state.value.copy(totalRecords = rows.size)
 
-                val successList = mutableListOf<SuccessfulImport>()
-                val failedList = mutableListOf<FailedImport>()
-
                 withContext(Dispatchers.IO) {
                     // Clean previous pending imports
                     pendingImportDao.deleteAll()
 
-                    for (row in rows) {
-                        if (row.size < 7) continue // Skip invalid rows
-                        
+                    val pendingEntities = rows.map { row ->
                         val russianTitle = row.getOrNull(1)?.trim() ?: ""
-                        val originalTitle = row.getOrNull(2)?.trim() ?: ""
+                        val rawOriginal = row.getOrNull(2)?.trim() ?: ""
+                        val originalTitle = if (rawOriginal.equals("Не указано оригинальное название", ignoreCase = true)) "" else rawOriginal
                         val alternativeTitle = row.getOrNull(3)?.trim() ?: ""
 
-                        val matchedAnime = findBestMatch(
+                        val favoritesVal = row.getOrNull(4)?.trim() ?: ""
+                        val statusVal = row.getOrNull(5)?.trim() ?: ""
+                        val ratingVal = row.getOrNull(6)?.trim() ?: ""
+
+                        val isFavorite = (favoritesVal == "В избранном")
+                        val targetStatus = mapRussianStatusToEnum(statusVal)
+                        val targetScore = if (ratingVal == "Не оценено") null else ratingVal.toDoubleOrNull()
+
+                        PendingImportEntity(
+                            rawRowText = org.json.JSONArray(row).toString(),
                             russianTitle = russianTitle,
                             originalTitle = originalTitle,
-                            alternativeTitle = alternativeTitle,
-                            priority = _matchPriority.value
-                        )
-
-                        if (matchedAnime != null) {
-                            importRecordDirect(matchedAnime.anilistId, row)
-                            successList.add(
-                                SuccessfulImport(
-                                    animeId = matchedAnime.anilistId,
-                                    animeTitle = matchedAnime.titleUk ?: matchedAnime.titleRomaji,
-                                    russianTitle = russianTitle,
-                                    originalTitle = originalTitle,
-                                    alternativeTitle = alternativeTitle
-                                )
-                            )
-                        } else {
-                            failedList.add(
-                                FailedImport(
-                                    id = java.util.UUID.randomUUID().toString(),
-                                    russianTitle = russianTitle,
-                                    originalTitle = originalTitle,
-                                    alternativeTitle = alternativeTitle,
-                                    rawRow = row
-                                )
-                            )
-                        }
-
-                        _state.value = _state.value.copy(
-                            processedSuccessCount = successList.size,
-                            failedCount = failedList.size
+                            alternativeTitles = alternativeTitle,
+                            targetStatus = targetStatus,
+                            targetScore = targetScore,
+                            isFavorite = isFavorite,
+                            matchedAnimeId = null,
+                            importStatus = ImportStatus.PENDING
                         )
                     }
-
-                    // Save failed list to DB
-                    if (failedList.isNotEmpty()) {
-                        val pendingEntities = failedList.map { failed ->
-                            val favoritesVal = failed.rawRow.getOrNull(4)?.trim() ?: ""
-                            val statusVal = failed.rawRow.getOrNull(5)?.trim() ?: ""
-                            val ratingVal = failed.rawRow.getOrNull(6)?.trim() ?: ""
-
-                            val isFavorite = (favoritesVal == "Добавлено")
-                            val targetStatus = mapRussianStatusToEnum(statusVal)
-                            val targetScore = if (ratingVal == "Не оценено") null else ratingVal.toDoubleOrNull()
-                            
-                            PendingImportEntity(
-                                rawRowText = org.json.JSONArray(failed.rawRow).toString(),
-                                russianTitle = failed.russianTitle,
-                                originalTitle = failed.originalTitle,
-                                alternativeTitles = failed.alternativeTitle,
-                                targetStatus = targetStatus,
-                                targetScore = targetScore,
-                                isFavorite = isFavorite
-                            )
-                        }
-                        pendingImportDao.insertAll(pendingEntities)
-                    }
-
-                    userTrackingRepository.recalculateTotalWatchTime()
+                    pendingImportDao.insertAll(pendingEntities)
                 }
 
-                _state.value = _state.value.copy(
-                    isProcessing = false,
-                    successfulImports = successList,
-                    failedImports = emptyList(), // we keep failedImports empty in volatile state as they are observed from DB
-                    showSummary = true
-                )
+                // Launch cascade matching engine
+                runAutoMatching()
 
             } catch (e: Exception) {
                 e.printStackTrace()
                 _state.value = ImportState(error = e.localizedMessage ?: "Unknown error occurred")
             }
         }
+    }
+
+    private fun runAutoMatching() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isProcessing = true)
+            withContext(Dispatchers.IO) {
+                val pendingList = pendingImportDao.getByStatus(ImportStatus.PENDING)
+                var successCount = 0
+                var failedCount = 0
+                
+                for (entity in pendingList) {
+                    try {
+                        val candidates = getMatchingCandidates(entity)
+                        when {
+                            candidates.size == 1 -> {
+                                pendingImportDao.updateMatchedAnime(entity.id, candidates[0].anilistId, ImportStatus.SUCCESS)
+                                successCount++
+                            }
+                            candidates.size > 1 -> {
+                                pendingImportDao.updateMatchedAnime(entity.id, null, ImportStatus.AMBIGUOUS)
+                                failedCount++
+                            }
+                            else -> {
+                                pendingImportDao.updateMatchedAnime(entity.id, null, ImportStatus.NOT_FOUND)
+                                failedCount++
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        pendingImportDao.updateStatus(entity.id, ImportStatus.ERROR)
+                        failedCount++
+                    }
+
+                    _state.value = _state.value.copy(
+                        processedSuccessCount = successCount,
+                        failedCount = failedCount
+                    )
+                }
+            }
+            _state.value = _state.value.copy(
+                isProcessing = false,
+                showSummary = true
+            )
+        }
+    }
+
+    suspend fun getMatchingCandidates(entity: PendingImportEntity): List<Anime> {
+        var matches = animeRepository.findExactAnimeMatches(entity.originalTitle)
+        if (matches.isEmpty() && entity.russianTitle.isNotEmpty()) {
+            matches = animeRepository.findExactAnimeMatches(entity.russianTitle)
+        }
+        if (matches.isEmpty() && entity.alternativeTitles.isNotEmpty()) {
+            val altList = entity.alternativeTitles.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val uniqueMatches = mutableListOf<Anime>()
+            for (alt in altList) {
+                val currentMatches = animeRepository.findExactAnimeMatches(alt)
+                if (currentMatches.isNotEmpty()) {
+                    uniqueMatches.addAll(currentMatches)
+                }
+            }
+            matches = uniqueMatches.distinctBy { it.anilistId }
+        }
+        return matches
+    }
+
+    fun fetchCandidatesForAmbiguous(item: PendingImportEntity) {
+        viewModelScope.launch {
+            _isFetchingCandidates.value = true
+            val candidates = getMatchingCandidates(item)
+            _ambiguousCandidates.value = candidates
+            _isFetchingCandidates.value = false
+        }
+    }
+
+    fun clearCandidates() {
+        _ambiguousCandidates.value = emptyList()
+    }
+
+    suspend fun searchAnimeCatalog(query: String): List<Anime> {
+        return withContext(Dispatchers.IO) {
+            animeRepository.queryAnime(
+                SearchFilterQuery(textQuery = query, sortBy = SortOption.RELEVANCE)
+            )
+        }
+    }
+
+    fun resolveAmbiguous(id: Long, animeId: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                pendingImportDao.updateMatchedAnime(id, animeId, ImportStatus.RESOLVED)
+            }
+        }
+    }
+
+    suspend fun resolveWithAniList(originalTitle: String): Long? {
+        val query = "query (\$search: String) {\n" +
+                "  Media (search: \$search, type: ANIME) {\n" +
+                "    id\n" +
+                "    idMal\n" +
+                "  }\n" +
+                "}"
+
+        val cleanTitle = originalTitle
+            .replace(Regex("\\[.*?\\\\]"), "") // Remove [anything]
+            .replace(Regex("\\(.*?\\)"), "") // Remove (anything)
+            .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ") // Remove special characters
+            .replace(Regex("\\s+"), " ") // Normalize spaces
+            .trim()
+
+        if (cleanTitle.isBlank()) return null
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = aniListApiService.queryAniList(
+                    AniListGraphQLPayload(
+                        query = query,
+                        variables = mapOf("search" to cleanTitle)
+                    )
+                )
+                response.data?.Media?.id
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    fun toggleResolving(id: Long) {
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id.toString()] ?: FailedImportState()
+        val nextResolving = !state.isResolving
+
+        val item = pendingImportItems.value.find { it.entity.id == id }
+        val defaultQuery = ""
+
+        currentStates[id.toString()] = state.copy(
+            isResolving = nextResolving,
+            searchQuery = defaultQuery,
+            searchResults = emptyList()
+        )
+        _resolvingStates.value = currentStates
+
+        if (nextResolving) {
+            searchManual(id, defaultQuery)
+        }
+    }
+
+    fun updateSearchQuery(id: Long, query: String) {
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id.toString()] ?: FailedImportState()
+        currentStates[id.toString()] = state.copy(searchQuery = query)
+        _resolvingStates.value = currentStates
+
+        searchManual(id, query)
+    }
+
+    private fun searchManual(id: Long, query: String) {
+        viewModelScope.launch {
+            if (query.isBlank()) {
+                updateItemSearchResults(id, emptyList())
+                return@launch
+            }
+            updateItemSearching(id, true)
+            val results = withContext(Dispatchers.IO) {
+                animeRepository.queryAnime(
+                    SearchFilterQuery(textQuery = query, sortBy = SortOption.RELEVANCE)
+                )
+            }
+            updateItemSearchResults(id, results.take(10))
+        }
+    }
+
+    private fun updateItemSearching(id: Long, isSearching: Boolean) {
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id.toString()] ?: FailedImportState()
+        currentStates[id.toString()] = state.copy(isSearching = isSearching)
+        _resolvingStates.value = currentStates
+    }
+
+    private fun updateItemSearchResults(id: Long, results: List<Anime>) {
+        val currentStates = _resolvingStates.value.toMutableMap()
+        val state = currentStates[id.toString()] ?: FailedImportState()
+        currentStates[id.toString()] = state.copy(searchResults = results, isSearching = false)
+        _resolvingStates.value = currentStates
+    }
+
+    fun resolveManualBind(id: Long, animeId: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                pendingImportDao.updateMatchedAnime(id, animeId, ImportStatus.RESOLVED)
+            }
+            val currentStates = _resolvingStates.value.toMutableMap()
+            currentStates.remove(id.toString())
+            _resolvingStates.value = currentStates
+        }
+    }
+
+    suspend fun checkForPreFlightCollisions(): List<PreFlightCollisionGroup> {
+        return withContext(Dispatchers.IO) {
+            val readyList = pendingImportDao.getReadyToImport()
+            val groups = readyList.groupBy { it.matchedAnimeId }
+                .filter { it.key != null && it.value.size > 1 }
+
+            val matchedIds = groups.keys.filterNotNull()
+            val animeMap = if (matchedIds.isNotEmpty()) {
+                animeRepository.getAnimeByIds(matchedIds).associateBy { it.anilistId }
+            } else {
+                emptyMap()
+            }
+
+            groups.map { (animeId, rows) ->
+                val anime = animeMap[animeId]
+                val title = anime?.getDisplayTitle() ?: "Unknown Anime"
+                PreFlightCollisionGroup(
+                    targetAnimeTitle = title,
+                    targetAnimeId = animeId!!,
+                    conflictingRows = rows
+                )
+            }
+        }
+    }
+
+    fun runPreFlightCheck(onNoCollisions: () -> Unit) {
+        viewModelScope.launch {
+            val collisions = checkForPreFlightCollisions()
+            if (collisions.isEmpty()) {
+                onNoCollisions()
+            } else {
+                preFlightCollisions.value = collisions
+            }
+        }
+    }
+
+    fun clearPreFlightCollisions() {
+        preFlightCollisions.value = emptyList()
+    }
+
+    suspend fun demoteCollisionsToConflicts() {
+        withContext(Dispatchers.IO) {
+            val ids = preFlightCollisions.value.flatMap { group ->
+                group.conflictingRows.map { it.id }
+            }
+            if (ids.isNotEmpty()) {
+                pendingImportDao.demoteToAmbiguous(ids)
+            }
+        }
+        clearPreFlightCollisions()
+    }
+
+
+    fun commitImport(skipUnresolved: Boolean, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _isCommitting.value = true
+            try {
+                withContext(Dispatchers.IO) {
+                    val readyList = pendingImportDao.getReadyToImport()
+                    
+                    val syncStatus = _syncStatus.value
+                    val syncRating = _syncRating.value
+                    
+                    val strings = localizationService.activeLocaleStrings.value
+                    val collectionTitle = strings.settingsScreen.anixartImportCollectionTitle
+                    val collectionDesc = strings.settingsScreen.anixartImportCollectionDesc
+                    
+                    val matchedIds = readyList.mapNotNull { it.matchedAnimeId }
+                    val animeList = animeRepository.getAnimeByIds(matchedIds)
+                    val episodesMap = animeList.associate { it.anilistId to it.episodes }
+                    
+                    pendingImportDao.commitImportTransaction(
+                        syncStatus = syncStatus,
+                        syncRating = syncRating,
+                        collectionTitle = collectionTitle,
+                        collectionDesc = collectionDesc,
+                        animeEpisodesMap = episodesMap
+                    )
+                    
+                    userTrackingRepository.recalculateTotalWatchTime()
+                }
+                
+                _state.value = ImportState()
+                _resolvingStates.value = emptyMap()
+                withContext(Dispatchers.Main) {
+                    onComplete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _state.value = _state.value.copy(error = e.localizedMessage ?: "Failed to commit imports")
+            } finally {
+                _isCommitting.value = false
+            }
+        }
+    }
+
+    fun clearSummary() {
+        _state.value = ImportState()
     }
 
     private fun mapRussianStatusToEnum(statusVal: String): TargetStatus {
@@ -294,282 +539,73 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    private suspend fun findBestMatch(
-        russianTitle: String,
-        originalTitle: String,
-        alternativeTitle: String,
-        priority: MatchPriority
-    ): Anime? {
-        val searchSequence = if (priority == MatchPriority.ORIGINAL_TITLE) {
-            listOf(originalTitle, alternativeTitle, russianTitle)
-        } else {
-            listOf(alternativeTitle, originalTitle, russianTitle)
-        }
-
-        // 1. Exact Match Stage
-        for (title in searchSequence) {
-            if (title.isBlank()) continue
-            val exact = animeRepository.findExactAnimeMatch(title)
-            if (exact != null) return exact
-        }
-
-        // 2. FTS Match Stage
-        for (title in searchSequence) {
-            if (title.isBlank()) continue
-            val ftsResults = animeRepository.queryAnime(
-                SearchFilterQuery(textQuery = title, sortBy = SortOption.RELEVANCE)
-            )
-            val first = ftsResults.firstOrNull()
-            if (first != null) return first
-        }
-
-        return null
-    }
-
-    private suspend fun importRecordDirect(anilistId: Long, row: List<String>) {
-        val favoritesVal = row.getOrNull(4)?.trim() ?: ""
-        val statusVal = row.getOrNull(5)?.trim() ?: ""
-        val ratingVal = row.getOrNull(6)?.trim() ?: ""
-
-        // 1. Favorites Handling
-        if (favoritesVal == "Добавлено") {
-            val strings = localizationService.activeLocaleStrings.value
-            val collectionTitle = strings.settingsScreen.anixartImportCollectionTitle
-            val collectionDesc = strings.settingsScreen.anixartImportCollectionDesc
-            
-            val collection = collectionDao.getCollectionByTitle(collectionTitle)
-            val collectionId = if (collection != null) {
-                collection.id
-            } else {
-                collectionDao.insertCollection(
-                    CollectionEntity(
-                        title = collectionTitle,
-                        description = collectionDesc,
-                        createdAt = System.currentTimeMillis()
-                    )
-                ).toInt()
-            }
-
-            val existingRefs = collectionDao.getCrossRefsForCollectionSync(collectionId)
-            val isAlreadyLinked = existingRefs.any { it.animeId == anilistId }
-            if (!isAlreadyLinked) {
-                val maxIndex = existingRefs.maxOfOrNull { it.orderIndex } ?: -1
-                collectionDao.insertCrossRef(
-                    CollectionAnimeCrossRef(
-                        collectionId = collectionId,
-                        animeId = anilistId,
-                        orderIndex = maxIndex + 1
-                    )
-                )
-            }
-        }
-
-        // 2. Status & Score Mapping
-        val syncStatus = _syncStatus.value
-        val syncRating = _syncRating.value
-
-        val mappedStatus = when (statusVal) {
-            "Смотрю" -> "CURRENT"
-            "В планах" -> "PLANNING"
-            "Просмотрено" -> "COMPLETED"
-            "Отложено" -> "PAUSED"
-            "Брошено" -> "DROPPED"
-            else -> ""
-        }
-
-        val mappedScore: Double? = if (ratingVal == "Не оценено") {
-            null
-        } else {
-            ratingVal.toDoubleOrNull()
-        }
-
-        val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
-        val finalStatus = if (syncStatus) mappedStatus else (currentTracking?.watchStatus ?: "")
-        val finalScore = if (syncRating) mappedScore else currentTracking?.score
-
-        val progress = when {
-            finalStatus == "COMPLETED" -> {
-                val anime = animeRepository.getAnimeById(anilistId)
-                anime?.episodes ?: (currentTracking?.episodeProgress ?: 0)
-            }
-            else -> currentTracking?.episodeProgress ?: 0
-        }
-
-        val shouldInsert = finalStatus.isNotEmpty() || finalScore != null || currentTracking != null
-        if (shouldInsert) {
-            val tracking = currentTracking?.copy(
-                watchStatus = finalStatus,
-                episodeProgress = progress,
-                score = finalScore,
-                lastModified = System.currentTimeMillis()
-            ) ?: UserTrackingEntity(
-                anilistId = anilistId,
-                watchStatus = finalStatus,
-                episodeProgress = progress,
-                score = finalScore,
-                notes = null,
-                lastModified = System.currentTimeMillis()
-            )
-            userTrackingDao.insertOrUpdate(tracking)
-        }
-    }
-
-    fun toggleResolving(failedImportId: String) {
-        val currentStates = _resolvingStates.value.toMutableMap()
-        val state = currentStates[failedImportId] ?: FailedImportState()
-        val nextResolving = !state.isResolving
-
-        val item = failedImports.value.find { it.id == failedImportId }
-        val defaultQuery = if (nextResolving) {
-            item?.russianTitle?.ifEmpty { item.originalTitle } ?: ""
-        } else {
-            ""
-        }
-
-        currentStates[failedImportId] = state.copy(
-            isResolving = nextResolving,
-            searchQuery = defaultQuery,
-            searchResults = emptyList()
-        )
-        _resolvingStates.value = currentStates
-
-        if (nextResolving) {
-            searchManual(failedImportId, defaultQuery)
-        }
-    }
-
-    fun updateSearchQuery(failedImportId: String, query: String) {
-        val currentStates = _resolvingStates.value.toMutableMap()
-        val state = currentStates[failedImportId] ?: FailedImportState()
-        currentStates[failedImportId] = state.copy(searchQuery = query)
-        _resolvingStates.value = currentStates
-
-        searchManual(failedImportId, query)
-    }
-
-    private fun searchManual(failedImportId: String, query: String) {
-        viewModelScope.launch {
-            if (query.isBlank()) {
-                updateItemSearchResults(failedImportId, emptyList())
-                return@launch
-            }
-            updateItemSearching(failedImportId, true)
-            val results = withContext(Dispatchers.IO) {
-                animeRepository.queryAnime(
-                    SearchFilterQuery(textQuery = query, sortBy = SortOption.RELEVANCE)
-                )
-            }
-            updateItemSearchResults(failedImportId, results.take(10))
-        }
-    }
-
-    private fun updateItemSearching(id: String, isSearching: Boolean) {
-        val currentStates = _resolvingStates.value.toMutableMap()
-        val state = currentStates[id] ?: FailedImportState()
-        currentStates[id] = state.copy(isSearching = isSearching)
-        _resolvingStates.value = currentStates
-    }
-
-    private fun updateItemSearchResults(id: String, results: List<Anime>) {
-        val currentStates = _resolvingStates.value.toMutableMap()
-        val state = currentStates[id] ?: FailedImportState()
-        currentStates[id] = state.copy(searchResults = results, isSearching = false)
-        _resolvingStates.value = currentStates
-    }
-
-    fun resolveManualBind(failedImportId: String, anime: Anime) {
-        viewModelScope.launch {
-            val failedIdLong = failedImportId.toLongOrNull() ?: return@launch
-            val item = failedImports.value.find { it.id == failedImportId } ?: return@launch
-            
-            withContext(Dispatchers.IO) {
-                importRecordDirect(anime.anilistId, item.rawRow)
-                pendingImportDao.deleteById(failedIdLong)
-                userTrackingRepository.recalculateTotalWatchTime()
-            }
-
-            // Clean up resolving state for this item
-            val currentStates = _resolvingStates.value.toMutableMap()
-            currentStates.remove(failedImportId)
-            _resolvingStates.value = currentStates
-
-            val updatedSuccess = _state.value.successfulImports + SuccessfulImport(
-                animeId = anime.anilistId,
-                animeTitle = anime.titleUk ?: anime.titleRomaji,
-                russianTitle = item.russianTitle,
-                originalTitle = item.originalTitle,
-                alternativeTitle = item.alternativeTitle
-            )
-
-            val currentFailedCount = pendingImportsCount.value
-            _state.value = _state.value.copy(
-                successfulImports = updatedSuccess,
-                processedSuccessCount = updatedSuccess.size,
-                failedCount = currentFailedCount
-            )
-        }
-    }
-
-    fun clearSummary() {
-        _state.value = ImportState()
-    }
-
-    private fun parseCsv(text: String): List<List<String>> {
+    private fun parseAnixartTxt(text: String): List<List<String>> {
         val cleanText = text.replace("\uFEFF", "")
+        val lines = cleanText.split(Regex("""\r?\n|\r"""))
+        
+        val recordLines = mutableListOf<String>()
+        var currentRecord: StringBuilder? = null
+        val lineRegex = Regex("""^\d+\s+/""")
+        
+        for (line in lines) {
+            if (lineRegex.containsMatchIn(line)) {
+                if (currentRecord != null) {
+                    recordLines.add(currentRecord.toString())
+                }
+                currentRecord = StringBuilder(line)
+            } else {
+                if (currentRecord != null) {
+                    currentRecord.append("\n").append(line)
+                } else {
+                    currentRecord = StringBuilder(line)
+                }
+            }
+        }
+        if (currentRecord != null) {
+            recordLines.add(currentRecord.toString())
+        }
+
         val result = mutableListOf<List<String>>()
-        val currentRow = mutableListOf<String>()
-        var currentField = java.lang.StringBuilder()
+        for (record in recordLines) {
+            val columns = splitRecord(record)
+            if (columns.size < 7) continue
+            
+            val sanitizedCols = columns.mapIndexed { index, col ->
+                var cleaned = col.trim()
+                if (cleaned.startsWith("\"") && cleaned.endsWith("\"") && cleaned.length >= 2) {
+                    cleaned = cleaned.substring(1, cleaned.length - 1).trim()
+                }
+                
+                if (index == 3 && cleaned == "Не указаны альтернативные названия") {
+                    cleaned = ""
+                }
+                cleaned
+            }
+            result.add(sanitizedCols)
+        }
+        return result
+    }
+
+    private fun splitRecord(record: String): List<String> {
+        val result = mutableListOf<String>()
+        val currentField = StringBuilder()
         var inQuotes = false
         var i = 0
-        val len = cleanText.length
+        val len = record.length
         while (i < len) {
-            val c = cleanText[i]
-            if (inQuotes) {
-                if (c == '"') {
-                    if (i + 1 < len && cleanText[i + 1] == '"') {
-                        currentField.append('"')
-                        i++
-                    } else {
-                        inQuotes = false
-                    }
-                } else {
-                    currentField.append(c)
-                }
+            val c = record[i]
+            if (c == '"') {
+                inQuotes = !inQuotes
+                currentField.append(c)
+            } else if (c == '/' && !inQuotes) {
+                result.add(currentField.toString())
+                currentField.clear()
             } else {
-                if (c == '"') {
-                    inQuotes = true
-                } else if (c == ',') {
-                    currentRow.add(currentField.toString())
-                    currentField = java.lang.StringBuilder()
-                } else if (c == '\n') {
-                    currentRow.add(currentField.toString())
-                    currentField = java.lang.StringBuilder()
-                    result.add(currentRow.toList())
-                    currentRow.clear()
-                } else if (c == '\r') {
-                    if (i + 1 < len && cleanText[i + 1] == '\n') {
-                        i++
-                    }
-                    currentRow.add(currentField.toString())
-                    currentField = java.lang.StringBuilder()
-                    result.add(currentRow.toList())
-                    currentRow.clear()
-                } else {
-                    currentField.append(c)
-                }
+                currentField.append(c)
             }
             i++
         }
-        if (currentRow.isNotEmpty() || currentField.isNotEmpty()) {
-            currentRow.add(currentField.toString())
-            result.add(currentRow.toList())
-        }
-        if (result.isNotEmpty()) {
-            val firstCell = result[0].firstOrNull()?.trim()
-            if (firstCell == "#" || firstCell == "№" || result[0].getOrNull(1)?.contains("название") == true) {
-                return result.drop(1)
-            }
-        }
+        result.add(currentField.toString())
         return result
     }
 }

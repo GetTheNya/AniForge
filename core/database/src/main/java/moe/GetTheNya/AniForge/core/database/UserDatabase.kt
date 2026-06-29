@@ -10,6 +10,7 @@ import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity
 import moe.GetTheNya.AniForge.core.database.entity.PendingImportEntity
 import moe.GetTheNya.AniForge.core.database.entity.TargetStatusConverter
+import moe.GetTheNya.AniForge.core.database.entity.ImportStatusConverter
 
 @Database(
     entities = [
@@ -21,10 +22,10 @@ import moe.GetTheNya.AniForge.core.database.entity.TargetStatusConverter
         moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity::class,
         PendingImportEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
-@TypeConverters(TargetStatusConverter::class)
+@TypeConverters(TargetStatusConverter::class, ImportStatusConverter::class)
 abstract class UserDatabase : RoomDatabase() {
     abstract fun userTrackingDao(): UserTrackingDao
     abstract fun userSettingDao(): UserSettingDao

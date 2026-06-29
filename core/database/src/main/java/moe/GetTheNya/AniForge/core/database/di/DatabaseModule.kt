@@ -32,6 +32,14 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `pending_imports` ADD COLUMN `matched_anime_id` INTEGER DEFAULT NULL")
+        db.execSQL("ALTER TABLE `pending_imports` ADD COLUMN `import_status` TEXT NOT NULL DEFAULT 'PENDING'")
+    }
+}
+
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -47,7 +55,7 @@ object DatabaseModule {
             "user_data.db"
         )
         .openHelperFactory(RequerySQLiteOpenHelperFactory())
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
         
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebuggable) {

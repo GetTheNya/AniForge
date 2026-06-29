@@ -1356,4 +1356,21 @@ class AnimeRepository @Inject constructor(
         }
         anime
     }
+
+    suspend fun findExactAnimeMatches(title: String): List<Anime> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<Anime>()
+        val query = "SELECT * FROM anime WHERE LOWER(title_romaji) = ? OR LOWER(title_en) = ? OR LOWER(title_uk) = ?"
+        val cleanedTitle = title.lowercase().trim()
+        try {
+            db.query(query, arrayOf(cleanedTitle, cleanedTitle, cleanedTitle)).use { cursor ->
+                while (cursor.moveToNext()) {
+                    list.add(cursorToAnime(cursor))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
 }

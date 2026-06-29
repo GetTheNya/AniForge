@@ -277,6 +277,8 @@ data class SettingsScreenStrings(
     val anixartImportFailedCount: String = "[settingsScreen.anixartImportFailedCount]",
     val anixartImportResolveManually: String = "[settingsScreen.anixartImportResolveManually]",
     val anixartImportSearchAnime: String = "[settingsScreen.anixartImportSearchAnime]",
+    val anixartImportSearchAniList: String = "[settingsScreen.anixartImportSearchAniList]",
+    val anixartImportNotFoundOnAniList: String = "[settingsScreen.anixartImportNotFoundOnAniList]",
     val anixartImportNoResults: String = "[settingsScreen.anixartImportNoResults]",
     val anixartImportProcessing: String = "[settingsScreen.anixartImportProcessing]",
     val anixartImportProgressDesc: String = "[settingsScreen.anixartImportProgressDesc]",
@@ -284,6 +286,20 @@ data class SettingsScreenStrings(
     val anixartImportFailedText: String = "[settingsScreen.anixartImportFailedText]",
     val anixartImportTotalText: String = "[settingsScreen.anixartImportTotalText]",
     val anixartImportAllMapped: String = "[settingsScreen.anixartImportAllMapped]",
+    val importTabAmbiguous: String = "[settingsScreen.importTabAmbiguous]",
+    val importTabNotFound: String = "[settingsScreen.importTabNotFound]",
+    val importTabReady: String = "[settingsScreen.importTabReady]",
+    val importOverviewReady: String = "[settingsScreen.importOverviewReady]",
+    val importOverviewAmbiguous: String = "[settingsScreen.importOverviewAmbiguous]",
+    val importOverviewNotFound: String = "[settingsScreen.importOverviewNotFound]",
+    val importSkipUnresolved: String = "[settingsScreen.importSkipUnresolved]",
+    val importAllAction: String = "[settingsScreen.importAllAction]",
+    val importAmbiguousSelectionHeader: String = "[settingsScreen.importAmbiguousSelectionHeader]",
+    val importAmbiguousSelectionDesc: String = "[settingsScreen.importAmbiguousSelectionDesc]",
+    val importSuccessLabel: String = "[settingsScreen.importSuccessLabel]",
+    val importResolvedLabel: String = "[settingsScreen.importResolvedLabel]",
+    val importNotTheseAnime: String = "[settingsScreen.importNotTheseAnime]",
+    val importSearchManually: String = "[settingsScreen.importSearchManually]",
     val anixartImportCollectionTitle: String = "[settingsScreen.anixartImportCollectionTitle]",
     val anixartImportCollectionDesc: String = "[settingsScreen.anixartImportCollectionDesc]",
     val exportBackupTitle: String = "[settingsScreen.exportBackupTitle]",
@@ -301,7 +317,12 @@ data class SettingsScreenStrings(
     val incompatibleBackupDesc: String = "[settingsScreen.incompatibleBackupDesc]",
     val preparingImport: String = "[settingsScreen.preparingImport]",
     val exportingBackup: String = "[settingsScreen.exportingBackup]",
-    val restoringBackup: String = "[settingsScreen.restoringBackup]"
+    val restoringBackup: String = "[settingsScreen.restoringBackup]",
+    val preFlightCollisionTitle: String = "[settingsScreen.preFlightCollisionTitle]",
+    val preFlightCollisionDesc: String = "[settingsScreen.preFlightCollisionDesc]",
+    val preFlightCollisionMerge: String = "[settingsScreen.preFlightCollisionMerge]",
+    val preFlightCollisionCancel: String = "[settingsScreen.preFlightCollisionCancel]",
+    val preFlightCollisionRowLabel: String = "[settingsScreen.preFlightCollisionRowLabel]"
 )
 
 @Serializable
