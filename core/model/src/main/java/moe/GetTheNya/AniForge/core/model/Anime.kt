@@ -39,25 +39,16 @@ data class Anime(
 ) {
     // Helper to get the display title based on preference or fallback
     fun getDisplayTitle(preferUk: Boolean = true): String {
-        val firstChoice = if (preferUk) titleUk else titleEn
-        val secondChoice = if (preferUk) titleEn else titleUk
-
-        return when {
-            !firstChoice.isNullOrBlank() -> firstChoice
-            !secondChoice.isNullOrBlank() -> secondChoice
-            else -> titleRomaji
-        }
+        return titleUk?.takeIf { preferUk && it.isNotBlank() }
+            ?: titleEn?.takeIf { it.isNotBlank() }
+            ?: titleRomaji
     }
 
     // Helper to get the display description/synopsis based on preference or fallback
     fun getDisplayDescription(preferUk: Boolean = true): String? {
-        return if (preferUk) {
-            descriptionUk?.ifBlank { null } ?: descriptionEn?.ifBlank { null }
-        } else {
-            descriptionEn?.ifBlank { null }
-        }
+        return descriptionUk?.takeIf { preferUk && it.isNotBlank() }
+            ?: descriptionEn?.takeIf { it.isNotBlank() }
     }
-
     /** Returns true when the anime has not started airing yet.
      *  Only PLANNING is a meaningful list status in this state. */
     fun isNotYetReleased(): Boolean =
