@@ -720,6 +720,7 @@ class MainActivity : ComponentActivity() {
                                                         DetailScreen(
                                                             anilistId = screen.anilistId,
                                                             sourceStatusId = screen.sourceStatusId,
+                                                            sourceCollectionId = screen.sourceCollectionId,
                                                             rouletteCount = screen.rouletteCount,
                                                             visitedIds = screen.visitedIds,
                                                             navController = navController,

@@ -23,6 +23,7 @@ class CollectionDetailViewModel @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao,
     private val settingsProvider: SettingsProvider,
+    private val userTrackingRepository: moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -181,6 +182,12 @@ class CollectionDetailViewModel @Inject constructor(
             val current = _collection.value ?: return@launch
             val updated = current.copy(title = title, description = description)
             collectionDao.updateCollection(updated)
+        }
+    }
+
+    fun incrementChaosMeter() {
+        viewModelScope.launch {
+            userTrackingRepository.incrementChaosMeter()
         }
     }
 }

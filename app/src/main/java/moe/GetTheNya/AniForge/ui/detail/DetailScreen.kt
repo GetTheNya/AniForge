@@ -85,6 +85,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 fun DetailScreen(
     anilistId: Long,
     sourceStatusId: String? = null,
+    sourceCollectionId: Int? = null,
     rouletteCount: Int = 0,
     visitedIds: String = "",
     navController: NavController,
@@ -108,7 +109,7 @@ fun DetailScreen(
 
     // Trigger load on startup
     LaunchedEffect(anilistId) {
-        viewModel.loadAnimeDetail(anilistId, sourceStatusId, rouletteCount, visitedIds)
+        viewModel.loadAnimeDetail(anilistId, sourceStatusId, sourceCollectionId, rouletteCount, visitedIds)
     }
 
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -140,16 +141,23 @@ fun DetailScreen(
     val exitMax = navController.rouletteExitMaxCount
     LaunchedEffect(exitMax) {
         if (exitMax != null) {
-            val distance = exitMax - rouletteCount
-            val stepDelay = 350f / exitMax
-            val finalDelay = (distance * stepDelay).toLong()
-            
-            kotlinx.coroutines.delay(finalDelay)
-            isCollapsing = true
-            
-            if (rouletteCount == exitMax) {
-                kotlinx.coroutines.delay(350L + 300L)
-                navController.finalizeRouletteExit()
+            val detailEntries = navController.backStack.filter { it.screen is Screen.Detail }
+            val myIndex = detailEntries.indexOfFirst { (it.screen as Screen.Detail).rouletteCount == rouletteCount }
+            if (myIndex != -1) {
+                val totalDetailScreens = detailEntries.size
+                val distance = totalDetailScreens - 1 - myIndex
+                val stepDelay = 350f / totalDetailScreens
+                val finalDelay = (distance * stepDelay).toLong()
+                
+                kotlinx.coroutines.delay(finalDelay)
+                isCollapsing = true
+                
+                if (myIndex == detailEntries.lastIndex) {
+                    kotlinx.coroutines.delay(350L + 300L)
+                    navController.finalizeRouletteExit()
+                }
+            } else {
+                isCollapsing = true
             }
         }
     }
@@ -189,7 +197,7 @@ fun DetailScreen(
                         }
                         Text(text = "${strings.misc.error}: $errorMessage", color = NeonCoral, fontSize = 16.sp)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadAnimeDetail(anilistId, sourceStatusId, rouletteCount, visitedIds) }, colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)) {
+                        Button(onClick = { viewModel.loadAnimeDetail(anilistId, sourceStatusId, sourceCollectionId, rouletteCount, visitedIds) }, colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)) {
                             Text(strings.misc.retry)
                         }
                     }
@@ -555,8 +563,8 @@ fun DetailScreen(
                 }
             }
 
-            if (sourceStatusId != null && uiState is DetailUiState.Success) {
-                val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: MaterialTheme.colorScheme.primary
+            if ((sourceStatusId != null || sourceCollectionId != null) && uiState is DetailUiState.Success) {
+                val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: ElectricViolet
                 var lastClickTime by remember { mutableLongStateOf(0L) }
                 
                 Column(

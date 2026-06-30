@@ -29,6 +29,7 @@ sealed interface Screen {
     data class Detail(
         val anilistId: Long,
         val sourceStatusId: String? = null,
+        val sourceCollectionId: Int? = null,
         val rouletteCount: Int = 0,
         val visitedIds: String = ""
     ) : Screen
@@ -61,6 +62,7 @@ class BackStackEntry(
                 is Screen.Detail -> {
                     put("anilistId", s.anilistId)
                     s.sourceStatusId?.let { put("sourceStatusId", it) }
+                    s.sourceCollectionId?.let { put("sourceCollectionId", it) }
                     put("rouletteCount", s.rouletteCount)
                     put("visitedIds", s.visitedIds)
                 }
@@ -86,6 +88,7 @@ class BackStackEntry(
                 is Screen.Detail -> {
                     bundle.putLong("anilistId", s.anilistId)
                     s.sourceStatusId?.let { bundle.putString("sourceStatusId", it) }
+                    s.sourceCollectionId?.let { bundle.putInt("sourceCollectionId", it) }
                     bundle.putInt("rouletteCount", s.rouletteCount)
                     bundle.putString("visitedIds", s.visitedIds)
                 }
@@ -234,6 +237,19 @@ class NavController(
         }
 
         hideKeyboardAndClearFocus()
+
+        if (screen is Screen.Detail && screen.rouletteCount > 0) {
+            val randomDetailEntries = backStack.filter {
+                it.screen is Screen.Detail && (it.screen as Screen.Detail).rouletteCount > 0
+            }
+            if (randomDetailEntries.size >= 5) {
+                val oldest = randomDetailEntries.first()
+                if (backStack.remove(oldest)) {
+                    oldest.clear()
+                }
+            }
+        }
+
         backStack.add(BackStackEntry(screen = screen, activity = activity))
     }
 

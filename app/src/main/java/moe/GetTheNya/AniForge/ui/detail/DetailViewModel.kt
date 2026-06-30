@@ -79,6 +79,7 @@ class DetailViewModel @Inject constructor(
     }
 
     var sourceStatusId: String? = savedStateHandle.get<String>("sourceStatusId")
+    var sourceCollectionId: Int? = savedStateHandle.get<Int>("sourceCollectionId")
     var rouletteCount: Int = savedStateHandle.get<Int>("rouletteCount") ?: 0
     var visitedIds: String = savedStateHandle.get<String>("visitedIds") ?: ""
 
@@ -91,7 +92,9 @@ class DetailViewModel @Inject constructor(
     private var currentAnimeId: Long = 0L
 
     fun MapsToNextRandomAnime() {
-        val statusId = sourceStatusId ?: return
+        val statusId = sourceStatusId
+        val collectionId = sourceCollectionId
+        if (statusId == null && collectionId == null) return
         val visitedSet = if (visitedIds.isBlank()) {
             emptySet<Long>()
         } else {
@@ -100,7 +103,13 @@ class DetailViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val ids = userTrackingDao.getAnimeIdsByStatus(statusId)
+                val ids = if (statusId != null) {
+                    userTrackingDao.getAnimeIdsByStatus(statusId)
+                } else if (collectionId != null) {
+                    collectionDao.getCrossRefsForCollectionSync(collectionId).map { it.animeId }
+                } else {
+                    emptyList()
+                }
                 val remainingIds = ids.filter { it != currentAnimeId && !visitedSet.contains(it) }
                 val nextRandomId = remainingIds.randomOrNull()
 
@@ -116,6 +125,7 @@ class DetailViewModel @Inject constructor(
                             Screen.Detail(
                                 anilistId = nextRandomId,
                                 sourceStatusId = statusId,
+                                sourceCollectionId = collectionId,
                                 rouletteCount = rouletteCount + 1,
                                 visitedIds = newVisitedIds
                             )
@@ -133,11 +143,13 @@ class DetailViewModel @Inject constructor(
     fun loadAnimeDetail(
         anilistId: Long,
         sourceStatusId: String? = null,
+        sourceCollectionId: Int? = null,
         rouletteCount: Int = 0,
         visitedIds: String = ""
     ) {
         currentAnimeId = anilistId
         this.sourceStatusId = sourceStatusId
+        this.sourceCollectionId = sourceCollectionId
         this.rouletteCount = rouletteCount
         this.visitedIds = visitedIds
         viewModelScope.launch {

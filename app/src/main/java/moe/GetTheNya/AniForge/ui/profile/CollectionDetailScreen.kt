@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -468,16 +469,54 @@ fun CollectionDetailScreen(
                 fontWeight = FontWeight.Medium
             )
             
-            Button(
-                onClick = { showAddTitlesDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
-                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = strings.libraryScreen.addTitle, tint = ElectricViolet, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(strings.libraryScreen.addTitle, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                        .clickable {
+                            val randomAnime = animeList.randomOrNull()
+                            if (randomAnime != null) {
+                                viewModel.incrementChaosMeter()
+                                navController.navigate(
+                                    Screen.Detail(
+                                        anilistId = randomAnime.anilistId,
+                                        sourceCollectionId = collectionId,
+                                        rouletteCount = 1,
+                                        visitedIds = randomAnime.anilistId.toString()
+                                    )
+                                )
+                            } else {
+                                Toast.makeText(context, strings.libraryScreen.randomEmpty, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Casino,
+                        contentDescription = "Random Anime",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Button(
+                    onClick = { showAddTitlesDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = SurfaceDark),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = strings.libraryScreen.addTitle, tint = ElectricViolet, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(strings.libraryScreen.addTitle, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
