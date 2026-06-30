@@ -21,6 +21,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.util.UUID
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 
 sealed interface Screen {
     data object Tabs : Screen
@@ -117,8 +119,22 @@ class NavController(
         BackStackEntry(screen = initialScreen, activity = activity)
     )
 
+    private fun hideKeyboardAndClearFocus() {
+        val currentFocus = activity.currentFocus
+        val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        if (currentFocus != null) {
+            imm?.hideSoftInputFromWindow(currentFocus.windowToken, 0)
+            currentFocus.clearFocus()
+        } else {
+            activity.window?.decorView?.let { decorView ->
+                imm?.hideSoftInputFromWindow(decorView.windowToken, 0)
+            }
+        }
+    }
+
     fun navigate(screen: Screen) {
         if (screen is Screen.Library) {
+            hideKeyboardAndClearFocus()
             while (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex).clear()
             }
@@ -131,6 +147,7 @@ class NavController(
                 s is Screen.FranchiseTree && s.franchiseId == screen.franchiseId
             }
             if (existingIndex != -1) {
+                hideKeyboardAndClearFocus()
                 val existingEntry = backStack[existingIndex]
                 val currentAnimeId = (backStack.lastOrNull()?.screen as? Screen.Detail)?.anilistId
                 if (currentAnimeId != null) {
@@ -184,6 +201,7 @@ class NavController(
                 }
                 return
             } else {
+                hideKeyboardAndClearFocus()
                 // Forward navigation: inject activeAnimeId if navigating from Screen.Detail
                 val currentAnimeId = (backStack.lastOrNull()?.screen as? Screen.Detail)?.anilistId
                 val newEntry = BackStackEntry(screen = screen, activity = activity).apply {
@@ -215,11 +233,13 @@ class NavController(
             return
         }
 
+        hideKeyboardAndClearFocus()
         backStack.add(BackStackEntry(screen = screen, activity = activity))
     }
 
     fun popBackStack(): Boolean {
         if (backStack.size > 1) {
+            hideKeyboardAndClearFocus()
             val removed = backStack.removeAt(backStack.lastIndex)
             removed.clear()
             return true
@@ -228,6 +248,7 @@ class NavController(
     }
 
     fun finalizeRouletteExit() {
+        hideKeyboardAndClearFocus()
         val updatedStack = backStack.toMutableList()
         while (updatedStack.size > 1 && updatedStack.last().screen is Screen.Detail) {
             val removed = updatedStack.removeAt(updatedStack.lastIndex)
