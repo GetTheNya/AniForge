@@ -38,6 +38,7 @@
     "trackingProgress": "Прогрес перегляду",
     "spotlight": "У центрі уваги",
     "topSeasonHeader": "Топ сезону: %s %d",
+    "topPreviousSeasonHeader": "Топ минулого сезону: %s %d",
     "welcomePhrases": [
       "Що подивимось сьогодні? 🍿",
       "Твоя наступна улюблена історія вже чекає.",

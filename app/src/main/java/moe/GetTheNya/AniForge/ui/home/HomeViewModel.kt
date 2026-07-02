@@ -158,7 +158,11 @@ class HomeViewModel @Inject constructor(
                     "FALL" -> locale.seasons.fall
                     else -> seasonInfo.season
                 }
-                val formatString = locale.homeScreen.topSeasonHeader
+                val formatString = if (seasonInfo.isFallbackToPrevious) {
+                    locale.homeScreen.topPreviousSeasonHeader
+                } else {
+                    locale.homeScreen.topSeasonHeader
+                }
                 val localizedHeader = try {
                     String.format(formatString, seasonLabel, seasonInfo.seasonYear)
                 } catch (e: Exception) {

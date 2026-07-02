@@ -866,7 +866,9 @@ class AnimeRepository @Inject constructor(
         }
         
         if (isNumericId && numericId != null) {
-            whereClauses.add("(anime.anilist_id = ? OR anime.mal_id = ?)")
+            val sanitizedFts = "$queryTrim*"
+            whereClauses.add("(anime.anilist_id IN (SELECT rowid FROM anime_search WHERE anime_search MATCH ?) OR anime.anilist_id = ? OR anime.mal_id = ?)")
+            args.add(sanitizedFts)
             args.add(numericId)
             args.add(numericId)
         } else if (hasText) {
@@ -1328,7 +1330,7 @@ class AnimeRepository @Inject constructor(
         val list = ArrayList<Anime>()
         try {
             val adultFilter = if (settingsProvider.getShow18Plus()) "" else "AND is_adult = 0"
-            val queryStr = "SELECT * FROM anime WHERE season = ? AND season_year = ? $adultFilter ORDER BY score_mal DESC, popularity DESC LIMIT ?"
+            val queryStr = "SELECT * FROM anime WHERE season = ? AND season_year = ? AND status != 'NOT_YET_RELEASED' $adultFilter ORDER BY score_mal DESC, popularity DESC LIMIT ?"
             db.query(queryStr, arrayOf(season, seasonYear.toString(), limit.toString())).use { cursor ->
                 while (cursor.moveToNext()) {
                     list.add(cursorToAnime(cursor))

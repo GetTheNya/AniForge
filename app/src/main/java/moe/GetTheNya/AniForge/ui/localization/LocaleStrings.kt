@@ -65,6 +65,7 @@ data class HomeScreenStrings(
     val trackingProgress: String = "[homeScreen.trackingProgress]",
     val spotlight: String = "[homeScreen.spotlight]",
     val topSeasonHeader: String = "[homeScreen.topSeasonHeader]",
+    val topPreviousSeasonHeader: String = "[homeScreen.topPreviousSeasonHeader]",
     val welcomePhrases: List<String> = emptyList(),
     val editWorkspace: String = "[homeScreen.editWorkspace]",
     val addWidgets: String = "[homeScreen.addWidgets]",

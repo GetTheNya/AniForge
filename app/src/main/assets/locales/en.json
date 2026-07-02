@@ -38,6 +38,7 @@
     "trackingProgress": "Tracking Progress",
     "spotlight": "Spotlight",
     "topSeasonHeader": "Top Season: %s %d",
+    "topPreviousSeasonHeader": "Top Previous Season: %s %d",
     "welcomePhrases": [
       "What are we watching today? 🍿",
       "Your next favorite story is waiting.",
