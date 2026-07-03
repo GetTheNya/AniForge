@@ -96,6 +96,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toColorLong
@@ -766,6 +767,22 @@ fun DetailContent(
         }
     }
 
+    val animeCoverColor = remember(anime.coverColor) {
+        try {
+            if (!anime.coverColor.isNullOrBlank()) {
+                Color(android.graphics.Color.parseColor(anime.coverColor))
+            } else {
+                Color.Transparent
+            }
+        } catch (_: Exception) {
+            Color.Transparent
+        }
+    }
+
+    val ambientAtSeam = remember(animeCoverColor) {
+        animeCoverColor.copy(alpha = 0.30f).compositeOver(BackgroundDark)
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -815,8 +832,8 @@ fun DetailContent(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.15f),
-                                MaterialTheme.colorScheme.surface
+                                Color.Transparent,
+                                ambientAtSeam
                             )
                         )
                     )
@@ -983,6 +1000,15 @@ fun DetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(BackgroundDark)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    ambientAtSeam,
+                                    Color.Transparent
+                                ),
+                                endY = 2500f
+                            )
+                        )
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
