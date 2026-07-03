@@ -20,6 +20,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.animation.EnterTransition
@@ -72,6 +85,7 @@ import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.franchises.CollectionFormDialog
 import moe.GetTheNya.AniForge.core.model.Studio
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -79,6 +93,12 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import moe.GetTheNya.AniForge.ui.dashboard.QuickGestureAction
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.toColorLong
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -975,6 +995,11 @@ fun DetailContent(
                         onDecrement = onDecrementProgress,
                         onSaveNotes = onSaveNotes,
                         onScoreChange = onScoreChange
+                    )
+
+                    LiveCountdownBanner(
+                        anime = anime,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     // Secondary Metadata Chips Layout
@@ -2140,3 +2165,196 @@ fun AutoScalingTitle(
     )
 }
 
+private data class TimeSegment(
+    val value: Int,
+    val label: String,
+    val isZeroPadded: Boolean
+)
+
+@Composable
+fun LiveCountdownBanner(
+    anime: Anime,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalLocaleStrings.current
+    val airingAt = anime.airingAt
+
+    if (airingAt == null || airingAt <= 0L) return
+
+    val targetTimeMillis = airingAt * 1000L
+    var timeRemainingMillis by remember(targetTimeMillis) {
+        mutableLongStateOf(targetTimeMillis - System.currentTimeMillis())
+    }
+
+    LaunchedEffect(targetTimeMillis) {
+        while (timeRemainingMillis > 0) {
+            delay(1000L)
+            timeRemainingMillis = targetTimeMillis - System.currentTimeMillis()
+        }
+    }
+
+    if (timeRemainingMillis <= 0) {
+        return
+    }
+
+    val isMovie = anime.format?.uppercase() == "MOVIE" || anime.episodes == 1
+    val isSeasonFinale = anime.airingEpisode != null && anime.episodes != null && anime.airingEpisode == anime.episodes
+
+    val headerText = when {
+        isMovie -> strings.detailScreen.countdownMovie
+        isSeasonFinale -> strings.detailScreen.countdownSeasonFinale
+        anime.airingEpisode != null -> strings.detailScreen.countdownRegularEpisode.format(anime.airingEpisode)
+        else -> strings.detailScreen.countdownRegularEpisode.format(0)
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "FlowingBorder")
+    val offsetProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "OffsetProgress"
+    )
+
+    val segments = remember(timeRemainingMillis) {
+        val totalSeconds = timeRemainingMillis / 1000L
+        val seconds = (totalSeconds % 60).toInt()
+        val minutes = ((totalSeconds / 60) % 60).toInt()
+        val hours = ((totalSeconds / 3600) % 24).toInt()
+        val days = (totalSeconds / (3600 * 24)).toInt()
+
+        val list = mutableListOf<TimeSegment>()
+        if (days > 0) {
+            list.add(TimeSegment(days, strings.detailScreen.countdownDaySuffix, false))
+        }
+        if (days > 0 || hours > 0) {
+            list.add(TimeSegment(hours, strings.detailScreen.countdownHourSuffix, days > 0))
+        }
+        if (days > 0 || hours > 0 || minutes > 0) {
+            list.add(TimeSegment(minutes, strings.detailScreen.countdownMinuteSuffix, days > 0 || hours > 0))
+        }
+        list.add(TimeSegment(seconds, strings.detailScreen.countdownSecondSuffix, true))
+        list
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceCardDark)
+            .drawWithCache {
+                val xOffset = offsetProgress * size.width
+
+                val flowingBrush = Brush.linearGradient(
+                    colors = listOf(NeonCoral, ElectricViolet, NeonCoral),
+                    start = Offset(xOffset, 0f),
+                    end = Offset(xOffset + size.width, size.height),
+                    tileMode = TileMode.Repeated
+                )
+
+                val strokeWidth = 1.dp.toPx()
+                val halfStroke = strokeWidth / 2f
+                val radius = 16.dp.toPx()
+
+                onDrawWithContent {
+                    drawContent()
+
+                    drawRoundRect(
+                        brush = flowingBrush,
+                        topLeft = Offset(halfStroke, halfStroke),
+                        size = Size(size.width - strokeWidth, size.height - strokeWidth),
+                        style = Stroke(width = strokeWidth),
+                        cornerRadius = CornerRadius(radius - halfStroke)
+                    )
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(NeonCoral)
+        )
+        
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = headerText,
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                segments.forEachIndexed { index, segment ->
+                    if (index > 0) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    
+                    val digitCount = if (segment.isZeroPadded) 2 else segment.value.toString().length
+                    val fixedWidth = when (digitCount) {
+                        1 -> 12.dp
+                        2 -> 22.dp
+                        else -> 32.dp
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Box(
+                            modifier = Modifier.width(fixedWidth),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AnimatedContent(
+                                targetState = segment.value,
+                                transitionSpec = {
+                                    if (targetState < initialState) {
+                                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                                (slideOutVertically { height -> height } + fadeOut())
+                                    } else {
+                                        (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                                (slideOutVertically { height -> -height } + fadeOut())
+                                    }.using(
+                                        SizeTransform(clip = false)
+                                    )
+                                },
+                                label = "DigitFlip"
+                            ) { value ->
+                                val formattedValue = if (segment.isZeroPadded) String.format(java.util.Locale.US, "%02d", value) else value.toString()
+                                Text(
+                                    text = formattedValue,
+                                    color = TextPrimary,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    style = TextStyle(fontFeatureSettings = "tnum")
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.width(3.dp))
+                        
+                        Text(
+                            text = segment.label,
+                            color = TextPrimary.copy(alpha = 0.8f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

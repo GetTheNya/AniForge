@@ -192,7 +192,14 @@ data class DetailScreenStrings(
     val trailer: String = "[detailScreen.trailer]",
     val recommendations: String = "[detailScreen.recommendations]",
     val providedByAnilist: String = "[detailScreen.providedByAnilist]",
-    val releasesCount: Map<String, String> = emptyMap()
+    val releasesCount: Map<String, String> = emptyMap(),
+    val countdownMovie: String = "[detailScreen.countdownMovie]",
+    val countdownSeasonFinale: String = "[detailScreen.countdownSeasonFinale]",
+    val countdownRegularEpisode: String = "[detailScreen.countdownRegularEpisode]",
+    val countdownDaySuffix: String = "[detailScreen.countdownDaySuffix]",
+    val countdownHourSuffix: String = "[detailScreen.countdownHourSuffix]",
+    val countdownMinuteSuffix: String = "[detailScreen.countdownMinuteSuffix]",
+    val countdownSecondSuffix: String = "[detailScreen.countdownSecondSuffix]"
 )
 
 @Serializable

@@ -180,7 +180,14 @@
       "many": "%d releases"
     },
     "recommendations": "Recommendations",
-    "providedByAnilist": "Provided by AniList"
+    "providedByAnilist": "Provided by AniList",
+    "countdownMovie": "The movie will premiere in",
+    "countdownSeasonFinale": "Season Finale! The last episode will air in",
+    "countdownRegularEpisode": "Episode %d will air in",
+    "countdownDaySuffix": "d",
+    "countdownHourSuffix": "h",
+    "countdownMinuteSuffix": "m",
+    "countdownSecondSuffix": "s"
   },
   "profileScreen": {
     "name": "Profile",

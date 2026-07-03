@@ -184,7 +184,14 @@
       "many": "%d релізів"
     },
     "recommendations": "Рекомендації",
-    "providedByAnilist": "Надано AniList"
+    "providedByAnilist": "Надано AniList",
+    "countdownMovie": "Фільм вийде через",
+    "countdownSeasonFinale": "Фінал сезону! Останній епізод вийде через",
+    "countdownRegularEpisode": "%d епізод вийде через",
+    "countdownDaySuffix": "дн.",
+    "countdownHourSuffix": "год.",
+    "countdownMinuteSuffix": "хв.",
+    "countdownSecondSuffix": "сек."
   },
   "profileScreen": {
     "name": "Профіль",
