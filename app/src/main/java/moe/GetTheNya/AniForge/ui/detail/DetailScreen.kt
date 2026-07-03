@@ -796,10 +796,11 @@ fun DetailContent(
                 .graphicsLayer {
                     val currentOverscroll = overscrollOffsetState.value.coerceIn(0f, maxOverscrollPx)
                     val rawProgress = if (headerHeightPx > 0f) currentOverscroll / headerHeightPx else 0f
-                    val dampenedScale = 1.0f + (rawProgress * 0.5f)
-                    val scale = dampenedScale.coerceIn(1.0f, 1.10f)
-                    scaleX = scale
-                    scaleY = scale
+
+                    val stretchFactor = 1.0f + (rawProgress * 1.25f)
+                    scaleX = stretchFactor.coerceIn(1.0f, 2.0f)
+                    scaleY = stretchFactor.coerceIn(1.0f, 2.0f)
+
                     transformOrigin = TransformOrigin(0.5f, 0f)
                     
                     val scrollOffset = if (scrollState.firstVisibleItemIndex == 0) {
