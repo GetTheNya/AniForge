@@ -203,7 +203,8 @@ fun AnimeBentoCard(
                 }
 
                 // Score tag (top right)
-                if (anime.scoreMal != null) {
+                val scoreMal = anime.scoreMal
+                if (scoreMal != null && scoreMal > 0.0) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -221,7 +222,7 @@ fun AnimeBentoCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = String.format("%.1f", anime.scoreMal),
+                            text = String.format("%.1f", scoreMal),
                             color = TextPrimary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -281,9 +282,10 @@ fun AnimeBentoCard(
                     )
 
                     // Year & Season info
-                    if (anime.seasonYear != null) {
+                    val seasonYear = anime.seasonYear
+                    if (seasonYear != null) {
                         val seasonText = anime.season?.let { strings.seasons.getSeasonLabel(it) }
-                        val formattedSeason = if (seasonText != null) "$seasonText ${anime.seasonYear}" else "${anime.seasonYear}"
+                        val formattedSeason = if (seasonText != null) "$seasonText $seasonYear" else "$seasonYear"
                         Text(
                             text = formattedSeason,
                             color = TextSecondary,
