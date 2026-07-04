@@ -195,7 +195,10 @@
     "titlesCount": {
       "one": "%d title",
       "many": "%d titles"
-    }
+    },
+    "signInWithGoogle": "Sign In with Google",
+    "signOut": "Sign Out",
+    "signedInAs": "Signed in as"
   },
   "settingsScreen": {
     "title": "Settings",

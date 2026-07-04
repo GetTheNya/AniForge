@@ -30,6 +30,12 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Create local.properties
+        run: |
+          echo "supabase.url=${{ secrets.SUPABASE_URL }}" >> local.properties
+          echo "supabase.anon_key=${{ secrets.SUPABASE_ANON_KEY }}" >> local.properties
+          echo "google.web_client_id=${{ secrets.GOOGLE_WEB_CLIENT_ID }}" >> local.properties
+
       - name: Decode Keystore
         run: |
           echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > ${{ github.workspace }}/release_key.jks

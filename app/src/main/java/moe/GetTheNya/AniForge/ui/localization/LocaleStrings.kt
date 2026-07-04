@@ -206,7 +206,10 @@ data class DetailScreenStrings(
 data class ProfileScreenStrings(
     val name: String = "[profileScreen.name]",
     val userProfile: String = "[profileScreen.userProfile]",
-    val titlesCount: Map<String, String> = emptyMap()
+    val titlesCount: Map<String, String> = emptyMap(),
+    val signInWithGoogle: String = "[profileScreen.signInWithGoogle]",
+    val signOut: String = "[profileScreen.signOut]",
+    val signedInAs: String = "[profileScreen.signedInAs]"
 )
 
 @Serializable

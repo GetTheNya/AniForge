@@ -200,7 +200,10 @@
       "one": "%d тайтл",
       "few": "%d тайтли",
       "many": "%d тайтлів"
-    }
+    },
+    "signInWithGoogle": "Увійти через Google",
+    "signOut": "Вийти з акаунту",
+    "signedInAs": "Ви увійшли як"
   },
   "settingsScreen": {
     "title": "Налаштування",
