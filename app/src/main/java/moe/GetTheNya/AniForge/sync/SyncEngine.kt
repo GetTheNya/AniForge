@@ -49,13 +49,23 @@ class SyncEngine @Inject constructor(
         private const val PAGE_SIZE = 1000
     }
 
+    private var lastUserId: String? = null
+
     init {
         syncScope.launch {
             authRepository.currentUser.collect { userInfo ->
                 AppLogger.d(TAG, "authRepository.currentUser emitted: $userInfo")
                 if (userInfo != null) {
-                    AppLogger.d(TAG, "Auth state changed to logged in. Triggering initial sync.")
-                    triggerSync()
+                    val currentId = userInfo.id
+                    if (currentId != lastUserId) {
+                        AppLogger.d(TAG, "Auth state changed to logged in for user $currentId (previous: $lastUserId). Triggering sync.")
+                        lastUserId = currentId
+                        triggerSync()
+                    } else {
+                        AppLogger.d(TAG, "Auth state emitted with same user ID $currentId. Skipping duplicate trigger.")
+                    }
+                } else {
+                    lastUserId = null
                 }
             }
         }
