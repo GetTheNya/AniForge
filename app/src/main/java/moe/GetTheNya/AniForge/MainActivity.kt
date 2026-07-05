@@ -935,6 +935,29 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         )
                                                     }
+                                                    is Screen.Social -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SocialViewModel::class.java]
+                                                         }
+                                                         moe.GetTheNya.AniForge.ui.social.SocialScreen(
+                                                             viewModel = scopedViewModel,
+                                                             navController = navController,
+                                                             modifier = Modifier.padding(innerPadding),
+                                                             onBack = { triggerDismissAnimation(entry) }
+                                                         )
+                                                     }
+                                                     is Screen.SharedProfile -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedProfileViewModel::class.java]
+                                                         }
+                                                         moe.GetTheNya.AniForge.ui.social.SharedProfileScreen(
+                                                             viewModel = scopedViewModel,
+                                                             navController = navController,
+                                                             preferUk = preferUk,
+                                                             modifier = Modifier.padding(innerPadding),
+                                                             onBack = { triggerDismissAnimation(entry) }
+                                                         )
+                                                     }
                                                     is Screen.Tabs -> {} /*
                                                          val scopedViewModel = remember(entry) {
                                                              ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {

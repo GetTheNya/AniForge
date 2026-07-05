@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -368,18 +369,38 @@ fun ProfileScreen(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.5).sp
             )
-            IconButton(
-                onClick = { navController.navigate(Screen.Settings()) },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = strings.misc.settings,
-                    tint = TextPrimary
-                )
+                if (currentUser != null) {
+                    IconButton(
+                        onClick = { navController.navigate(Screen.Social) },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Group,
+                            contentDescription = strings.socialScreen.name,
+                            tint = TextPrimary
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = { navController.navigate(Screen.Settings()) },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceDark)
+                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = strings.misc.settings,
+                        tint = TextPrimary
+                    )
+                }
             }
         }
 

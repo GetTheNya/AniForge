@@ -41,6 +41,8 @@ sealed interface Screen {
     data object Library : Screen
     data class FranchiseTree(val franchiseId: Long) : Screen
     data class CollectionDetail(val collectionId: Int) : Screen
+    data object Social : Screen
+    data class SharedProfile(val userId: String, val username: String) : Screen
 }
 
 class BackStackEntry(
@@ -73,6 +75,10 @@ class BackStackEntry(
                 is Screen.CollectionDetail -> {
                     put("collectionId", s.collectionId)
                 }
+                is Screen.SharedProfile -> {
+                    put("userId", s.userId)
+                    put("username", s.username)
+                }
                 else -> {}
             }
         }
@@ -98,6 +104,10 @@ class BackStackEntry(
                 }
                 is Screen.CollectionDetail -> {
                     bundle.putInt("collectionId", s.collectionId)
+                }
+                is Screen.SharedProfile -> {
+                    bundle.putString("userId", s.userId)
+                    bundle.putString("username", s.username)
                 }
                 else -> {}
             }

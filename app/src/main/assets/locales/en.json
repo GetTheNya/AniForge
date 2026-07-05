@@ -214,7 +214,7 @@
     "errorGeneric": "Failed to save username. Please check your internet connection.",
     "success": "Changes saved successfully.",
     "signOutConfirmTitle": "Sign Out",
-    "signOutConfirmText": "Are you sure you want to sign out?",
+    "signOutConfirmText": "⚠️ Warning! Important notice\nYou are signing out of your account. All your data remains on this device, and you can continue using the app offline.\n\nHowever, if you decide to log into ANOTHER account on this device:\n\n🛑 All your unsynced changes (new episodes or ratings) will be automatically uploaded to this new account.\n\n🌪️ Previous synced data might disappear from your device, as the new account's cloud data will replace it.\n\nTo avoid messing up your lists, only log back into your current account. We warned you!",
     "signOutConfirmOk": "Sign Out",
     "signOutConfirmCancel": "Cancel"
   },
@@ -445,5 +445,28 @@
     "comic": "Comic",
     "multimediaProject": "Multimedia Project",
     "pictureBook": "Picture Book"
+  },
+  "socialScreen": {
+    "name": "Social",
+    "searchPlaceholder": "Search users...",
+    "tabFriends": "Friends",
+    "tabRequests": "Requests",
+    "noFriends": "No friends found",
+    "noRequests": "No pending requests",
+    "addFriend": "Add Friend",
+    "pending": "Pending",
+    "friends": "Friends",
+    "removeFriend": "Remove Friend",
+    "accept": "Accept",
+    "decline": "Decline",
+    "toastRequestSent": "Friend request sent",
+    "toastRequestAccepted": "Friend request accepted",
+    "toastRequestDeclined": "Friend request declined",
+    "toastFriendRemoved": "Friend removed",
+    "toastError": "Operation failed: %s",
+    "activeWatching": "Active Watching",
+    "noActiveAnime": "No active anime watching progress.",
+    "episodeProgress": "Ep. %d/%d",
+    "scoreLabel": "Score: %s"
   }
 }

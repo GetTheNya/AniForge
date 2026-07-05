@@ -24,6 +24,7 @@ data class LocaleStrings(
     val bentoWidgets: BentoWidgetStrings = BentoWidgetStrings(),
     val mediaStatuses: MediaStatusStrings = MediaStatusStrings(),
     val mediaSources: MediaSourceStrings = MediaSourceStrings(),
+    val socialScreen: SocialScreenStrings = SocialScreenStrings(),
 )
 
 @Serializable
@@ -211,6 +212,31 @@ data class ProfileScreenStrings(
     val signInWithGoogle: String = "[profileScreen.signInWithGoogle]",
     val signOut: String = "[profileScreen.signOut]",
     val signedInAs: String = "[profileScreen.signedInAs]"
+)
+
+@Serializable
+data class SocialScreenStrings(
+    val name: String = "[socialScreen.name]",
+    val searchPlaceholder: String = "[socialScreen.searchPlaceholder]",
+    val tabFriends: String = "[socialScreen.tabFriends]",
+    val tabRequests: String = "[socialScreen.tabRequests]",
+    val noFriends: String = "[socialScreen.noFriends]",
+    val noRequests: String = "[socialScreen.noRequests]",
+    val addFriend: String = "[socialScreen.addFriend]",
+    val pending: String = "[socialScreen.pending]",
+    val friends: String = "[socialScreen.friends]",
+    val removeFriend: String = "[socialScreen.removeFriend]",
+    val accept: String = "[socialScreen.accept]",
+    val decline: String = "[socialScreen.decline]",
+    val toastRequestSent: String = "[socialScreen.toastRequestSent]",
+    val toastRequestAccepted: String = "[socialScreen.toastRequestAccepted]",
+    val toastRequestDeclined: String = "[socialScreen.toastRequestDeclined]",
+    val toastFriendRemoved: String = "[socialScreen.toastFriendRemoved]",
+    val toastError: String = "[socialScreen.toastError]",
+    val activeWatching: String = "[socialScreen.activeWatching]",
+    val noActiveAnime: String = "[socialScreen.noActiveAnime]",
+    val episodeProgress: String = "[socialScreen.episodeProgress]",
+    val scoreLabel: String = "[socialScreen.scoreLabel]"
 )
 
 @Serializable
