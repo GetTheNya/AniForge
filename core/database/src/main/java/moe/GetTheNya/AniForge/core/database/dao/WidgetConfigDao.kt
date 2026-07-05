@@ -17,4 +17,7 @@ interface WidgetConfigDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdate(config: WidgetConfigEntity)
+
+    @Query("DELETE FROM widget_config WHERE widget_id = :widgetId")
+    suspend fun deleteWidgetConfig(widgetId: String)
 }

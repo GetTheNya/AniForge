@@ -137,6 +137,34 @@ class SocialRepository @Inject constructor(
         }
     }
 
+    suspend fun getOutgoingRequests(userId: String): List<UserProfileDto> = withContext(Dispatchers.IO) {
+        try {
+            val requests = supabaseClient.from("friendships")
+                .select {
+                    filter {
+                        eq("sender_id", userId)
+                        eq("status", "PENDING")
+                    }
+                }
+                .decodeList<FriendshipDto>()
+
+            val receiverIds = requests.map { it.receiverId }
+            if (receiverIds.isEmpty()) return@withContext emptyList()
+
+            supabaseClient.from("user_profiles")
+                .select {
+                    filter {
+                        isIn("id", receiverIds)
+                    }
+                }
+                .decodeList<UserProfileDto>()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching outgoing requests: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+
     suspend fun getMyFriendships(userId: String): List<FriendshipDto> = withContext(Dispatchers.IO) {
         try {
             supabaseClient.from("friendships")

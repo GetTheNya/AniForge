@@ -473,9 +473,12 @@
     "toastRequestDeclined": "Запит відхилено",
     "toastFriendRemoved": "Друга видалено",
     "toastError": "Помилка операції: %s",
-    "activeWatching": "Зараз дивляться",
+    "activeWatching": "Зараз дивиться",
     "noActiveAnime": "Немає активного прогресу перегляду.",
     "episodeProgress": "Серія %d/%d",
-    "scoreLabel": "Оцінка: %s"
+    "scoreLabel": "Оцінка: %s",
+    "tabRequestsReceived": "Отримані",
+    "tabRequestsSent": "Надіслані",
+    "cancelRequest": "Скасувати"
   }
 }

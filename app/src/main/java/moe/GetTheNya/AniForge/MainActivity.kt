@@ -174,6 +174,8 @@ class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels()
     private val profileViewModel: ProfileViewModel by viewModels()
     private val libraryViewModel: LibraryViewModel by viewModels()
+    private val socialViewModel: moe.GetTheNya.AniForge.ui.social.SocialViewModel by viewModels()
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -509,11 +511,11 @@ class MainActivity : ComponentActivity() {
                                                     modifier = Modifier.fillMaxSize()
                                                 ) { page ->
                                                     when (page) {
-                                                         0 -> HomeScreen(
-                                                            viewModel = homeViewModel,
-                                                            onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
-                                                            onSettingsClick = { navController.navigate(Screen.Settings()) },
-                                                            onUpdateClick = { navController.navigate(Screen.Settings(initialTab = 2)) },
+                                                          0 -> HomeScreen(
+                                                              viewModel = homeViewModel,
+                                                              onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
+                                                              onSettingsClick = { navController.navigate(Screen.Settings()) },
+                                                              onUpdateClick = { navController.navigate(Screen.Settings(initialTab = 2)) },
                                                              onGenreClick = { genreSlug ->
                                                                  dashboardViewModel.selectGenreOnly(genreSlug)
                                                                  selectedTab = TabScreen.Anime.ordinal
@@ -549,7 +551,7 @@ class MainActivity : ComponentActivity() {
                                                                      pagerState.animateScrollToPage(TabScreen.Library.ordinal)
                                                                  }
                                                              }
-                                                        )
+                                                          )
                                                         1 -> DashboardScreen(
                                                             viewModel = dashboardViewModel,
                                                             navController = navController,
@@ -561,50 +563,57 @@ class MainActivity : ComponentActivity() {
                                                             navController = navController,
                                                             preferUk = preferUk
                                                         )
-                                                         3 -> ProfileScreen(
-                                                             viewModel = profileViewModel,
-                                                             navController = navController,
-                                                             onGenreClick = { genreSlug ->
-                                                                 dashboardViewModel.selectGenreOnly(genreSlug)
-                                                                 selectedTab = TabScreen.Anime.ordinal
-                                                                 coroutineScope.launch {
-                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                 }
-                                                             },
-                                                             onStudioClick = { studioId ->
-                                                                 dashboardViewModel.selectStudioOnly(studioId)
-                                                                 selectedTab = TabScreen.Anime.ordinal
-                                                                 coroutineScope.launch {
-                                                                     pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
-                                                                 }
-                                                             },
-                                                             onCollectionClick = {
-                                                                 libraryViewModel.setActiveFilter(LibraryFilter.COLLECTIONS)
-                                                                 selectedTab = TabScreen.Library.ordinal
-                                                                 coroutineScope.launch {
-                                                                     pagerState.animateScrollToPage(TabScreen.Library.ordinal)
-                                                                 }
-                                                             },
-                                                             onStatusClick = { statusId ->
-                                                                 val targetFilter = when (statusId) {
-                                                                     "CURRENT" -> LibraryFilter.WATCHING
-                                                                     "PLANNING" -> LibraryFilter.PLANNING
-                                                                     "COMPLETED" -> LibraryFilter.COMPLETED
-                                                                     "PAUSED" -> LibraryFilter.PAUSED
-                                                                     "DROPPED" -> LibraryFilter.DROPPED
-                                                                     else -> LibraryFilter.WATCHING
-                                                                 }
-                                                                 libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)
-                                                                 coroutineScope.launch {
-                                                                     pagerState.animateScrollToPage(TabScreen.Library.ordinal)
-                                                                 }
-                                                             }
-                                                         )
+                                                           3 -> {
+                                                              val unreadCount by socialViewModel.incomingRequestsCount.collectAsState()
+                                                              val friendsList by socialViewModel.friends.collectAsState()
+                                                              ProfileScreen(
+                                                                  viewModel = profileViewModel,
+                                                                  navController = navController,
+                                                                  unreadRequestsCount = unreadCount,
+                                                                  friends = friendsList,
+                                                                  onGenreClick = { genreSlug ->
+                                                                      dashboardViewModel.selectGenreOnly(genreSlug)
+                                                                      selectedTab = TabScreen.Anime.ordinal
+                                                                      coroutineScope.launch {
+                                                                          pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                      }
+                                                                  },
+                                                                  onStudioClick = { studioId ->
+                                                                      dashboardViewModel.selectStudioOnly(studioId)
+                                                                      selectedTab = TabScreen.Anime.ordinal
+                                                                      coroutineScope.launch {
+                                                                          pagerState.animateScrollToPage(TabScreen.Anime.ordinal)
+                                                                      }
+                                                                  },
+                                                                  onCollectionClick = {
+                                                                      libraryViewModel.setActiveFilter(LibraryFilter.COLLECTIONS)
+                                                                      selectedTab = TabScreen.Library.ordinal
+                                                                      coroutineScope.launch {
+                                                                          pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                      }
+                                                                  },
+                                                                  onStatusClick = { statusId ->
+                                                                      val targetFilter = when (statusId) {
+                                                                          "CURRENT" -> LibraryFilter.WATCHING
+                                                                          "PLANNING" -> LibraryFilter.PLANNING
+                                                                          "COMPLETED" -> LibraryFilter.COMPLETED
+                                                                          "PAUSED" -> LibraryFilter.PAUSED
+                                                                          "DROPPED" -> LibraryFilter.DROPPED
+                                                                          else -> LibraryFilter.WATCHING
+                                                                      }
+                                                                      libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)
+                                                                      coroutineScope.launch {
+                                                                          pagerState.animateScrollToPage(TabScreen.Library.ordinal)
+                                                                      }
+                                                                  }
+                                                              )
+                                                          }
                                                     }
                                                 }
                                             }
 
                                             val activeSubTab by dashboardViewModel.activeSubTab.collectAsState()
+                                            val unreadCount by socialViewModel.incomingRequestsCount.collectAsState()
 
                                             // Floating Bottom Navigation Bar (optimized with selectedTab lambda)
                                             FloatingBottomNavigation(
@@ -628,6 +637,7 @@ class MainActivity : ComponentActivity() {
                                                 bottomBarWindowPositionState = bottomBarWindowPosition,
                                                 currentScale = { tabsScaleState.value },
                                                 scrollPosition = { pagerState.currentPage + pagerState.currentPageOffsetFraction },
+                                                unreadRequestsCount = unreadCount,
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
                                                     .graphicsLayer {
@@ -936,11 +946,8 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     }
                                                     is Screen.Social -> {
-                                                         val scopedViewModel = remember(entry) {
-                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SocialViewModel::class.java]
-                                                         }
                                                          moe.GetTheNya.AniForge.ui.social.SocialScreen(
-                                                             viewModel = scopedViewModel,
+                                                             viewModel = socialViewModel,
                                                              navController = navController,
                                                              modifier = Modifier.padding(innerPadding),
                                                              onBack = { triggerDismissAnimation(entry) }
@@ -1019,6 +1026,7 @@ fun FloatingBottomNavigation(
     bottomBarWindowPositionState: MutableState<Offset>,
     currentScale: () -> Float,
     scrollPosition: () -> Float,
+    unreadRequestsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val blurEffect = remember {
@@ -1346,12 +1354,23 @@ fun FloatingBottomNavigation(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = label,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Box {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    if (tab == TabScreen.Profile && unreadRequestsCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .align(Alignment.TopEnd)
+                                                .clip(CircleShape)
+                                                .background(NeonCoral)
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = label,

@@ -467,6 +467,9 @@
     "activeWatching": "Active Watching",
     "noActiveAnime": "No active anime watching progress.",
     "episodeProgress": "Ep. %d/%d",
-    "scoreLabel": "Score: %s"
+    "scoreLabel": "Score: %s",
+    "tabRequestsReceived": "Received",
+    "tabRequestsSent": "Sent",
+    "cancelRequest": "Cancel Request"
   }
 }

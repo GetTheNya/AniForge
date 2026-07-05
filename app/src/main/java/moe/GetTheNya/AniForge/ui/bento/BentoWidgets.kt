@@ -38,6 +38,7 @@ import moe.GetTheNya.AniForge.ui.localization.getPlural
 import moe.GetTheNya.AniForge.ui.profile.AnimeStatsPieChart
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
+import moe.GetTheNya.AniForge.core.network.UserProfileDto
 
 val BentoCardShape = RoundedCornerShape(24.dp)
 
@@ -819,3 +820,83 @@ fun BentoWatchStatusPieChart(
         }
     }
 }
+
+@Composable
+fun FriendsWidget(
+    friends: List<UserProfileDto>,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    isEditMode: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalLocaleStrings.current
+    BentoCard(
+        onClick = onClick,
+        onLongClick = onLongClick,
+        isEditMode = isEditMode,
+        modifier = modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${strings.socialScreen.tabFriends} (${friends.size})",
+                color = TextSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Avatar stack
+            val displayFriends = friends.take(5)
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                displayFriends.forEachIndexed { index, friend ->
+                    Box(
+                        modifier = Modifier
+                            .padding(start = (index * 24).dp)
+                            .size(40.dp)
+                            .border(2.dp, BackgroundDark, CircleShape) // Dark border separation
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(TransparentAccent)
+                            .border(1.dp, NeonCoral, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = friend.username.firstOrNull()?.uppercase() ?: "?",
+                            color = NeonCoral,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                if (friends.size > 5) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = (5 * 24).dp)
+                            .size(40.dp)
+                            .border(2.dp, BackgroundDark, CircleShape)
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceDark)
+                            .border(1.dp, CardBorder, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "+${friends.size - 5}",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

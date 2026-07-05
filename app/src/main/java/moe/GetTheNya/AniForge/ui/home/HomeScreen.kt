@@ -71,6 +71,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.ui.update.UpdateManager
 import moe.GetTheNya.AniForge.ui.bento.*
+import moe.GetTheNya.AniForge.core.network.UserProfileDto
 import moe.GetTheNya.AniForge.ui.localization.LocaleStrings
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -262,6 +263,7 @@ fun getWidgetName(widgetId: String, strings: LocaleStrings): String {
         "top_genres" -> strings.dashboardScreen.genres
         "franchise_giant" -> strings.bentoWidgets.mostWatchedUniverse
         "watch_status_chart" -> strings.bentoWidgets.watchStatusTitle
+        "friends" -> strings.socialScreen.name
         else -> widgetId
     }
 }

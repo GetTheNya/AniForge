@@ -26,17 +26,37 @@ class SocialViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    // Search results state
-    private val _searchResults = MutableStateFlow<List<UserProfileDto>>(emptyList())
-    val searchResults = _searchResults.asStateFlow()
-
     // Friends list state
     private val _friends = MutableStateFlow<List<UserProfileDto>>(emptyList())
     val friends = _friends.asStateFlow()
 
+    // Search results state
+    private val _searchResults = MutableStateFlow<List<UserProfileDto>>(emptyList())
+    val searchResults = combine(_searchResults, friends) { results, friendsList ->
+        val friendIds = friendsList.map { it.id }.toSet()
+        results.filter { it.id !in friendIds }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     // Incoming requests state
     private val _incomingRequests = MutableStateFlow<List<UserProfileDto>>(emptyList())
     val incomingRequests = _incomingRequests.asStateFlow()
+
+    // Outgoing requests state
+    private val _sentRequests = MutableStateFlow<List<UserProfileDto>>(emptyList())
+    val sentRequests = _sentRequests.asStateFlow()
+
+    // Counter flow for unread incoming pending friend requests
+    val incomingRequestsCount: StateFlow<Int> = _incomingRequests
+        .map { it.size }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
 
     // All my relationships/friendships mapping for search action buttons
     private val _myFriendships = MutableStateFlow<List<FriendshipDto>>(emptyList())
@@ -70,8 +90,19 @@ class SocialViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Initial load
-        refreshAll()
+        // Observe current user changes to trigger refreshes or clear states
+        viewModelScope.launch {
+            authRepository.currentUser.collect { user ->
+                if (user != null) {
+                    refreshAll()
+                } else {
+                    _friends.value = emptyList()
+                    _incomingRequests.value = emptyList()
+                    _sentRequests.value = emptyList()
+                    _myFriendships.value = emptyList()
+                }
+            }
+        }
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -86,10 +117,12 @@ class SocialViewModel @Inject constructor(
                 // Fetch friends, requests and all user's relationships in parallel
                 val friendsList = socialRepository.getFriends(currentId)
                 val incomingList = socialRepository.getIncomingRequests(currentId)
+                val sentList = socialRepository.getOutgoingRequests(currentId)
                 val friendshipsList = socialRepository.getMyFriendships(currentId)
 
                 _friends.value = friendsList
                 _incomingRequests.value = incomingList
+                _sentRequests.value = sentList
                 _myFriendships.value = friendshipsList
             } catch (e: Exception) {
                 emitToast(ToastEvent.Error(e.message ?: "Unknown error"))
@@ -98,6 +131,7 @@ class SocialViewModel @Inject constructor(
             }
         }
     }
+
 
     private fun setActionLoading(userId: String, isLoading: Boolean) {
         _actionLoadingStates.update { map ->

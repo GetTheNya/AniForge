@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
 import moe.GetTheNya.AniForge.core.model.BentoStatsData
+import moe.GetTheNya.AniForge.core.network.UserProfileDto
 
 @Composable
 fun BentoDashboardGrid(
@@ -16,6 +17,8 @@ fun BentoDashboardGrid(
     onGenreClick: (String) -> Unit,
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
+    friends: List<UserProfileDto>,
+    onSocialClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -30,6 +33,13 @@ fun BentoDashboardGrid(
             stats = trackingStats,
             onStatusClick = onStatusClick
         )
+
+        if (friends.isNotEmpty()) {
+            FriendsWidget(
+                friends = friends,
+                onClick = onSocialClick
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),

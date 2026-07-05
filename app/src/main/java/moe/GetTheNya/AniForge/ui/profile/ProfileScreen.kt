@@ -43,6 +43,7 @@ import moe.GetTheNya.AniForge.BuildConfig
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
+import moe.GetTheNya.AniForge.core.network.UserProfileDto
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 import moe.GetTheNya.AniForge.ui.localization.getPlural
@@ -113,6 +114,8 @@ fun ProfileScreen(
     onGenreClick: (String) -> Unit,
     onCollectionClick: () -> Unit,
     onStatusClick: (String) -> Unit,
+    unreadRequestsCount: Int = 0,
+    friends: List<UserProfileDto> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
@@ -340,7 +343,9 @@ fun ProfileScreen(
                 onStudioClick = onStudioClick,
                 onGenreClick = onGenreClick,
                 onCollectionClick = onCollectionClick,
-                onStatusClick = onStatusClick
+                onStatusClick = onStatusClick,
+                friends = friends,
+                onSocialClick = { navController.navigate(Screen.Social) }
             )
 
             Spacer(modifier = Modifier.height(110.dp))
@@ -374,18 +379,29 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (currentUser != null) {
-                    IconButton(
-                        onClick = { navController.navigate(Screen.Social) },
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SurfaceDark)
-                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Group,
-                            contentDescription = strings.socialScreen.name,
-                            tint = TextPrimary
-                        )
+                    Box {
+                        IconButton(
+                            onClick = { navController.navigate(Screen.Social) },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Group,
+                                contentDescription = strings.socialScreen.name,
+                                tint = TextPrimary
+                            )
+                        }
+                        if (unreadRequestsCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .align(Alignment.TopEnd)
+                                    .clip(CircleShape)
+                                    .background(NeonCoral)
+                            )
+                        }
                     }
                 }
                 IconButton(

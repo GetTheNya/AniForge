@@ -55,11 +55,14 @@ fun SocialScreen(
     val searchResults by viewModel.searchResults.collectAsState()
     val friends by viewModel.friends.collectAsState()
     val incomingRequests by viewModel.incomingRequests.collectAsState()
+    val sentRequests by viewModel.sentRequests.collectAsState()
     val myFriendships by viewModel.myFriendships.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val actionLoadingStates by viewModel.actionLoadingStates.collectAsState()
 
     var activeTab by remember { mutableIntStateOf(0) }
+    var requestSubTab by remember { mutableIntStateOf(0) }
+
 
     LaunchedEffect(Unit) {
         viewModel.toastEvents.collectLatest { event ->
@@ -331,31 +334,152 @@ fun SocialScreen(
                             }
                         } else {
                             // Requests tab
-                            if (incomingRequests.isEmpty()) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Text(
-                                        text = strings.socialScreen.noRequests,
-                                        color = TextSecondary,
-                                        fontSize = 15.sp
-                                    )
+                                    // Received Tab button
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (requestSubTab == 0) SurfaceDark else Color.Transparent)
+                                            .border(1.dp, if (requestSubTab == 0) NeonCoral else CardBorder, RoundedCornerShape(12.dp))
+                                            .clickable { requestSubTab = 0 }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = strings.socialScreen.tabRequestsReceived,
+                                                color = if (requestSubTab == 0) TextPrimary else TextSecondary,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            if (incomingRequests.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .clip(CircleShape)
+                                                        .background(NeonCoral),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = incomingRequests.size.toString(),
+                                                        color = Color.White,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Sent Tab button
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(if (requestSubTab == 1) SurfaceDark else Color.Transparent)
+                                            .border(1.dp, if (requestSubTab == 1) NeonCoral else CardBorder, RoundedCornerShape(12.dp))
+                                            .clickable { requestSubTab = 1 }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = strings.socialScreen.tabRequestsSent,
+                                                color = if (requestSubTab == 1) TextPrimary else TextSecondary,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            if (sentRequests.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .clip(CircleShape)
+                                                        .background(TransparentAccent)
+                                                        .border(1.dp, NeonCoral, CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = sentRequests.size.toString(),
+                                                        color = NeonCoral,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                            } else {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(vertical = 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(incomingRequests, key = { it.id }) { request ->
-                                        val isLoading = actionLoadingStates[request.id] == true
-                                        RequestRow(
-                                            request = request,
-                                            onAccept = { viewModel.acceptRequest(request.id) },
-                                            onDecline = { viewModel.declineOrRemoveRequest(request.id) },
-                                            isLoading = isLoading
-                                        )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Sub-tab Content
+                                if (requestSubTab == 0) {
+                                    // Received Section
+                                    if (incomingRequests.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = strings.socialScreen.noRequests,
+                                                color = TextSecondary,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    } else {
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            contentPadding = PaddingValues(vertical = 12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            items(incomingRequests, key = { it.id }) { request ->
+                                                val isLoading = actionLoadingStates[request.id] == true
+                                                RequestRow(
+                                                    request = request,
+                                                    onAccept = { viewModel.acceptRequest(request.id) },
+                                                    onDecline = { viewModel.declineOrRemoveRequest(request.id) },
+                                                    isLoading = isLoading
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Sent Section
+                                    if (sentRequests.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = strings.socialScreen.noRequests,
+                                                color = TextSecondary,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    } else {
+                                        LazyColumn(
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            contentPadding = PaddingValues(vertical = 12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            items(sentRequests, key = { it.id }) { request ->
+                                                val isLoading = actionLoadingStates[request.id] == true
+                                                SentRequestRow(
+                                                    request = request,
+                                                    onCancel = { viewModel.declineOrRemoveRequest(request.id) },
+                                                    isLoading = isLoading
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -678,3 +802,76 @@ fun RequestRow(
         }
     }
 }
+
+@Composable
+fun SentRequestRow(
+    request: UserProfileDto,
+    onCancel: () -> Unit,
+    isLoading: Boolean
+) {
+    val strings = LocalLocaleStrings.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(TransparentAccent)
+                    .border(1.5.dp, NeonCoral, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = request.username.firstOrNull()?.uppercase() ?: "?",
+                    color = NeonCoral,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = request.username,
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = NeonCoral,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Button(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = TextSecondary
+                    ),
+                    border = BorderStroke(1.dp, CardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(text = strings.socialScreen.cancelRequest, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+

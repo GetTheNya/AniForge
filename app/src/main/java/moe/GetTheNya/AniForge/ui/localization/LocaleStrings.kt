@@ -236,7 +236,10 @@ data class SocialScreenStrings(
     val activeWatching: String = "[socialScreen.activeWatching]",
     val noActiveAnime: String = "[socialScreen.noActiveAnime]",
     val episodeProgress: String = "[socialScreen.episodeProgress]",
-    val scoreLabel: String = "[socialScreen.scoreLabel]"
+    val scoreLabel: String = "[socialScreen.scoreLabel]",
+    val tabRequestsReceived: String = "[socialScreen.tabRequestsReceived]",
+    val tabRequestsSent: String = "[socialScreen.tabRequestsSent]",
+    val cancelRequest: String = "[socialScreen.cancelRequest]"
 )
 
 @Serializable
