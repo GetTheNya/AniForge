@@ -89,44 +89,52 @@ class SyncEngine @Inject constructor(
 
         syncMutex.withLock {
             try {
-                val initialSyncKey = "initial_sync_done_$userId"
-                val hasCompletedInitialSync = prefs.getBoolean(initialSyncKey, false)
-                AppLogger.d(TAG, "runSyncInternal: hasCompletedInitialSync = $hasCompletedInitialSync")
+                val lastSyncTimeKey = "last_successful_sync_time_$userId"
+                val lastSyncTime = prefs.getString(lastSyncTimeKey, null)
+                val isDeltaSync = !lastSyncTime.isNullOrEmpty()
+                AppLogger.d(TAG, "runSyncInternal: lastSyncTime = $lastSyncTime, isDeltaSync = $isDeltaSync")
 
-                if (!hasCompletedInitialSync) {
-                    AppLogger.d(TAG, "Starting initial full synchronization (two-way merge) for user: $userId")
-                    performFullSync(userId)
-                    prefs.edit().putBoolean(initialSyncKey, true).apply()
-                    AppLogger.d(TAG, "Initial full synchronization completed successfully")
+                if (isDeltaSync) {
+                    AppLogger.d(TAG, "Starting Delta Sync Mode for user: $userId")
+                } else {
+                    AppLogger.d(TAG, "Starting Initial Full Sync Mode for user: $userId")
                 }
 
-                performIncrementalSync(userId)
+                performPullSync(userId, lastSyncTime)
+                performPushSync(userId)
+
+                val currentUtcTime = Instant.now().toString()
+                prefs.edit().putString(lastSyncTimeKey, currentUtcTime).apply()
+                AppLogger.d(TAG, "Sync cycle completed successfully. Saved last_successful_sync_time: $currentUtcTime")
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Sync failed with exception: ${e.message}", e)
             }
         }
     }
 
-    private suspend fun performFullSync(userId: String) {
+    private suspend fun performPullSync(userId: String, lastSyncTime: String?) {
+        val isDeltaSync = !lastSyncTime.isNullOrEmpty()
         val remoteList = mutableListOf<SupabaseUserTrackingDto>()
         var page = 0
         var hasMore = true
 
-        AppLogger.d(TAG, "performFullSync: Starting paginated remote fetching...")
-        // Paginated remote fetching
+        AppLogger.d(TAG, "performPullSync: Starting remote fetching...")
         while (hasMore) {
             val start = page * PAGE_SIZE
             val end = start + PAGE_SIZE - 1
-            AppLogger.d(TAG, "performFullSync: Fetching remote page $page (range $start to $end)")
+            AppLogger.d(TAG, "performPullSync: Fetching page $page (range $start to $end), delta=$isDeltaSync")
             val pageItems = supabaseClient.from("user_tracking")
                 .select {
                     filter {
                         eq("user_id", userId)
+                        if (isDeltaSync) {
+                            gt("last_modified", lastSyncTime!!)
+                        }
                     }
                     range(start.toLong(), end.toLong())
                 }
                 .decodeList<SupabaseUserTrackingDto>()
-            AppLogger.d(TAG, "performFullSync: Retrieved ${pageItems.size} items from remote on page $page")
+            AppLogger.d(TAG, "performPullSync: Retrieved ${pageItems.size} items from remote on page $page")
             remoteList.addAll(pageItems)
             if (pageItems.size < PAGE_SIZE) {
                 hasMore = false
@@ -135,49 +143,35 @@ class SyncEngine @Inject constructor(
             }
         }
 
-        AppLogger.d(TAG, "performFullSync: Total remote records downloaded = ${remoteList.size}")
+        AppLogger.d(TAG, "performPullSync: Total remote records fetched = ${remoteList.size}")
 
         val localList = userTrackingDao.getAllTrackingIncludingDeleted()
-        AppLogger.d(TAG, "performFullSync: Total local records fetched (including deleted) = ${localList.size}")
-        
+        AppLogger.d(TAG, "performPullSync: Total local records fetched (including deleted) = ${localList.size}")
+
         val localMap = localList.associateBy { it.anilistId }
         val remoteMap = remoteList.associateBy { it.anilistId }
 
         val toInsertOrUpdate = mutableListOf<UserTrackingEntity>()
-        val toDeleteLocally = mutableListOf<UserTrackingEntity>()
+        val toDeleteIds = mutableListOf<Long>()
 
         // 1. Process remote items
         for (remoteItem in remoteList) {
-            val localItem = localMap[remoteItem.anilistId]
             val remoteMilli = parseTimestamptz(remoteItem.lastModified)
+            val localItem = localMap[remoteItem.anilistId]
 
-            if (localItem == null) {
-                // Remote-only record
-                AppLogger.d(TAG, "performFullSync: Remote-only record found: anilistId=${remoteItem.anilistId}, watchStatus=${remoteItem.watchStatus}, isDeleted=${remoteItem.isDeleted}")
-                if (!remoteItem.isDeleted) {
-                    toInsertOrUpdate.add(
-                        UserTrackingEntity(
-                            anilistId = remoteItem.anilistId,
-                            watchStatus = remoteItem.watchStatus,
-                            episodeProgress = remoteItem.episodeProgress,
-                            score = remoteItem.score,
-                            notes = remoteItem.notes,
-                            lastModified = remoteMilli,
-                            isSynced = true,
-                            isDeleted = false
-                        )
-                    )
-                }
-            } else {
-                // Mutual record: newest timestamp wins
-                AppLogger.d(TAG, "performFullSync: Mutual record found: anilistId=${remoteItem.anilistId}. Remote lastModified=${remoteItem.lastModified} ($remoteMilli ms), Local lastModified=${localItem.lastModified} ms")
-                if (remoteMilli > localItem.lastModified) {
-                    AppLogger.d(TAG, "performFullSync: Remote record is newer for anilistId=${remoteItem.anilistId}. Remote isDeleted=${remoteItem.isDeleted}")
-                    if (remoteItem.isDeleted) {
-                        toDeleteLocally.add(localItem)
-                    } else {
+            if (isDeltaSync) {
+                // A. During Delta Sync Mode (Standard Operation)
+                if (remoteItem.isDeleted) {
+                    // Remote Deletion Processing (Tombstones): physical delete
+                    AppLogger.d(TAG, "performPullSync (Delta): Tombstone found for anilistId=${remoteItem.anilistId}. Queueing physical deletion.")
+                    toDeleteIds.add(remoteItem.anilistId)
+                } else {
+                    // Normal Updates
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performPullSync (Delta): Remote-only record found: anilistId=${remoteItem.anilistId}. Queueing insertion.")
                         toInsertOrUpdate.add(
-                            localItem.copy(
+                            UserTrackingEntity(
+                                anilistId = remoteItem.anilistId,
                                 watchStatus = remoteItem.watchStatus,
                                 episodeProgress = remoteItem.episodeProgress,
                                 score = remoteItem.score,
@@ -187,64 +181,126 @@ class SyncEngine @Inject constructor(
                                 isDeleted = false
                             )
                         )
+                    } else {
+                        // Standard timestamp comparison
+                        AppLogger.d(TAG, "performPullSync (Delta): Mutual record found: anilistId=${remoteItem.anilistId}. Remote lastModified=${remoteItem.lastModified} ($remoteMilli ms), Local lastModified=${localItem.lastModified} ms")
+                        if (remoteMilli > localItem.lastModified) {
+                            AppLogger.d(TAG, "performPullSync (Delta): Remote record is newer. Queueing update.")
+                            toInsertOrUpdate.add(
+                                localItem.copy(
+                                    watchStatus = remoteItem.watchStatus,
+                                    episodeProgress = remoteItem.episodeProgress,
+                                    score = remoteItem.score,
+                                    notes = remoteItem.notes,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            AppLogger.d(TAG, "performPullSync (Delta): Local record is newer or equal. Keeping local.")
+                        }
+                    }
+                }
+            } else {
+                // B. During Initial Full Sync Mode (Only on First Login)
+                if (remoteItem.isDeleted) {
+                    if (localItem != null) {
+                        AppLogger.d(TAG, "performPullSync (Full): Remote deleted record exists locally for anilistId=${remoteItem.anilistId}. Queueing physical deletion.")
+                        toDeleteIds.add(remoteItem.anilistId)
                     }
                 } else {
-                    AppLogger.d(TAG, "performFullSync: Local record is newer or equal for anilistId=${remoteItem.anilistId}. Keeping local, marking unsynced.")
-                    // Local is newer or equal: keep local and mark isSynced = false so it gets pushed
-                    toInsertOrUpdate.add(
-                        localItem.copy(
-                            isSynced = false
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performPullSync (Full): Remote-only record found: anilistId=${remoteItem.anilistId}. Queueing insertion.")
+                        toInsertOrUpdate.add(
+                            UserTrackingEntity(
+                                anilistId = remoteItem.anilistId,
+                                watchStatus = remoteItem.watchStatus,
+                                episodeProgress = remoteItem.episodeProgress,
+                                score = remoteItem.score,
+                                notes = remoteItem.notes,
+                                lastModified = remoteMilli,
+                                isSynced = true,
+                                isDeleted = false
+                            )
                         )
-                    )
+                    } else {
+                        AppLogger.d(TAG, "performPullSync (Full): Mutual record found: anilistId=${remoteItem.anilistId}. Remote lastModified=${remoteItem.lastModified} ($remoteMilli ms), Local lastModified=${localItem.lastModified} ms")
+                        if (remoteMilli > localItem.lastModified) {
+                            AppLogger.d(TAG, "performPullSync (Full): Remote record is newer. Queueing update.")
+                            toInsertOrUpdate.add(
+                                localItem.copy(
+                                    watchStatus = remoteItem.watchStatus,
+                                    episodeProgress = remoteItem.episodeProgress,
+                                    score = remoteItem.score,
+                                    notes = remoteItem.notes,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            AppLogger.d(TAG, "performPullSync (Full): Local record is newer or equal. Keeping local, marking unsynced.")
+                            toInsertOrUpdate.add(
+                                localItem.copy(
+                                    isSynced = false
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
 
         // 2. Process local-only items (not in remote list at all)
-        for (localItem in localList) {
-            if (!remoteMap.containsKey(localItem.anilistId)) {
-                if (localItem.isSynced && !localItem.isDeleted) {
-                    // Ghost Data: synced previously but missing from remote (indicates deletion elsewhere)
-                    AppLogger.d(TAG, "performFullSync: Ghost Data found (local marked synced but missing on remote): anilistId=${localItem.anilistId}. Queueing physical deletion locally.")
-                    toDeleteLocally.add(localItem)
-                } else {
-                    // Local-only, unsynced or soft deleted: keep locally and mark isSynced = false so it gets pushed
-                    AppLogger.d(TAG, "performFullSync: Local-only dirty/deleted record found: anilistId=${localItem.anilistId}, isDeleted=${localItem.isDeleted}. Queueing local status reset to push.")
-                    toInsertOrUpdate.add(
-                        localItem.copy(
-                            isSynced = false
+        if (!isDeltaSync) {
+            // Ghost Data Cleanup: Only in Initial Full Sync Mode
+            for (localItem in localList) {
+                if (!remoteMap.containsKey(localItem.anilistId)) {
+                    if (localItem.isSynced) {
+                        // Ghost: synced previously but missing from full download
+                        AppLogger.d(TAG, "performPullSync (Full): Ghost Data found (local marked synced but missing on remote): anilistId=${localItem.anilistId}. Queueing physical deletion.")
+                        toDeleteIds.add(localItem.anilistId)
+                    } else {
+                        // Local-only dirty/deleted record: keep locally and mark unsynced to push
+                        AppLogger.d(TAG, "performPullSync (Full): Local-only dirty record found: anilistId=${localItem.anilistId}. Keeping and marking unsynced.")
+                        toInsertOrUpdate.add(
+                            localItem.copy(
+                                isSynced = false
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
 
-        // 3. Atomically apply changes
-        AppLogger.d(TAG, "performFullSync: Merge processing complete. Queueing DB Transaction. toInsertOrUpdate count: ${toInsertOrUpdate.size}, toDeleteLocally count: ${toDeleteLocally.size}")
-        if (toInsertOrUpdate.isNotEmpty() || toDeleteLocally.isNotEmpty()) {
-            userTrackingDao.applyMergeResults(toInsertOrUpdate, toDeleteLocally)
-            AppLogger.d(TAG, "performFullSync: DB Transaction committed successfully")
+        // 3. Apply DB updates
+        AppLogger.d(TAG, "performPullSync: Merge processing complete. toInsertOrUpdate count: ${toInsertOrUpdate.size}, toDeleteIds count: ${toDeleteIds.size}")
+        if (toInsertOrUpdate.isNotEmpty() || toDeleteIds.isNotEmpty()) {
+            userTrackingDao.applyMergeResults(toInsertOrUpdate = toInsertOrUpdate, toDeleteIds = toDeleteIds)
+            AppLogger.d(TAG, "performPullSync: DB Transaction committed successfully")
         } else {
-            AppLogger.d(TAG, "performFullSync: No database changes required for merge.")
+            AppLogger.d(TAG, "performPullSync: No database changes required for pull.")
         }
     }
 
-    private suspend fun performIncrementalSync(userId: String) {
+    private suspend fun performPushSync(userId: String) {
         val unsynced = userTrackingDao.getUnsyncedTracking()
         if (unsynced.isEmpty()) {
-            AppLogger.d(TAG, "performIncrementalSync: No unsynced (dirty) tracking records found. Skipping incremental sync.")
+            AppLogger.d(TAG, "performPushSync: No unsynced (dirty) tracking records found. Skipping push.")
             return
         }
 
-        AppLogger.d(TAG, "performIncrementalSync: Found ${unsynced.size} unsynced tracking records. Starting incremental batch sync...")
+        AppLogger.d(TAG, "performPushSync: Found ${unsynced.size} unsynced tracking records. Starting push phase...")
 
         // Separate active and soft-deleted records
         val activeUnsynced = unsynced.filter { !it.isDeleted }
         val deletedUnsynced = unsynced.filter { it.isDeleted }
 
-        // 1. Process soft-deleted records (Upsert to remote with is_deleted = true)
+        // 1. Process soft-deleted records (Upsert to remote with is_deleted = true and updated last_modified)
         if (deletedUnsynced.isNotEmpty()) {
-            AppLogger.d(TAG, "performIncrementalSync: Uploading ${deletedUnsynced.size} tombstone deletions to remote...")
+            AppLogger.d(TAG, "performPushSync: Uploading ${deletedUnsynced.size} tombstone deletions to remote...")
+            val currentPushTime = Instant.now().toString()
             val deleteDtos = deletedUnsynced.map { entity ->
                 SupabaseUserTrackingDto(
                     userId = userId,
@@ -253,26 +309,26 @@ class SyncEngine @Inject constructor(
                     episodeProgress = entity.episodeProgress,
                     score = entity.score,
                     notes = entity.notes,
-                    lastModified = formatEpochMilliToTimestamptz(entity.lastModified),
+                    lastModified = currentPushTime,
                     isDeleted = true
                 )
             }
             try {
                 supabaseClient.from("user_tracking").upsert(deleteDtos)
-                AppLogger.d(TAG, "performIncrementalSync: Remote deletion successful for ${deletedUnsynced.size} items. Proceeding with local SQLite physical deletions...")
-                
-                // Delete locally from SQLite only after successful server confirmation
+                AppLogger.d(TAG, "performPushSync: Remote deletion successful. Proceeding with local physical eviction...")
+
+                // Evict locally: physical delete in SQLite
                 userTrackingDao.deleteBatch(deletedUnsynced)
-                AppLogger.d(TAG, "performIncrementalSync: Successfully deleted ${deletedUnsynced.size} items from local SQLite.")
+                AppLogger.d(TAG, "performPushSync: Successfully physically deleted ${deletedUnsynced.size} items from local SQLite.")
             } catch (e: Exception) {
-                AppLogger.e(TAG, "performIncrementalSync: Failed to upload tombstones to remote: ${e.message}", e)
+                AppLogger.e(TAG, "performPushSync: Failed to upload tombstones to remote: ${e.message}", e)
                 throw e
             }
         }
 
         // 2. Process active dirty records (Batch Upsert to remote)
         if (activeUnsynced.isNotEmpty()) {
-            AppLogger.d(TAG, "performIncrementalSync: Uploading ${activeUnsynced.size} active records to remote...")
+            AppLogger.d(TAG, "performPushSync: Uploading ${activeUnsynced.size} active records to remote...")
             val dtos = activeUnsynced.map { entity ->
                 SupabaseUserTrackingDto(
                     userId = userId,
@@ -287,15 +343,14 @@ class SyncEngine @Inject constructor(
             }
             try {
                 supabaseClient.from("user_tracking").upsert(dtos)
-                AppLogger.d(TAG, "performIncrementalSync: Remote upsert successful for ${activeUnsynced.size} items. Proceeding with atomic local state update...")
+                AppLogger.d(TAG, "performPushSync: Remote upsert successful. Marking local records synced...")
 
-                // Atomic state update with concurrency check
                 val ids = activeUnsynced.map { it.anilistId }
                 val timestamps = activeUnsynced.map { it.lastModified }
-                val rowsUpdated = userTrackingDao.markRecordsSynced(ids, timestamps)
-                AppLogger.d(TAG, "performIncrementalSync: Successfully marked records synced locally. markRecordsSynced executed. IDs: $ids")
+                userTrackingDao.markRecordsSynced(ids, timestamps)
+                AppLogger.d(TAG, "performPushSync: Successfully marked active records synced locally.")
             } catch (e: Exception) {
-                AppLogger.e(TAG, "performIncrementalSync: Failed to upload active records to remote: ${e.message}", e)
+                AppLogger.e(TAG, "performPushSync: Failed to upload active records to remote: ${e.message}", e)
                 throw e
             }
         }

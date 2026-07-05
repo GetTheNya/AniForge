@@ -67,16 +67,23 @@ abstract class UserTrackingDao(val db: RoomDatabase) {
         }
     }
 
+    @Query("DELETE FROM user_tracking WHERE anilist_id IN (:anilistIds)")
+    abstract suspend fun deleteByAnimeIds(anilistIds: List<Long>)
+
     @Transaction
     open suspend fun applyMergeResults(
         toInsertOrUpdate: List<UserTrackingEntity>,
-        toDelete: List<UserTrackingEntity>
+        toDelete: List<UserTrackingEntity> = emptyList(),
+        toDeleteIds: List<Long> = emptyList()
     ) {
         if (toInsertOrUpdate.isNotEmpty()) {
             insertOrUpdateBatch(toInsertOrUpdate)
         }
         if (toDelete.isNotEmpty()) {
             deleteBatch(toDelete)
+        }
+        if (toDeleteIds.isNotEmpty()) {
+            deleteByAnimeIds(toDeleteIds)
         }
     }
 }
