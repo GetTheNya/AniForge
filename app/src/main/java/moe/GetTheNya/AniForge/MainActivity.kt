@@ -888,6 +888,17 @@ class MainActivity : ComponentActivity() {
                                                             onBack = { triggerDismissAnimation(entry) }
                                                         )
                                                     }
+                                                    is Screen.AccountSettings -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.profile.AccountSettingsViewModel::class.java]
+                                                         }
+                                                         moe.GetTheNya.AniForge.ui.profile.AccountSettingsScreen(
+                                                             viewModel = scopedViewModel,
+                                                             navController = navController,
+                                                             modifier = Modifier.padding(innerPadding),
+                                                             onBack = { triggerDismissAnimation(entry) }
+                                                         )
+                                                     }
                                                     is Screen.Settings -> {
                                                         val scopedViewModel = remember(entry) {
                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.settings.SettingsViewModel::class.java]

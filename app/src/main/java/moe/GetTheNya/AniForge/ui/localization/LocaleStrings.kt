@@ -15,6 +15,7 @@ data class LocaleStrings(
     val dashboardScreen: DashboardScreenStrings = DashboardScreenStrings(),
     val detailScreen: DetailScreenStrings = DetailScreenStrings(),
     val profileScreen: ProfileScreenStrings = ProfileScreenStrings(),
+    val accountSettings: AccountSettingsStrings = AccountSettingsStrings(),
     val settingsScreen: SettingsScreenStrings = SettingsScreenStrings(),
     val devSettings: DevSettingsStrings = DevSettingsStrings(),
     val formats: FormatStrings = FormatStrings(),
@@ -210,6 +211,26 @@ data class ProfileScreenStrings(
     val signInWithGoogle: String = "[profileScreen.signInWithGoogle]",
     val signOut: String = "[profileScreen.signOut]",
     val signedInAs: String = "[profileScreen.signedInAs]"
+)
+
+@Serializable
+data class AccountSettingsStrings(
+    val title: String = "[accountSettings.title]",
+    val usernameLabel: String = "[accountSettings.usernameLabel]",
+    val usernamePlaceholder: String = "[accountSettings.usernamePlaceholder]",
+    val save: String = "[accountSettings.save]",
+    val signOut: String = "[accountSettings.signOut]",
+    val errorTooShort: String = "[accountSettings.errorTooShort]",
+    val errorTooLong: String = "[accountSettings.errorTooLong]",
+    val errorInvalidChars: String = "[accountSettings.errorInvalidChars]",
+    val errorAlreadyTaken: String = "[accountSettings.errorAlreadyTaken]",
+    val errorServerRejected: String = "[accountSettings.errorServerRejected]",
+    val errorGeneric: String = "[accountSettings.errorGeneric]",
+    val success: String = "[accountSettings.success]",
+    val signOutConfirmTitle: String = "[accountSettings.signOutConfirmTitle]",
+    val signOutConfirmText: String = "[accountSettings.signOutConfirmText]",
+    val signOutConfirmOk: String = "[accountSettings.signOutConfirmOk]",
+    val signOutConfirmCancel: String = "[accountSettings.signOutConfirmCancel]"
 )
 
 @Serializable

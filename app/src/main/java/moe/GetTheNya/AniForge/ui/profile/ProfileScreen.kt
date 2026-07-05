@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -126,6 +127,7 @@ fun ProfileScreen(
     val coroutineScope = rememberCoroutineScope()
     val credentialManager = remember { CredentialManager.create(context) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val isLoggingIn = remember { mutableStateOf(false) }
 
     val density = LocalDensity.current
     val expandedHeight = 80.dp
@@ -151,66 +153,87 @@ fun ProfileScreen(
 
             // User Info or Sign In button
             if (currentUser != null) {
-                // Authenticated Profile Card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = SurfaceDark
-                    )
-                ) {
-                    Column(
+                if (currentUser!!.isProfileLoading) {
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = SurfaceDark
+                        )
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp)
+                                .height(64.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(TransparentAccent)
-                                    .border(2.dp, NeonCoral, CircleShape),
-                                contentAlignment = Alignment.Center
+                            CircularProgressIndicator(
+                                color = NeonCoral,
+                                modifier = Modifier.size(32.dp),
+                                strokeWidth = 3.dp
+                            )
+                        }
+                    }
+                } else {
+                    // Authenticated Profile Card
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                navController.navigate(Screen.AccountSettings)
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = SurfaceDark
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = currentUser!!.username.firstOrNull()?.uppercase() ?: "?",
-                                    color = NeonCoral,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = currentUser!!.username,
-                                    color = TextPrimary,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            
-                            IconButton(
-                                onClick = {
-                                    viewModel.signOut()
-                                },
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0x1AE53935))
-                                    .border(1.dp, Color(0x33E53935), RoundedCornerShape(8.dp))
-                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(TransparentAccent)
+                                        .border(2.dp, NeonCoral, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = currentUser!!.username.firstOrNull()?.uppercase() ?: "?",
+                                        color = NeonCoral,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.width(16.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = currentUser!!.username,
+                                        color = TextPrimary,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
                                 Icon(
-                                    imageVector = Icons.Default.ExitToApp,
-                                    contentDescription = strings.profileScreen.signOut,
-                                    tint = Color(0xFFE53935)
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = strings.accountSettings.title,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -222,6 +245,7 @@ fun ProfileScreen(
                     onClick = {
                         coroutineScope.launch {
                             try {
+                                isLoggingIn.value = true
                                 AppLogger.i("Auth", "Initializing Google Sign-In using Credential Manager...")
                                 val googleIdOption = GetGoogleIdOption.Builder()
                                     .setFilterByAuthorizedAccounts(false)
@@ -245,6 +269,7 @@ fun ProfileScreen(
                                     val idToken = googleIdTokenCredential.idToken
                                     
                                     viewModel.signInWithIdToken(idToken) { res ->
+                                        isLoggingIn.value = false
                                         if (res.isFailure) {
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar("Sign-in failed: ${res.exceptionOrNull()?.message}")
@@ -252,11 +277,14 @@ fun ProfileScreen(
                                         }
                                     }
                                 } else {
+                                    isLoggingIn.value = false
                                     AppLogger.w("Auth", "Unexpected credential type retrieved: ${credential.type}")
                                 }
                             } catch (e: GetCredentialException) {
+                                isLoggingIn.value = false
                                 AppLogger.e("Auth", "Credential Manager failed: ${e.message}", e)
                             } catch (e: Exception) {
+                                isLoggingIn.value = false
                                 AppLogger.e("Auth", "Google Sign-in flow encountered an error: ${e.message}", e)
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar("Sign-in failed: ${e.message}")
@@ -264,6 +292,7 @@ fun ProfileScreen(
                             }
                         }
                     },
+                    enabled = !isLoggingIn.value,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SurfaceDark.copy(alpha = 0.85f),
                         contentColor = TextPrimary
@@ -274,23 +303,31 @@ fun ProfileScreen(
                         .fillMaxWidth()
                         .height(56.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = GoogleLogoVector,
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(20.dp)
+                    if (isLoggingIn.value) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = NeonCoral,
+                            strokeWidth = 2.dp
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = strings.profileScreen.signInWithGoogle,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = GoogleLogoVector,
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = strings.profileScreen.signInWithGoogle,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                        }
                     }
                 }
             }

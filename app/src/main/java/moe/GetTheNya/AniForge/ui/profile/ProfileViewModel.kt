@@ -28,11 +28,21 @@ class ProfileViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            var lastLoggedUserId: String? = null
+            var lastLoggedUsername: String? = null
             authRepository.currentUser.collect { user ->
                 if (user != null) {
-                    AppLogger.i("Auth", "User logged in: ${user.username} (${user.id})")
+                    if (user.id != lastLoggedUserId || user.username != lastLoggedUsername) {
+                        AppLogger.i("Auth", "User logged in: ${user.username} (${user.id})")
+                        lastLoggedUserId = user.id
+                        lastLoggedUsername = user.username
+                    }
                 } else {
-                    AppLogger.i("Auth", "No active user session (logged out)")
+                    if (lastLoggedUserId != null) {
+                        AppLogger.i("Auth", "No active user session (logged out)")
+                        lastLoggedUserId = null
+                        lastLoggedUsername = null
+                    }
                 }
             }
         }

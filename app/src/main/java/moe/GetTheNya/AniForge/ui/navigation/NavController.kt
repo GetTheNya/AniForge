@@ -36,6 +36,7 @@ sealed interface Screen {
     data object LogViewer : Screen
     data class Settings(val initialTab: Int = 0) : Screen
     data object DevSettings : Screen
+    data object AccountSettings : Screen
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
     data object Library : Screen
     data class FranchiseTree(val franchiseId: Long) : Screen

@@ -200,6 +200,24 @@
     "signOut": "Sign Out",
     "signedInAs": "Signed in as"
   },
+  "accountSettings": {
+    "title": "Account Settings",
+    "usernameLabel": "Username",
+    "usernamePlaceholder": "Enter new username",
+    "save": "Save",
+    "signOut": "Sign Out",
+    "errorTooShort": "Username must be at least 3 characters",
+    "errorTooLong": "Username must be at most 15 characters",
+    "errorInvalidChars": "Only letters, digits, periods (.), underscores (_) and hyphens (-) are allowed",
+    "errorAlreadyTaken": "This nickname is already taken by another user.",
+    "errorServerRejected": "The server rejected this username. Invalid characters or length.",
+    "errorGeneric": "Failed to save username. Please check your internet connection.",
+    "success": "Changes saved successfully.",
+    "signOutConfirmTitle": "Sign Out",
+    "signOutConfirmText": "Are you sure you want to sign out?",
+    "signOutConfirmOk": "Sign Out",
+    "signOutConfirmCancel": "Cancel"
+  },
   "settingsScreen": {
     "title": "Settings",
     "tabAppearance": "Appearance",
