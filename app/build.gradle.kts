@@ -76,6 +76,11 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:network"))
 
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+
     // Dependency Injection
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

@@ -39,6 +39,13 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_tracking` ADD COLUMN `is_synced` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE `user_tracking` ADD COLUMN `is_deleted` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -55,7 +62,7 @@ object DatabaseModule {
             "user_data.db"
         )
         .openHelperFactory(RequerySQLiteOpenHelperFactory())
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebuggable) {

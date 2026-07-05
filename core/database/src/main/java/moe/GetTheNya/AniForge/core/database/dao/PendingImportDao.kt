@@ -89,14 +89,18 @@ abstract class PendingImportDao(val db: RoomDatabase) {
                     watchStatus = finalStatus,
                     episodeProgress = progress,
                     score = finalScore,
-                    lastModified = System.currentTimeMillis()
+                    lastModified = System.currentTimeMillis(),
+                    isSynced = false,
+                    isDeleted = false
                 ) ?: moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity(
                     anilistId = matchedId,
                     watchStatus = finalStatus,
                     episodeProgress = progress,
                     score = finalScore,
                     notes = null,
-                    lastModified = System.currentTimeMillis()
+                    lastModified = System.currentTimeMillis(),
+                    isSynced = false,
+                    isDeleted = false
                 )
                 userTrackingDao.insertOrUpdate(tracking)
             }

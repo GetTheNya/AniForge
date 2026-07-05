@@ -23,5 +23,11 @@ data class UserTrackingEntity(
     val notes: String?,
     
     @ColumnInfo(name = "last_modified")
-    val lastModified: Long
+    val lastModified: Long,
+
+    @ColumnInfo(name = "is_synced", defaultValue = "0")
+    val isSynced: Boolean = false,
+
+    @ColumnInfo(name = "is_deleted", defaultValue = "0")
+    val isDeleted: Boolean = false
 )

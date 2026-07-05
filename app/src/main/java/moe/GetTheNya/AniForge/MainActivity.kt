@@ -106,6 +106,7 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import moe.GetTheNya.AniForge.sync.SyncEngine
 import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.ui.franchises.LibraryScreen
 import moe.GetTheNya.AniForge.ui.franchises.LibraryViewModel
@@ -165,6 +166,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var userTrackingRepository: UserTrackingRepository
+
+    @Inject
+    lateinit var syncEngine: SyncEngine
 
     private val dashboardViewModel: DashboardViewModel by viewModels()
     private val homeViewModel: HomeViewModel by viewModels()

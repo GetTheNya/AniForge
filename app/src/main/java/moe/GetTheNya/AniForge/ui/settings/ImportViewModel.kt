@@ -508,6 +508,7 @@ class ImportViewModel @Inject constructor(
                     )
                     
                     userTrackingRepository.recalculateTotalWatchTime()
+                    userTrackingRepository.triggerSync()
                 }
                 
                 _state.value = ImportState()

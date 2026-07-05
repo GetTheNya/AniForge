@@ -10,6 +10,7 @@ import moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import moe.GetTheNya.AniForge.sync.SyncEngine
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,7 +19,8 @@ class UserTrackingRepository @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val animeRepository: AnimeRepository,
     private val settingsProvider: SettingsProvider,
-    private val userStatsDao: UserStatsDao
+    private val userStatsDao: UserStatsDao,
+    private val syncEngine: SyncEngine
 ) {
     val gestureCenter: Flow<QuickGestureAction> = settingsProvider.gestureCenterStr
         .map { QuickGestureAction.fromString(it) }
@@ -34,6 +36,10 @@ class UserTrackingRepository @Inject constructor(
 
     val gestureRight: Flow<QuickGestureAction> = settingsProvider.gestureRightStr
         .map { QuickGestureAction.fromString(it) }
+
+    fun triggerSync() {
+        syncEngine.triggerSync()
+    }
 
     suspend fun incrementChaosMeter() = withContext(Dispatchers.IO) {
         userStatsDao.incrementChaosMeter(1)
@@ -51,23 +57,22 @@ class UserTrackingRepository @Inject constructor(
         }
 
         if (currentTracking != null && currentTracking.watchStatus == status) {
-            // Toggle off: clicking the already-active status removes the tracking entry.
+            // Toggle off: clicking the already-active status soft-deletes the tracking entry.
             val oldProgress = currentTracking.episodeProgress
             val watchTimeDelta = -oldProgress.toLong() * duration
             if (watchTimeDelta != 0L) {
                 userStatsDao.incrementWatchTime(watchTimeDelta)
             }
 
-            val updated = currentTracking.copy(
+            val softDeleted = currentTracking.copy(
                 watchStatus = "",
                 episodeProgress = 0,
-                lastModified = System.currentTimeMillis()
+                lastModified = System.currentTimeMillis(),
+                isSynced = false,
+                isDeleted = true
             )
-            if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
-                userTrackingDao.delete(currentTracking)
-            } else {
-                userTrackingDao.insertOrUpdate(updated)
-            }
+            userTrackingDao.insertOrUpdate(softDeleted)
+            syncEngine.triggerSync()
         } else {
             // Sync-lag override: when the user manually marks a still-RELEASING
             // anime as COMPLETED, trust their intent and auto-bump episode progress
@@ -93,16 +98,21 @@ class UserTrackingRepository @Inject constructor(
             val updated = currentTracking?.copy(
                 watchStatus = status,
                 episodeProgress = progress,
-                lastModified = System.currentTimeMillis()
+                lastModified = System.currentTimeMillis(),
+                isSynced = false,
+                isDeleted = false
             ) ?: UserTrackingEntity(
                 anilistId = anilistId,
                 watchStatus = status,
                 episodeProgress = progress,
                 score = null,
                 notes = null,
-                lastModified = System.currentTimeMillis()
+                lastModified = System.currentTimeMillis(),
+                isSynced = false,
+                isDeleted = false
             )
             userTrackingDao.insertOrUpdate(updated)
+            syncEngine.triggerSync()
         }
     }
 
@@ -110,21 +120,32 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val updated = currentTracking?.copy(
             score = score,
-            lastModified = System.currentTimeMillis()
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
         ) ?: UserTrackingEntity(
             anilistId = anilistId,
             watchStatus = "",
             episodeProgress = 0,
             score = score,
             notes = null,
-            lastModified = System.currentTimeMillis()
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
         )
         if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
             if (currentTracking != null) {
-                userTrackingDao.delete(currentTracking)
+                val softDeleted = currentTracking.copy(
+                    isDeleted = true,
+                    isSynced = false,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(softDeleted)
+                syncEngine.triggerSync()
             }
         } else {
             userTrackingDao.insertOrUpdate(updated)
+            syncEngine.triggerSync()
         }
     }
 
@@ -132,21 +153,32 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val updated = currentTracking?.copy(
             notes = notes,
-            lastModified = System.currentTimeMillis()
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
         ) ?: UserTrackingEntity(
             anilistId = anilistId,
             watchStatus = "",
             episodeProgress = 0,
             score = null,
             notes = notes,
-            lastModified = System.currentTimeMillis()
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
         )
         if (updated.watchStatus.isEmpty() && updated.episodeProgress == 0 && updated.score == null && updated.notes.isNullOrEmpty()) {
             if (currentTracking != null) {
-                userTrackingDao.delete(currentTracking)
+                val softDeleted = currentTracking.copy(
+                    isDeleted = true,
+                    isSynced = false,
+                    lastModified = System.currentTimeMillis()
+                )
+                userTrackingDao.insertOrUpdate(softDeleted)
+                syncEngine.triggerSync()
             }
         } else {
             userTrackingDao.insertOrUpdate(updated)
+            syncEngine.triggerSync()
         }
     }
 
@@ -159,7 +191,13 @@ class UserTrackingRepository @Inject constructor(
             if (watchTimeDelta != 0L) {
                 userStatsDao.incrementWatchTime(watchTimeDelta)
             }
-            userTrackingDao.delete(currentTracking)
+            val softDeleted = currentTracking.copy(
+                isDeleted = true,
+                isSynced = false,
+                lastModified = System.currentTimeMillis()
+            )
+            userTrackingDao.insertOrUpdate(softDeleted)
+            syncEngine.triggerSync()
         }
     }
 
@@ -190,22 +228,30 @@ class UserTrackingRepository @Inject constructor(
             userStatsDao.incrementWatchTime(watchTimeDelta)
         }
 
-        val updated = currentTracking?.let {
-            val statusChanged = it.watchStatus != status
-            it.copy(
-                watchStatus = status,
-                episodeProgress = progress,
-                lastModified = if (statusChanged) System.currentTimeMillis() else it.lastModified
-            )
-        } ?: UserTrackingEntity(
+        val statusChanged = currentTracking?.let { it.watchStatus != status } ?: true
+        val progressChanged = currentTracking?.let { it.episodeProgress != progress } ?: true
+        val isModified = statusChanged || progressChanged
+
+        val updated = currentTracking?.copy(
+            watchStatus = status,
+            episodeProgress = progress,
+            lastModified = if (isModified) System.currentTimeMillis() else currentTracking.lastModified,
+            isSynced = if (isModified) false else currentTracking.isSynced,
+            isDeleted = false
+        ) ?: UserTrackingEntity(
             anilistId = anilistId,
             watchStatus = status,
             episodeProgress = progress,
             score = null,
             notes = null,
-            lastModified = System.currentTimeMillis()
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
         )
         userTrackingDao.insertOrUpdate(updated)
+        if (isModified) {
+            syncEngine.triggerSync()
+        }
     }
 
     suspend fun recalculateTotalWatchTime() = withContext(Dispatchers.IO) {
