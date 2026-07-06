@@ -490,6 +490,16 @@
     "commonTitlesBadge": "%d%% спільних тайтлів",
     "localProgressLabel": "Локальний прогрес: %d / %d завершено",
     "friendFiltersLabel": "Статус списку друга",
-    "localUserFiltersLabel": "Мій статус списку"
+    "localUserFiltersLabel": "Мій статус списку",
+    "cloneCollection": "Зберегти до бібліотеки",
+    "cloneSuccess": "Колекцію скопійовано до бібліотеки",
+    "coWatch": "Спільний перегляд",
+    "moviesOnly": "Повнометражки",
+    "randomPick": "Випадковий вибір",
+    "reroll": "Перекрутити",
+    "viewDetails": "Детальніше",
+    "noOverlappingMovies": "Не знайдено спільних повнометражок у списках запланованого",
+    "noOverlappingPlanning": "Не знайдено спільних тайтлів у списках запланованого",
+    "animeRouletteTitle": "Аніме-рулетка"
   }
 }

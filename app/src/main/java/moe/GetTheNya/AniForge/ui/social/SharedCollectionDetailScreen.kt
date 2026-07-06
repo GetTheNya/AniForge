@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ContentCopy
+import android.widget.Toast
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -91,6 +93,27 @@ fun SharedCollectionDetailScreen(
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (!isLoading && errorMessage == null && animeList.isNotEmpty()) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(
+                        onClick = {
+                            viewModel.cloneCollectionToLibrary(
+                                onSuccess = {
+                                    Toast.makeText(context, strings.socialScreen.cloneSuccess, Toast.LENGTH_SHORT).show()
+                                },
+                                onFailure = { error ->
+                                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = strings.socialScreen.cloneCollection,
+                            tint = TextPrimary
                         )
                     }
                 }

@@ -32,6 +32,14 @@ data class FriendTrackingItem(
     val anime: Anime?
 )
 
+data class SharedProfileFilterParams(
+    val query: String,
+    val friendFilters: Map<String, Int>,
+    val localFilters: Map<String, Int>,
+    val coWatch: Boolean,
+    val moviesOnly: Boolean
+)
+
 data class SharedCollectionWithData(
     val collectionId: String,
     val title: String,
@@ -87,6 +95,15 @@ class SharedProfileViewModel @Inject constructor(
     private val _localStatusFilters = MutableStateFlow<Map<String, Int>>(emptyMap())
     val localStatusFilters = _localStatusFilters.asStateFlow()
 
+    private val _coWatchActive = MutableStateFlow(false)
+    val coWatchActive = _coWatchActive.asStateFlow()
+
+    private val _moviesOnlyActive = MutableStateFlow(false)
+    val moviesOnlyActive = _moviesOnlyActive.asStateFlow()
+
+    private val _selectedRouletteAnime = MutableStateFlow<Anime?>(null)
+    val selectedRouletteAnime = _selectedRouletteAnime.asStateFlow()
+
     val compatibilityPercentage = combine(
         _allFriendTrackingItems,
         _localTrackingMap
@@ -102,51 +119,82 @@ class SharedProfileViewModel @Inject constructor(
         null
     )
 
+    private val filterParams = combine(
+        _searchQuery,
+        _friendStatusFilters,
+        _localStatusFilters,
+        _coWatchActive,
+        _moviesOnlyActive
+    ) { query, friendFilters, localFilters, coWatch, moviesOnly ->
+        SharedProfileFilterParams(query, friendFilters, localFilters, coWatch, moviesOnly)
+    }
+
     val filteredWatchList = combine(
         _allFriendTrackingItems,
         _localTrackingMap,
-        _searchQuery,
-        _friendStatusFilters,
-        _localStatusFilters
-    ) { allItems, localMap, query, friendFilters, localFilters ->
+        filterParams
+    ) { allItems, localMap, params ->
         allItems.filter { item ->
             // 1. Text Search
-            val matchesText = if (query.isBlank()) {
+            val matchesText = if (params.query.isBlank()) {
                 true
             } else {
                 val anime = item.anime
                 anime != null && (
-                    anime.titleRomaji.contains(query, ignoreCase = true) ||
-                    anime.titleEn?.contains(query, ignoreCase = true) == true ||
-                    anime.titleUk?.contains(query, ignoreCase = true) == true
+                    anime.titleRomaji.contains(params.query, ignoreCase = true) ||
+                    anime.titleEn?.contains(params.query, ignoreCase = true) == true ||
+                    anime.titleUk?.contains(params.query, ignoreCase = true) == true
                 )
             }
+            if (!matchesText) return@filter false
 
-            // 2. Friend Status Filters
-            val friendStatus = item.tracking.watchStatus
-            val includedFriendStatuses = friendFilters.filter { it.value == 1 }.keys
-            val excludedFriendStatuses = friendFilters.filter { it.value == 2 }.keys
+            // 2. Co-Watch check
+            if (params.coWatch) {
+                // The Friend's remote status is strictly PLANNING.
+                // The Local user's Room database status for the same anilist_id is also strictly PLANNING.
+                val friendStatus = item.tracking.watchStatus
+                val localTracking = localMap[item.tracking.anilistId]
+                val localStatus = if (localTracking != null && !localTracking.isDeleted) localTracking.watchStatus else ""
+                if (friendStatus != "PLANNING" || localStatus != "PLANNING") {
+                    return@filter false
+                }
+            } else {
+                // Standard Friend Status Filters
+                val friendStatus = item.tracking.watchStatus
+                val includedFriendStatuses = params.friendFilters.filter { it.value == 1 }.keys
+                val excludedFriendStatuses = params.friendFilters.filter { it.value == 2 }.keys
 
-            val matchesFriendStatus = when {
-                excludedFriendStatuses.contains(friendStatus) -> false
-                includedFriendStatuses.isNotEmpty() -> includedFriendStatuses.contains(friendStatus)
-                else -> true
+                val matchesFriendStatus = when {
+                    excludedFriendStatuses.contains(friendStatus) -> false
+                    includedFriendStatuses.isNotEmpty() -> includedFriendStatuses.contains(friendStatus)
+                    else -> true
+                }
+                if (!matchesFriendStatus) return@filter false
+
+                // Standard Local User Status Filters
+                val localTracking = localMap[item.tracking.anilistId]
+                val localStatus = if (localTracking != null && !localTracking.isDeleted) localTracking.watchStatus else ""
+
+                val includedLocalStatuses = params.localFilters.filter { it.value == 1 }.keys
+                val excludedLocalStatuses = params.localFilters.filter { it.value == 2 }.keys
+
+                val matchesLocalStatus = when {
+                    excludedLocalStatuses.contains(localStatus) -> false
+                    includedLocalStatuses.isNotEmpty() -> includedLocalStatuses.contains(localStatus)
+                    else -> true
+                }
+                if (!matchesLocalStatus) return@filter false
             }
 
-            // 3. Local User Status Filters
-            val localTracking = localMap[item.tracking.anilistId]
-            val localStatus = if (localTracking != null && !localTracking.isDeleted) localTracking.watchStatus else ""
-
-            val includedLocalStatuses = localFilters.filter { it.value == 1 }.keys
-            val excludedLocalStatuses = localFilters.filter { it.value == 2 }.keys
-
-            val matchesLocalStatus = when {
-                excludedLocalStatuses.contains(localStatus) -> false
-                includedLocalStatuses.isNotEmpty() -> includedLocalStatuses.contains(localStatus)
-                else -> true
+            // 3. Movie Filter
+            if (params.moviesOnly) {
+                val animeFormat = item.anime?.format
+                if (animeFormat != "MOVIE") {
+                    return@filter false
+                }
             }
 
-            matchesText && matchesFriendStatus && matchesLocalStatus
+            true
         }
     }.stateIn(
         viewModelScope,
@@ -178,10 +226,30 @@ class SharedProfileViewModel @Inject constructor(
         _friendStatusFilters.value = mapOf(status to 1)
     }
 
+    fun toggleCoWatch() {
+        _coWatchActive.value = !_coWatchActive.value
+    }
+
+    fun toggleMoviesOnly() {
+        _moviesOnlyActive.value = !_moviesOnlyActive.value
+    }
+
+    fun rollRoulette() {
+        val currentList = filteredWatchList.value.mapNotNull { it.anime }
+        _selectedRouletteAnime.value = currentList.randomOrNull()
+    }
+
+    fun clearRoulette() {
+        _selectedRouletteAnime.value = null
+    }
+
     fun clearAllFilters() {
         _searchQuery.value = ""
         _friendStatusFilters.value = mapOf("CURRENT" to 1)
         _localStatusFilters.value = emptyMap()
+        _coWatchActive.value = false
+        _moviesOnlyActive.value = false
+        _selectedRouletteAnime.value = null
     }
 
     init {

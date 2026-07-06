@@ -173,6 +173,35 @@ interface CollectionDao {
         return collectionId
     }
 
+    @Transaction
+    suspend fun cloneCollection(title: String, description: String, animeIds: List<Long>): String {
+        val newCollectionId = java.util.UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        insertCollection(
+            CollectionEntity(
+                id = newCollectionId,
+                title = title,
+                description = description,
+                createdAt = now,
+                isSynced = false,
+                isDeleted = false,
+                lastModified = now
+            )
+        )
+        val refs = animeIds.mapIndexed { index, animeId ->
+            CollectionAnimeCrossRef(
+                collectionId = newCollectionId,
+                animeId = animeId,
+                orderIndex = index,
+                isSynced = false,
+                isDeleted = false,
+                lastModified = now
+            )
+        }
+        insertCrossRefs(refs)
+        return newCollectionId
+    }
+
     @Query("SELECT * FROM collections WHERE title = :title AND is_deleted = 0 LIMIT 1")
     suspend fun getCollectionByTitle(title: String): CollectionEntity?
 }

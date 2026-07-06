@@ -481,6 +481,16 @@
     "commonTitlesBadge": "%d%% Common Titles",
     "localProgressLabel": "Local Progress: %d / %d completed",
     "friendFiltersLabel": "Friend's List Status",
-    "localUserFiltersLabel": "My List Status"
+    "localUserFiltersLabel": "My List Status",
+    "cloneCollection": "Save to Library",
+    "cloneSuccess": "Collection cloned to Library",
+    "coWatch": "Co-Watch",
+    "moviesOnly": "Movies Only",
+    "randomPick": "Random Pick",
+    "reroll": "Reroll",
+    "viewDetails": "View Details",
+    "noOverlappingMovies": "No overlapping movies found in your Planning lists",
+    "noOverlappingPlanning": "No overlapping titles found in your Planning lists",
+    "animeRouletteTitle": "Anime Roulette"
   }
 }

@@ -250,7 +250,17 @@ data class SocialScreenStrings(
     val commonTitlesBadge: String = "[socialScreen.commonTitlesBadge]",
     val localProgressLabel: String = "[socialScreen.localProgressLabel]",
     val friendFiltersLabel: String = "[socialScreen.friendFiltersLabel]",
-    val localUserFiltersLabel: String = "[socialScreen.localUserFiltersLabel]"
+    val localUserFiltersLabel: String = "[socialScreen.localUserFiltersLabel]",
+    val cloneCollection: String = "[socialScreen.cloneCollection]",
+    val cloneSuccess: String = "[socialScreen.cloneSuccess]",
+    val coWatch: String = "[socialScreen.coWatch]",
+    val moviesOnly: String = "[socialScreen.moviesOnly]",
+    val randomPick: String = "[socialScreen.randomPick]",
+    val reroll: String = "[socialScreen.reroll]",
+    val viewDetails: String = "[socialScreen.viewDetails]",
+    val noOverlappingMovies: String = "[socialScreen.noOverlappingMovies]",
+    val noOverlappingPlanning: String = "[socialScreen.noOverlappingPlanning]",
+    val animeRouletteTitle: String = "[socialScreen.animeRouletteTitle]"
 )
 
 @Serializable

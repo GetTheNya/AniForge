@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.dao.CollectionDao
+import moe.GetTheNya.AniForge.core.database.entity.CollectionEntity
+import moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef
+import moe.GetTheNya.AniForge.sync.SyncEngine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
@@ -27,7 +31,9 @@ class SharedCollectionDetailViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
     private val animeRepository: AnimeRepository,
     private val settingsProvider: SettingsProvider,
-    private val userTrackingDao: UserTrackingDao
+    private val userTrackingDao: UserTrackingDao,
+    private val collectionDao: CollectionDao,
+    private val syncEngine: SyncEngine
 ) : ViewModel() {
 
     val localCompletedAnimeIds = userTrackingDao.observeAllTracking()
@@ -103,6 +109,39 @@ class SharedCollectionDetailViewModel @Inject constructor(
                 _errorMessage.value = e.localizedMessage ?: "Failed to load collection"
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun cloneCollectionToLibrary(onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        val title = _collectionTitle.value
+        val description = _collectionDescription.value
+        val animeIds = _animeList.value.map { it.anilistId }
+
+        if (title.isBlank()) {
+            onFailure("Collection metadata is not loaded")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    collectionDao.cloneCollection(title, description, animeIds)
+                }
+
+                // Silent background push
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        syncEngine.pushDirtyCollectionsOnly()
+                    } catch (e: Exception) {
+                        Log.e("SharedCollectionDetailVM", "Silent backup sync failed", e)
+                    }
+                }
+
+                onSuccess()
+            } catch (e: Exception) {
+                Log.e("SharedCollectionDetailVM", "Failed to clone collection", e)
+                onFailure(e.localizedMessage ?: "Cloning failed")
             }
         }
     }

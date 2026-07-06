@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material3.*
 import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
 import androidx.compose.runtime.*
@@ -288,53 +290,120 @@ fun SharedProfileScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                // Scrollable Row of Status Chips
+                                // Extra modifier chips: Co-Watch, Movies Only
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState())
-                                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                                        .padding(horizontal = 24.dp, vertical = 4.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    val statusPairs = listOf(
-                                        "CURRENT" to strings.misc.watching,
-                                        "PLANNING" to strings.misc.planning,
-                                        "COMPLETED" to strings.misc.completed,
-                                        "PAUSED" to strings.misc.paused,
-                                        "DROPPED" to strings.misc.dropped
+                                    val isCoWatchActive by viewModel.coWatchActive.collectAsState()
+                                    FilterChip(
+                                        selected = isCoWatchActive,
+                                        onClick = { viewModel.toggleCoWatch() },
+                                        label = { Text(text = strings.socialScreen.coWatch) },
+                                        leadingIcon = if (isCoWatchActive) {
+                                            { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                        } else null,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = ElectricViolet.copy(alpha = 0.15f),
+                                            selectedLabelColor = ElectricViolet,
+                                            selectedLeadingIconColor = ElectricViolet,
+                                            containerColor = SurfaceDark,
+                                            labelColor = TextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isCoWatchActive,
+                                            borderColor = if (isCoWatchActive) ElectricViolet else CardBorder,
+                                            selectedBorderColor = ElectricViolet,
+                                            borderWidth = 1.dp
+                                        )
                                     )
-                                    statusPairs.forEach { (status, label) ->
-                                        val isSelected = selectedStatus == status
-                                        val chipColor = AnimeStatusColors[status] ?: NeonCoral
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(if (isSelected) chipColor.copy(alpha = 0.15f) else SurfaceDark)
-                                                .border(1.dp, if (isSelected) chipColor else CardBorder, RoundedCornerShape(20.dp))
-                                                .clickable { viewModel.setSingleFriendStatus(status) }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        ) {
-                                            Text(
-                                                text = label,
-                                                color = if (isSelected) chipColor else TextSecondary,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
+
+                                    val isMoviesOnlyActive by viewModel.moviesOnlyActive.collectAsState()
+                                    FilterChip(
+                                        selected = isMoviesOnlyActive,
+                                        onClick = { viewModel.toggleMoviesOnly() },
+                                        label = { Text(text = strings.socialScreen.moviesOnly) },
+                                        leadingIcon = if (isMoviesOnlyActive) {
+                                            { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                        } else null,
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = NeonCoral.copy(alpha = 0.15f),
+                                            selectedLabelColor = NeonCoral,
+                                            selectedLeadingIconColor = NeonCoral,
+                                            containerColor = SurfaceDark,
+                                            labelColor = TextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isMoviesOnlyActive,
+                                            borderColor = if (isMoviesOnlyActive) NeonCoral else CardBorder,
+                                            selectedBorderColor = NeonCoral,
+                                            borderWidth = 1.dp
+                                        )
+                                    )
+                                }
+
+                                val isCoWatchActive by viewModel.coWatchActive.collectAsState()
+                                if (!isCoWatchActive) {
+                                    // Scrollable Row of Status Chips
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState())
+                                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val statusPairs = listOf(
+                                            "CURRENT" to strings.misc.watching,
+                                            "PLANNING" to strings.misc.planning,
+                                            "COMPLETED" to strings.misc.completed,
+                                            "PAUSED" to strings.misc.paused,
+                                            "DROPPED" to strings.misc.dropped
+                                        )
+                                        statusPairs.forEach { (status, label) ->
+                                            val isSelected = selectedStatus == status
+                                            val chipColor = AnimeStatusColors[status] ?: NeonCoral
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(if (isSelected) chipColor.copy(alpha = 0.15f) else SurfaceDark)
+                                                    .border(1.dp, if (isSelected) chipColor else CardBorder, RoundedCornerShape(20.dp))
+                                                    .clickable { viewModel.setSingleFriendStatus(status) }
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    color = if (isSelected) chipColor else TextSecondary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
                                         }
                                     }
                                 }
 
                                 val currentList = filteredWatchList
+                                val isMoviesOnlyActive by viewModel.moviesOnlyActive.collectAsState()
 
                                 if (currentList.isEmpty()) {
                                     Box(
                                         modifier = Modifier.weight(1f).fillMaxWidth(),
                                         contentAlignment = Alignment.Center
                                     ) {
+                                        val hintText = when {
+                                            isCoWatchActive && isMoviesOnlyActive -> strings.socialScreen.noOverlappingMovies
+                                            isCoWatchActive -> strings.socialScreen.noOverlappingPlanning
+                                            else -> strings.socialScreen.noActiveAnime
+                                        }
                                         Text(
-                                            text = strings.socialScreen.noActiveAnime,
+                                            text = hintText,
                                             color = TextSecondary,
-                                            fontSize = 15.sp
+                                            fontSize = 15.sp,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier.padding(horizontal = 24.dp)
                                         )
                                     }
                                 } else {
@@ -519,6 +588,105 @@ fun SharedProfileScreen(
                 }
             }
         }
+        val isCoWatchActive by viewModel.coWatchActive.collectAsState()
+        val isMoviesOnlyActive by viewModel.moviesOnlyActive.collectAsState()
+        val selectedRouletteAnime by viewModel.selectedRouletteAnime.collectAsState()
+
+        if (selectedTab == 0 && (isCoWatchActive || isMoviesOnlyActive)) {
+            val isEnabled = filteredWatchList.isNotEmpty()
+            ExtendedFloatingActionButton(
+                onClick = {
+                    if (isEnabled) {
+                        viewModel.rollRoulette()
+                    }
+                },
+                containerColor = if (isEnabled) ElectricViolet else SurfaceDark,
+                contentColor = if (isEnabled) Color.White else TextSecondary,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(horizontal = 24.dp, vertical = 24.dp)
+                    .border(1.dp, if (isEnabled) Color.Transparent else CardBorder, RoundedCornerShape(16.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Casino,
+                    contentDescription = strings.socialScreen.randomPick
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = strings.socialScreen.randomPick)
+            }
+        }
+
+        if (selectedRouletteAnime != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearRoulette() },
+                title = {
+                    Text(
+                        text = strings.socialScreen.animeRouletteTitle,
+                        color = TextPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        AsyncImage(
+                            model = selectedRouletteAnime!!.coverLarge ?: selectedRouletteAnime!!.coverExtraLarge,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(width = 120.dp, height = 170.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = selectedRouletteAnime!!.getDisplayTitle(preferUk),
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        selectedRouletteAnime!!.format?.let { format ->
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = format,
+                                color = NeonCoral,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val id = selectedRouletteAnime!!.anilistId
+                            viewModel.clearRoulette()
+                            navController.navigate(Screen.Detail(anilistId = id))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                    ) {
+                        Text(text = strings.socialScreen.viewDetails, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { viewModel.rollRoulette() },
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary)
+                    ) {
+                        Text(text = strings.socialScreen.reroll, color = TextPrimary)
+                    }
+                },
+                containerColor = SurfaceDark,
+                tonalElevation = 6.dp
+            )
+        }
+
         if (showFilterSheet) {
             FilterBottomSheet(
                 isCatalog = false,
