@@ -6,10 +6,12 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
@@ -85,7 +87,7 @@ class SyncEngine @Inject constructor(
                     if (currentId != lastUserId) {
                         AppLogger.d(TAG, "Auth state changed to logged in for user $currentId (previous: $lastUserId). Triggering sync.")
                         lastUserId = currentId
-                        triggerSync()
+                        synchronizeAll()
                     } else {
                         AppLogger.d(TAG, "Auth state emitted with same user ID $currentId. Skipping duplicate trigger.")
                     }
@@ -96,28 +98,21 @@ class SyncEngine @Inject constructor(
         }
     }
 
-    fun triggerSync() {
-        AppLogger.d(TAG, "triggerSync() called")
-        syncScope.launch {
-            runSyncInternal()
-        }
-    }
-
-    private suspend fun runSyncInternal() {
+    suspend fun synchronizeAll() = withContext(NonCancellable) {
         val user = authRepository.currentSessionUser
         if (user == null) {
-            AppLogger.d(TAG, "runSyncInternal: No current authenticated user session. Sync aborted.")
-            return
+            AppLogger.d(TAG, "synchronizeAll: No current authenticated user session. Sync aborted.")
+            return@withContext
         }
         val userId = user.id
-        AppLogger.d(TAG, "runSyncInternal starting for user: $userId")
+        AppLogger.d(TAG, "synchronizeAll starting for user: $userId")
 
         syncMutex.withLock {
             try {
                 val lastSyncTimeKey = "last_successful_sync_time_$userId"
                 val lastSyncTime = prefs.getString(lastSyncTimeKey, null)
                 val isDeltaSync = !lastSyncTime.isNullOrEmpty()
-                AppLogger.d(TAG, "runSyncInternal: lastSyncTime = $lastSyncTime, isDeltaSync = $isDeltaSync")
+                AppLogger.d(TAG, "synchronizeAll: lastSyncTime = $lastSyncTime, isDeltaSync = $isDeltaSync")
 
                 if (isDeltaSync) {
                     AppLogger.d(TAG, "Starting Delta Sync Mode for user: $userId")
@@ -135,6 +130,42 @@ class SyncEngine @Inject constructor(
                 AppLogger.d(TAG, "Sync cycle completed successfully. Saved last_successful_sync_time: $currentUtcTime")
             } catch (e: Exception) {
                 AppLogger.e(TAG, "Sync failed with exception: ${e.message}", e)
+            }
+        }
+    }
+
+    suspend fun pushDirtyAnimeOnly() = withContext(NonCancellable) {
+        val user = authRepository.currentSessionUser
+        if (user == null) {
+            AppLogger.d(TAG, "pushDirtyAnimeOnly: No current authenticated user session. Push aborted.")
+            return@withContext
+        }
+        val userId = user.id
+        AppLogger.d(TAG, "pushDirtyAnimeOnly starting for user: $userId")
+
+        syncMutex.withLock {
+            try {
+                performPushSync(userId)
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "pushDirtyAnimeOnly failed silently: ${e.message}", e)
+            }
+        }
+    }
+
+    suspend fun pushDirtyCollectionsOnly() = withContext(NonCancellable) {
+        val user = authRepository.currentSessionUser
+        if (user == null) {
+            AppLogger.d(TAG, "pushDirtyCollectionsOnly: No current authenticated user session. Push aborted.")
+            return@withContext
+        }
+        val userId = user.id
+        AppLogger.d(TAG, "pushDirtyCollectionsOnly starting for user: $userId")
+
+        syncMutex.withLock {
+            try {
+                performCollectionsPushSync(userId)
+            } catch (e: Exception) {
+                AppLogger.w(TAG, "pushDirtyCollectionsOnly failed silently: ${e.message}", e)
             }
         }
     }

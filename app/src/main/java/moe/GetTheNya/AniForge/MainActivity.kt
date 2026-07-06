@@ -284,6 +284,7 @@ class MainActivity : ComponentActivity() {
             // Check for catalog database updates asynchronously on application startup
             LaunchedEffect(Unit) {
                 databaseManager.updateCatalogIfAvailable()
+                syncEngine.synchronizeAll()
             }
 
             val screenWidth = LocalConfiguration.current.screenWidthDp.dp

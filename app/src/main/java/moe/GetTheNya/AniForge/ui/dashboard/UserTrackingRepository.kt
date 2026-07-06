@@ -1,8 +1,11 @@
 package moe.GetTheNya.AniForge.ui.dashboard
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
 import moe.GetTheNya.AniForge.core.database.dao.UserStatsDao
@@ -37,9 +40,7 @@ class UserTrackingRepository @Inject constructor(
     val gestureRight: Flow<QuickGestureAction> = settingsProvider.gestureRightStr
         .map { QuickGestureAction.fromString(it) }
 
-    fun triggerSync() {
-        syncEngine.triggerSync()
-    }
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun incrementChaosMeter() = withContext(Dispatchers.IO) {
         userStatsDao.incrementChaosMeter(1)
@@ -72,7 +73,9 @@ class UserTrackingRepository @Inject constructor(
                 isDeleted = true
             )
             userTrackingDao.insertOrUpdate(softDeleted)
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         } else {
             // Sync-lag override: when the user manually marks a still-RELEASING
             // anime as COMPLETED, trust their intent and auto-bump episode progress
@@ -112,7 +115,9 @@ class UserTrackingRepository @Inject constructor(
                 isDeleted = false
             )
             userTrackingDao.insertOrUpdate(updated)
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         }
     }
 
@@ -141,11 +146,15 @@ class UserTrackingRepository @Inject constructor(
                     lastModified = System.currentTimeMillis()
                 )
                 userTrackingDao.insertOrUpdate(softDeleted)
-                syncEngine.triggerSync()
+                repositoryScope.launch {
+                    syncEngine.pushDirtyAnimeOnly()
+                }
             }
         } else {
             userTrackingDao.insertOrUpdate(updated)
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         }
     }
 
@@ -174,11 +183,15 @@ class UserTrackingRepository @Inject constructor(
                     lastModified = System.currentTimeMillis()
                 )
                 userTrackingDao.insertOrUpdate(softDeleted)
-                syncEngine.triggerSync()
+                repositoryScope.launch {
+                    syncEngine.pushDirtyAnimeOnly()
+                }
             }
         } else {
             userTrackingDao.insertOrUpdate(updated)
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         }
     }
 
@@ -197,7 +210,9 @@ class UserTrackingRepository @Inject constructor(
                 lastModified = System.currentTimeMillis()
             )
             userTrackingDao.insertOrUpdate(softDeleted)
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         }
     }
 
@@ -250,7 +265,9 @@ class UserTrackingRepository @Inject constructor(
         )
         userTrackingDao.insertOrUpdate(updated)
         if (isModified) {
-            syncEngine.triggerSync()
+            repositoryScope.launch {
+                syncEngine.pushDirtyAnimeOnly()
+            }
         }
     }
 

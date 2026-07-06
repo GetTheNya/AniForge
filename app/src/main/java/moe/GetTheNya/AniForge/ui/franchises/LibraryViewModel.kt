@@ -1,5 +1,6 @@
 package moe.GetTheNya.AniForge.ui.franchises
 
+import moe.GetTheNya.AniForge.sync.SyncEngine
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -65,7 +66,8 @@ class LibraryViewModel @Inject constructor(
     private val collectionDao: CollectionDao,
     private val userTrackingDao: UserTrackingDao,
     private val settingsProvider: SettingsProvider,
-    private val userTrackingRepository: UserTrackingRepository
+    private val userTrackingRepository: UserTrackingRepository,
+    private val syncEngine: SyncEngine
 ) : ViewModel() {
 
     val searchQuery = MutableStateFlow("")
@@ -307,6 +309,9 @@ class LibraryViewModel @Inject constructor(
             if (idsToDelete.isNotEmpty()) {
                 collectionDao.softDeleteCollectionsWithRefs(idsToDelete)
                 clearSelection()
+                launch {
+                    syncEngine.pushDirtyCollectionsOnly()
+                }
             }
         }
     }
@@ -382,6 +387,9 @@ class LibraryViewModel @Inject constructor(
                 lastModified = System.currentTimeMillis()
             )
             collectionDao.insertCollection(collection)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 

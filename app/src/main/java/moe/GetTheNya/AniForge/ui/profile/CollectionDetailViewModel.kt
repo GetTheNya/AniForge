@@ -16,6 +16,7 @@ import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.model.Anime
 import javax.inject.Inject
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
+import moe.GetTheNya.AniForge.sync.SyncEngine
 
 @HiltViewModel
 class CollectionDetailViewModel @Inject constructor(
@@ -24,6 +25,7 @@ class CollectionDetailViewModel @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val settingsProvider: SettingsProvider,
     private val userTrackingRepository: moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository,
+    private val syncEngine: SyncEngine,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -152,6 +154,9 @@ class CollectionDetailViewModel @Inject constructor(
                 )
             }
             collectionDao.insertCrossRefs(crossRefs)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 
@@ -167,12 +172,18 @@ class CollectionDetailViewModel @Inject constructor(
                 lastModified = System.currentTimeMillis()
             )
             collectionDao.insertCrossRef(ref)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 
     fun removeAnimeFromCollection(animeId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             collectionDao.softDeleteCrossRef(collectionId, animeId)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 
@@ -181,6 +192,9 @@ class CollectionDetailViewModel @Inject constructor(
             val timestamp = System.currentTimeMillis()
             collectionDao.softDeleteCollectionById(collectionId, timestamp)
             collectionDao.softDeleteCrossRefsForCollection(collectionId, timestamp)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 
@@ -195,6 +209,9 @@ class CollectionDetailViewModel @Inject constructor(
                 lastModified = System.currentTimeMillis()
             )
             collectionDao.updateCollection(updated)
+            launch {
+                syncEngine.pushDirtyCollectionsOnly()
+            }
         }
     }
 

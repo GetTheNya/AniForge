@@ -1,5 +1,6 @@
 package moe.GetTheNya.AniForge.ui.settings
 
+import moe.GetTheNya.AniForge.sync.SyncEngine
 import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -78,7 +79,8 @@ class ImportViewModel @Inject constructor(
     private val collectionDao: CollectionDao,
     private val pendingImportDao: PendingImportDao,
     private val localizationService: LocalizationService,
-    private val aniListApiService: AniListApiService
+    private val aniListApiService: AniListApiService,
+    private val syncEngine: SyncEngine
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ImportState())
@@ -508,7 +510,8 @@ class ImportViewModel @Inject constructor(
                     )
                     
                     userTrackingRepository.recalculateTotalWatchTime()
-                    userTrackingRepository.triggerSync()
+                    syncEngine.pushDirtyAnimeOnly()
+                    syncEngine.pushDirtyCollectionsOnly()
                 }
                 
                 _state.value = ImportState()
