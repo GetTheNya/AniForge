@@ -133,7 +133,7 @@ fun FilterBottomSheet(
     onSortOptionSelected: ((SortOption) -> Unit)? = null,
     onListSortOptionSelected: ((ListSortOption) -> Unit)? = null,
     onScoreRangeChanged: ((Double?, Double?) -> Unit)? = null,
-    onFormatToggled: (AnimeFormat) -> Unit,
+    onFormatToggled: (AnimeFormat) -> Unit = {},
     onEpisodeGroupToggled: ((EpisodeGroup) -> Unit)? = null,
     onTrackingStatusToggled: ((String) -> Unit)? = null,
     onMediaStatusToggled: ((String) -> Unit)? = null,
@@ -142,13 +142,18 @@ fun FilterBottomSheet(
     onClearMediaSourceFilters: (() -> Unit)? = null,
     onUkTranslationFilterToggled: (() -> Unit)? = null,
     onStudioFilterToggled: ((Long) -> Unit)? = null,
-    onGenreFilterToggled: (String) -> Unit,
+    onGenreFilterToggled: (String) -> Unit = {},
     onTagFilterToggled: ((Long) -> Unit)? = null,
     onStaffFilterToggled: ((Long) -> Unit)? = null,
-    onClearGenreFilters: () -> Unit,
+    onClearGenreFilters: () -> Unit = {},
     onClearTagFilters: (() -> Unit)? = null,
     onClearStudioFilters: (() -> Unit)? = null,
-    onClearStaffFilters: (() -> Unit)? = null
+    onClearStaffFilters: (() -> Unit)? = null,
+    isSharedProfile: Boolean = false,
+    friendStatusFilters: Map<String, Int> = emptyMap(),
+    localStatusFilters: Map<String, Int> = emptyMap(),
+    onFriendStatusFilterToggled: ((String) -> Unit)? = null,
+    onLocalStatusFilterToggled: ((String) -> Unit)? = null
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val scope = rememberCoroutineScope()
@@ -334,10 +339,81 @@ fun FilterBottomSheet(
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                item {
-                    // 1. Sort By
-                    Column {
-                        Text(text = strings.dashboardScreen.sortBy, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (isSharedProfile) {
+                    item {
+                        Column {
+                            Text(
+                                text = strings.socialScreen.friendFiltersLabel,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val statusOptions = listOf(
+                                    "CURRENT" to strings.misc.watching,
+                                    "PLANNING" to strings.misc.planning,
+                                    "COMPLETED" to strings.misc.completed,
+                                    "PAUSED" to strings.misc.paused,
+                                    "DROPPED" to strings.misc.dropped
+                                )
+                                for ((statusId, label) in statusOptions) {
+                                    val filterVal = friendStatusFilters[statusId] ?: 0
+                                    TriStateChip(
+                                        label = label,
+                                        isIncluded = filterVal == 1,
+                                        isExcluded = filterVal == 2,
+                                        onClick = { onFriendStatusFilterToggled?.invoke(statusId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Column {
+                            Text(
+                                text = strings.socialScreen.localUserFiltersLabel,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val statusOptions = listOf(
+                                    "CURRENT" to strings.misc.watching,
+                                    "PLANNING" to strings.misc.planning,
+                                    "COMPLETED" to strings.misc.completed,
+                                    "PAUSED" to strings.misc.paused,
+                                    "DROPPED" to strings.misc.dropped
+                                )
+                                for ((statusId, label) in statusOptions) {
+                                    val filterVal = localStatusFilters[statusId] ?: 0
+                                    TriStateChip(
+                                        label = label,
+                                        isIncluded = filterVal == 1,
+                                        isExcluded = filterVal == 2,
+                                        onClick = { onLocalStatusFilterToggled?.invoke(statusId) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        // 1. Sort By
+                        Column {
+                            Text(text = strings.dashboardScreen.sortBy, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         if (isCatalog && catalogFilter != null) {
@@ -1026,6 +1102,7 @@ fun FilterBottomSheet(
                         }
                     }
                 }
+            }
             }
             
             // Footer Apply Button

@@ -477,6 +477,10 @@
     "userStatisticsTitle": "User Statistics",
     "sharedCollectionsTitle": "Shared Collections",
     "networkExceptionAlert": "Failed to load shared profile data.",
-    "noCollections": "No collections found."
+    "noCollections": "No collections found.",
+    "commonTitlesBadge": "%d%% Common Titles",
+    "localProgressLabel": "Local Progress: %d / %d completed",
+    "friendFiltersLabel": "Friend's List Status",
+    "localUserFiltersLabel": "My List Status"
   }
 }

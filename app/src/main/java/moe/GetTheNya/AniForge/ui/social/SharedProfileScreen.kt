@@ -17,7 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,8 +50,19 @@ fun SharedProfileScreen(
     val strings = LocalLocaleStrings.current
     val uiState by viewModel.uiState.collectAsState()
 
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val friendStatusFilters by viewModel.friendStatusFilters.collectAsState()
+    val localStatusFilters by viewModel.localStatusFilters.collectAsState()
+    val compatibilityPercentage by viewModel.compatibilityPercentage.collectAsState()
+    val filteredWatchList by viewModel.filteredWatchList.collectAsState()
+
     var selectedTab by remember { mutableStateOf(0) }
-    var selectedStatus by remember { mutableStateOf("CURRENT") }
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    val selectedStatus = remember(friendStatusFilters) {
+        val included = friendStatusFilters.filter { it.value == 1 }.keys
+        if (included.size == 1) included.first() else ""
+    }
 
     Box(
         modifier = modifier
@@ -126,6 +140,22 @@ fun SharedProfileScreen(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
+                        compatibilityPercentage?.let { pct ->
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = ElectricViolet.copy(alpha = 0.15f),
+                                modifier = Modifier.border(1.dp, ElectricViolet.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            ) {
+                                Text(
+                                    text = String.format(strings.socialScreen.commonTitlesBadge, pct),
+                                    color = ElectricViolet,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -203,6 +233,60 @@ fun SharedProfileScreen(
                         0 -> {
                             // Lists Tab
                             Column(modifier = Modifier.fillMaxSize()) {
+                                // Search & Filtering Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextField(
+                                        value = searchQuery,
+                                        onValueChange = { viewModel.setSearchQuery(it) },
+                                        placeholder = {
+                                            Text(
+                                                text = strings.misc.search,
+                                                color = TextSecondary
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = null,
+                                                tint = TextSecondary
+                                            )
+                                        },
+                                        singleLine = true,
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = Color.Transparent,
+                                            unfocusedContainerColor = Color.Transparent,
+                                            disabledContainerColor = Color.Transparent,
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent,
+                                            cursorColor = NeonCoral,
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { showFilterSheet = true },
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(SurfaceDark)
+                                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FilterList,
+                                            contentDescription = strings.dashboardScreen.filterTooltip,
+                                            tint = TextPrimary
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
                                 // Scrollable Row of Status Chips
                                 Row(
                                     modifier = Modifier
@@ -225,7 +309,7 @@ fun SharedProfileScreen(
                                                 .clip(RoundedCornerShape(20.dp))
                                                 .background(if (isSelected) NeonCoral.copy(alpha = 0.15f) else SurfaceDark)
                                                 .border(1.dp, if (isSelected) NeonCoral else CardBorder, RoundedCornerShape(20.dp))
-                                                .clickable { selectedStatus = status }
+                                                .clickable { viewModel.setSingleFriendStatus(status) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Text(
@@ -238,7 +322,7 @@ fun SharedProfileScreen(
                                     }
                                 }
 
-                                val currentList = uiState.segmentedWatchLists[selectedStatus] ?: emptyList()
+                                val currentList = filteredWatchList
 
                                 if (currentList.isEmpty()) {
                                     Box(
@@ -257,7 +341,7 @@ fun SharedProfileScreen(
                                         contentPadding = PaddingValues(bottom = 24.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        items(currentList) { item ->
+                                        items(currentList, key = { it.tracking.anilistId }) { item ->
                                             val anime = item.anime
                                             val tracking = item.tracking
 
@@ -422,7 +506,7 @@ fun SharedProfileScreen(
                                     onStatusClick = { statusId ->
                                         // Switch to Lists tab and select watch status
                                         selectedTab = 0
-                                        selectedStatus = statusId
+                                        viewModel.setSingleFriendStatus(statusId)
                                     },
                                     friends = emptyList(), // Read-only dashboard does not show friends list
                                     onSocialClick = {}
@@ -432,6 +516,24 @@ fun SharedProfileScreen(
                     }
                 }
             }
+        }
+        if (showFilterSheet) {
+            FilterBottomSheet(
+                isCatalog = false,
+                onDismiss = { showFilterSheet = false },
+                allGenres = emptyList(),
+                allTags = emptyList(),
+                allStudios = emptyList(),
+                allStaff = emptyList(),
+                preferUkTitles = preferUk,
+                filteredCount = filteredWatchList.size,
+                friendStatusFilters = friendStatusFilters,
+                localStatusFilters = localStatusFilters,
+                onFriendStatusFilterToggled = { viewModel.toggleFriendStatusFilter(it) },
+                onLocalStatusFilterToggled = { viewModel.toggleLocalStatusFilter(it) },
+                onClearAllFilters = { viewModel.clearAllFilters() },
+                isSharedProfile = true
+            )
         }
     }
 }

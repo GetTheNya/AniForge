@@ -246,7 +246,11 @@ data class SocialScreenStrings(
     val userStatisticsTitle: String = "[socialScreen.userStatisticsTitle]",
     val sharedCollectionsTitle: String = "[socialScreen.sharedCollectionsTitle]",
     val networkExceptionAlert: String = "[socialScreen.networkExceptionAlert]",
-    val noCollections: String = "[socialScreen.noCollections]"
+    val noCollections: String = "[socialScreen.noCollections]",
+    val commonTitlesBadge: String = "[socialScreen.commonTitlesBadge]",
+    val localProgressLabel: String = "[socialScreen.localProgressLabel]",
+    val friendFiltersLabel: String = "[socialScreen.friendFiltersLabel]",
+    val localUserFiltersLabel: String = "[socialScreen.localUserFiltersLabel]"
 )
 
 @Serializable

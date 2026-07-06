@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
 import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.core.model.Anime
@@ -22,8 +26,13 @@ class SharedCollectionDetailViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val socialRepository: SocialRepository,
     private val animeRepository: AnimeRepository,
-    private val settingsProvider: SettingsProvider
+    private val settingsProvider: SettingsProvider,
+    private val userTrackingDao: UserTrackingDao
 ) : ViewModel() {
+
+    val localCompletedAnimeIds = userTrackingDao.observeAllTracking()
+        .map { list -> list.filter { it.watchStatus == "COMPLETED" }.map { it.anilistId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
     val targetUserId: String = savedStateHandle.get<String>("targetUserId") ?: ""
     val collectionId: String = savedStateHandle.get<String>("collectionId") ?: ""

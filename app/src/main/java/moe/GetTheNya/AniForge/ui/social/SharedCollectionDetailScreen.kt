@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,24 +96,49 @@ fun SharedCollectionDetailScreen(
                 }
             }
 
-            // Summary Info Slot
-            Row(
+            // Local Progress Context & Summary Info Slot
+            val localCompletedAnimeIds by viewModel.localCompletedAnimeIds.collectAsState()
+            val completedCount = remember(animeList, localCompletedAnimeIds) {
+                animeList.count { it.anilistId in localCompletedAnimeIds }
+            }
+            val totalCount = animeList.size
+            val progressFraction = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                val countText = strings.libraryScreen.itemsCount.getPlural(animeList.size)
-                Text(
-                    text = countText,
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val countText = strings.libraryScreen.itemsCount.getPlural(animeList.size)
+                    Text(
+                        text = countText,
+                        color = TextSecondary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = String.format(strings.socialScreen.localProgressLabel, completedCount, totalCount),
+                        color = ElectricViolet,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = ElectricViolet,
+                    trackColor = CardBorder
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             // Content List
             Box(

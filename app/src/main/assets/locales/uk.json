@@ -486,6 +486,10 @@
     "userStatisticsTitle": "Статистика користувача",
     "sharedCollectionsTitle": "Спільні колекції",
     "networkExceptionAlert": "Не вдалося завантажити дані спільного профілю.",
-    "noCollections": "Колекцій не знайдено."
+    "noCollections": "Колекцій не знайдено.",
+    "commonTitlesBadge": "%d%% спільних тайтлів",
+    "localProgressLabel": "Локальний прогрес: %d / %d завершено",
+    "friendFiltersLabel": "Статус списку друга",
+    "localUserFiltersLabel": "Мій статус списку"
   }
 }

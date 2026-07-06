@@ -14,6 +14,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity
 import moe.GetTheNya.AniForge.core.database.repository.AnimeRepository
+import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.core.model.BentoStatsData
 import moe.GetTheNya.AniForge.core.model.FranchiseGiantInfo
@@ -52,7 +58,8 @@ data class SharedProfileUiState(
 class SharedProfileViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val socialRepository: SocialRepository,
-    private val animeRepository: AnimeRepository
+    private val animeRepository: AnimeRepository,
+    private val userTrackingDao: UserTrackingDao
 ) : ViewModel() {
 
     val userId: String = savedStateHandle.get<String>("userId") ?: ""
@@ -66,7 +73,123 @@ class SharedProfileViewModel @Inject constructor(
     )
     val uiState = _uiState.asStateFlow()
 
+    private val _allFriendTrackingItems = MutableStateFlow<List<FriendTrackingItem>>(emptyList())
+    private val _localTrackingMap = MutableStateFlow<Map<Long, UserTrackingEntity>>(emptyMap())
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val _friendStatusFilters = MutableStateFlow<Map<String, Int>>(
+        mapOf("CURRENT" to 1) // default to CURRENT (Watching) as Include
+    )
+    val friendStatusFilters = _friendStatusFilters.asStateFlow()
+
+    private val _localStatusFilters = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val localStatusFilters = _localStatusFilters.asStateFlow()
+
+    val compatibilityPercentage = combine(
+        _allFriendTrackingItems,
+        _localTrackingMap
+    ) { friendItems, localMap ->
+        val friendIds = friendItems.map { it.tracking.anilistId }.toSet()
+        if (friendIds.isEmpty()) return@combine 0
+        val localIds = localMap.keys
+        val commonIds = friendIds.intersect(localIds)
+        (commonIds.size.toDouble() / friendIds.size * 100).toInt()
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        null
+    )
+
+    val filteredWatchList = combine(
+        _allFriendTrackingItems,
+        _localTrackingMap,
+        _searchQuery,
+        _friendStatusFilters,
+        _localStatusFilters
+    ) { allItems, localMap, query, friendFilters, localFilters ->
+        allItems.filter { item ->
+            // 1. Text Search
+            val matchesText = if (query.isBlank()) {
+                true
+            } else {
+                val anime = item.anime
+                anime != null && (
+                    anime.titleRomaji.contains(query, ignoreCase = true) ||
+                    anime.titleEn?.contains(query, ignoreCase = true) == true ||
+                    anime.titleUk?.contains(query, ignoreCase = true) == true
+                )
+            }
+
+            // 2. Friend Status Filters
+            val friendStatus = item.tracking.watchStatus
+            val includedFriendStatuses = friendFilters.filter { it.value == 1 }.keys
+            val excludedFriendStatuses = friendFilters.filter { it.value == 2 }.keys
+
+            val matchesFriendStatus = when {
+                excludedFriendStatuses.contains(friendStatus) -> false
+                includedFriendStatuses.isNotEmpty() -> includedFriendStatuses.contains(friendStatus)
+                else -> true
+            }
+
+            // 3. Local User Status Filters
+            val localTracking = localMap[item.tracking.anilistId]
+            val localStatus = if (localTracking != null && !localTracking.isDeleted) localTracking.watchStatus else ""
+
+            val includedLocalStatuses = localFilters.filter { it.value == 1 }.keys
+            val excludedLocalStatuses = localFilters.filter { it.value == 2 }.keys
+
+            val matchesLocalStatus = when {
+                excludedLocalStatuses.contains(localStatus) -> false
+                includedLocalStatuses.isNotEmpty() -> includedLocalStatuses.contains(localStatus)
+                else -> true
+            }
+
+            matchesText && matchesFriendStatus && matchesLocalStatus
+        }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun toggleFriendStatusFilter(status: String) {
+        val current = _friendStatusFilters.value[status] ?: 0
+        val next = (current + 1) % 3
+        _friendStatusFilters.value = _friendStatusFilters.value.toMutableMap().apply {
+            put(status, next)
+        }
+    }
+
+    fun toggleLocalStatusFilter(status: String) {
+        val current = _localStatusFilters.value[status] ?: 0
+        val next = (current + 1) % 3
+        _localStatusFilters.value = _localStatusFilters.value.toMutableMap().apply {
+            put(status, next)
+        }
+    }
+
+    fun setSingleFriendStatus(status: String) {
+        _friendStatusFilters.value = mapOf(status to 1)
+    }
+
+    fun clearAllFilters() {
+        _searchQuery.value = ""
+        _friendStatusFilters.value = mapOf("CURRENT" to 1)
+        _localStatusFilters.value = emptyMap()
+    }
+
     init {
+        viewModelScope.launch {
+            userTrackingDao.observeAllTracking().collect { list ->
+                _localTrackingMap.value = list.associateBy { it.anilistId }
+            }
+        }
         loadProfileData()
     }
 
@@ -191,6 +314,7 @@ class SharedProfileViewModel @Inject constructor(
                 }
 
                 // 6. Update UI state
+                _allFriendTrackingItems.value = pairedItems
                 _uiState.value = _uiState.value.copy(
                     userStats = userStats,
                     bentoStats = bentoStats,
