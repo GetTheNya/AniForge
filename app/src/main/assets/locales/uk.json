@@ -479,6 +479,13 @@
     "scoreLabel": "Оцінка: %s",
     "tabRequestsReceived": "Отримані",
     "tabRequestsSent": "Надіслані",
-    "cancelRequest": "Скасувати"
+    "cancelRequest": "Скасувати",
+    "tabLists": "Списки",
+    "tabCollections": "Колекції",
+    "tabStats": "Статистика",
+    "userStatisticsTitle": "Статистика користувача",
+    "sharedCollectionsTitle": "Спільні колекції",
+    "networkExceptionAlert": "Не вдалося завантажити дані спільного профілю.",
+    "noCollections": "Колекцій не знайдено."
   }
 }

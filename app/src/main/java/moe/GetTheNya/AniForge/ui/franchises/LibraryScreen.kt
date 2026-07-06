@@ -608,7 +608,8 @@ fun LibraryScreen(
                                 val collectionId = item.collection.id
                                 val isSelected = selectedCollectionIds.contains(collectionId)
                                 CollectionBentoCard(
-                                    collection = item.collection,
+                                    title = item.collection.title,
+                                    description = item.collection.description,
                                     posters = item.posters,
                                     totalCount = item.totalCount,
                                     statusCounts = item.statusCounts,
@@ -1237,13 +1238,14 @@ fun CreationSlotCard(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CollectionBentoCard(
-    collection: CollectionEntity,
+    title: String,
+    description: String,
     posters: List<String>,
     totalCount: Int,
     statusCounts: Map<String, Int>,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val selectTintAlpha by animateFloatAsState(
@@ -1440,7 +1442,7 @@ fun CollectionBentoCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = collection.title,
+                    text = title,
                     color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
@@ -1452,7 +1454,7 @@ fun CollectionBentoCard(
 
                 val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
                 Text(
-                    text = if (collection.description.isNotBlank()) collection.description else strings.libraryScreen.noDescription,
+                    text = if (description.isNotBlank()) description else strings.libraryScreen.noDescription,
                     color = TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,

@@ -239,7 +239,14 @@ data class SocialScreenStrings(
     val scoreLabel: String = "[socialScreen.scoreLabel]",
     val tabRequestsReceived: String = "[socialScreen.tabRequestsReceived]",
     val tabRequestsSent: String = "[socialScreen.tabRequestsSent]",
-    val cancelRequest: String = "[socialScreen.cancelRequest]"
+    val cancelRequest: String = "[socialScreen.cancelRequest]",
+    val tabLists: String = "[socialScreen.tabLists]",
+    val tabCollections: String = "[socialScreen.tabCollections]",
+    val tabStats: String = "[socialScreen.tabStats]",
+    val userStatisticsTitle: String = "[socialScreen.userStatisticsTitle]",
+    val sharedCollectionsTitle: String = "[socialScreen.sharedCollectionsTitle]",
+    val networkExceptionAlert: String = "[socialScreen.networkExceptionAlert]",
+    val noCollections: String = "[socialScreen.noCollections]"
 )
 
 @Serializable

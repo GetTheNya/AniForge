@@ -470,6 +470,13 @@
     "scoreLabel": "Score: %s",
     "tabRequestsReceived": "Received",
     "tabRequestsSent": "Sent",
-    "cancelRequest": "Cancel Request"
+    "cancelRequest": "Cancel Request",
+    "tabLists": "Lists",
+    "tabCollections": "Collections",
+    "tabStats": "Stats",
+    "userStatisticsTitle": "User Statistics",
+    "sharedCollectionsTitle": "Shared Collections",
+    "networkExceptionAlert": "Failed to load shared profile data.",
+    "noCollections": "No collections found."
   }
 }

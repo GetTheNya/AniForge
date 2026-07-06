@@ -54,6 +54,28 @@ data class SupabaseUserTrackingDto(
     @SerialName("is_deleted") val isDeleted: Boolean = false
 )
 
+@Serializable
+data class SupabaseCollectionDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("collection_id") val collectionId: String,
+    @SerialName("title") val title: String,
+    @SerialName("description") val description: String,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("last_modified") val lastModified: String,
+    @SerialName("is_deleted") val isDeleted: Boolean = false
+)
+
+@Serializable
+data class SupabaseCollectionAnimeCrossRefDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("collection_id") val collectionId: String,
+    @SerialName("anime_id") val animeId: Long,
+    @SerialName("order_index") val orderIndex: Int,
+    @SerialName("last_modified") val lastModified: String,
+    @SerialName("is_deleted") val isDeleted: Boolean = false
+)
+
+
 @Singleton
 class SocialRepository @Inject constructor(
     private val supabaseClient: SupabaseClient
@@ -247,6 +269,148 @@ class SocialRepository @Inject constructor(
                 .decodeList<SupabaseUserTrackingDto>()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching user tracking list: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getRemoteUserTrackingList(targetUserId: String): List<SupabaseUserTrackingDto> = withContext(Dispatchers.IO) {
+        try {
+            val allItems = mutableListOf<SupabaseUserTrackingDto>()
+            var page = 0
+            var hasMore = true
+            while (hasMore) {
+                val start = page * 1000
+                val end = start + 999
+                val pageItems = supabaseClient.from("user_tracking")
+                    .select {
+                        filter {
+                            eq("user_id", targetUserId)
+                            eq("is_deleted", false)
+                        }
+                        range(start.toLong(), end.toLong())
+                    }
+                    .decodeList<SupabaseUserTrackingDto>()
+                allItems.addAll(pageItems)
+                if (pageItems.size < 1000) {
+                    hasMore = false
+                } else {
+                    page++
+                }
+            }
+            allItems
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching remote user tracking list: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getRemoteCollections(targetUserId: String): List<SupabaseCollectionDto> = withContext(Dispatchers.IO) {
+        try {
+            val allItems = mutableListOf<SupabaseCollectionDto>()
+            var page = 0
+            var hasMore = true
+            while (hasMore) {
+                val start = page * 1000
+                val end = start + 999
+                val pageItems = supabaseClient.from("collections")
+                    .select {
+                        filter {
+                            eq("user_id", targetUserId)
+                            eq("is_deleted", false)
+                        }
+                        range(start.toLong(), end.toLong())
+                    }
+                    .decodeList<SupabaseCollectionDto>()
+                allItems.addAll(pageItems)
+                if (pageItems.size < 1000) {
+                    hasMore = false
+                } else {
+                    page++
+                }
+            }
+            allItems
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching remote collections: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getRemoteCollectionCrossRefs(targetUserId: String): List<SupabaseCollectionAnimeCrossRefDto> = withContext(Dispatchers.IO) {
+        try {
+            val allItems = mutableListOf<SupabaseCollectionAnimeCrossRefDto>()
+            var page = 0
+            var hasMore = true
+            while (hasMore) {
+                val start = page * 1000
+                val end = start + 999
+                val pageItems = supabaseClient.from("collection_anime_cross_ref")
+                    .select {
+                        filter {
+                            eq("user_id", targetUserId)
+                            eq("is_deleted", false)
+                        }
+                        range(start.toLong(), end.toLong())
+                    }
+                    .decodeList<SupabaseCollectionAnimeCrossRefDto>()
+                allItems.addAll(pageItems)
+                if (pageItems.size < 1000) {
+                    hasMore = false
+                } else {
+                    page++
+                }
+            }
+            allItems
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching remote collection cross refs: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getRemoteCollection(targetUserId: String, collectionId: String): SupabaseCollectionDto? = withContext(Dispatchers.IO) {
+        try {
+            supabaseClient.from("collections")
+                .select {
+                    filter {
+                        eq("user_id", targetUserId)
+                        eq("collection_id", collectionId)
+                        eq("is_deleted", false)
+                    }
+                }
+                .decodeSingleOrNull<SupabaseCollectionDto>()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching remote collection: ${e.message}", e)
+            null
+        }
+    }
+
+    suspend fun getRemoteCollectionCrossRefsForCollection(targetUserId: String, collectionId: String): List<SupabaseCollectionAnimeCrossRefDto> = withContext(Dispatchers.IO) {
+        try {
+            val allItems = mutableListOf<SupabaseCollectionAnimeCrossRefDto>()
+            var page = 0
+            var hasMore = true
+            while (hasMore) {
+                val start = page * 1000
+                val end = start + 999
+                val pageItems = supabaseClient.from("collection_anime_cross_ref")
+                    .select {
+                        filter {
+                            eq("user_id", targetUserId)
+                            eq("collection_id", collectionId)
+                            eq("is_deleted", false)
+                        }
+                        range(start.toLong(), end.toLong())
+                    }
+                    .decodeList<SupabaseCollectionAnimeCrossRefDto>()
+                allItems.addAll(pageItems)
+                if (pageItems.size < 1000) {
+                    hasMore = false
+                } else {
+                    page++
+                }
+            }
+            allItems
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching remote collection cross refs: ${e.message}", e)
             emptyList()
         }
     }

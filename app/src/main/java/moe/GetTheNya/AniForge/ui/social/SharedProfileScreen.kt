@@ -2,11 +2,18 @@ package moe.GetTheNya.AniForge.ui.social
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -22,8 +29,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import moe.GetTheNya.AniForge.ui.bento.BentoDashboardGrid
+import moe.GetTheNya.AniForge.ui.franchises.CollectionBentoCard
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.navigation.NavController
+import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
 
 @Composable
@@ -35,8 +45,10 @@ fun SharedProfileScreen(
     onBack: () -> Unit
 ) {
     val strings = LocalLocaleStrings.current
-    val trackingList by viewModel.trackingList.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+
+    var selectedTab by remember { mutableStateOf(0) }
+    var selectedStatus by remember { mutableStateOf("CURRENT") }
 
     Box(
         modifier = modifier
@@ -98,7 +110,7 @@ fun SharedProfileScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = viewModel.username.firstOrNull()?.uppercase() ?: "?",
+                            text = uiState.avatarLetter,
                             color = NeonCoral,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
@@ -109,7 +121,7 @@ fun SharedProfileScreen(
 
                     Column {
                         Text(
-                            text = viewModel.username,
+                            text = uiState.username,
                             color = TextPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
@@ -118,135 +130,303 @@ fun SharedProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Sub-header title
-            Text(
-                text = strings.socialScreen.activeWatching,
-                color = TextPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
+            // Sub-tabs Row (Lists, Collections, Stats)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val tabTitles = listOf(
+                    strings.socialScreen.tabLists,
+                    strings.socialScreen.tabCollections,
+                    strings.socialScreen.tabStats
+                )
+                tabTitles.forEachIndexed { index, title ->
+                    val isSelected = selectedTab == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark)
+                            .border(1.dp, if (isSelected) ElectricViolet else CardBorder, RoundedCornerShape(12.dp))
+                            .clickable { selectedTab = index }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = if (isSelected) ElectricViolet else TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
-            // Content List
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tab Content
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
             ) {
-                if (isLoading) {
+                if (uiState.isLoading) {
                     CircularProgressIndicator(
                         color = NeonCoral,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                } else if (trackingList.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                } else if (uiState.errorMessage != null) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = strings.socialScreen.noActiveAnime,
-                            color = TextSecondary,
-                            fontSize = 15.sp
+                            text = uiState.errorMessage ?: strings.socialScreen.networkExceptionAlert,
+                            color = NeonCoral,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.loadProfileData() },
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet)
+                        ) {
+                            Text(text = strings.misc.retry, color = Color.White)
+                        }
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(trackingList) { item ->
-                            val anime = item.anime
-                            val tracking = item.tracking
-
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp)),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
-                            ) {
+                    when (selectedTab) {
+                        0 -> {
+                            // Lists Tab
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                // Scrollable Row of Status Chips
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Poster Image
-                                    AsyncImage(
-                                        model = anime?.coverLarge ?: anime?.coverExtraLarge,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(width = 56.dp, height = 80.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(SurfaceCardDark)
+                                    val statusPairs = listOf(
+                                        "CURRENT" to strings.misc.watching,
+                                        "PLANNING" to strings.misc.planning,
+                                        "COMPLETED" to strings.misc.completed,
+                                        "PAUSED" to strings.misc.paused,
+                                        "DROPPED" to strings.misc.dropped
                                     )
+                                    statusPairs.forEach { (status, label) ->
+                                        val isSelected = selectedStatus == status
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(if (isSelected) NeonCoral.copy(alpha = 0.15f) else SurfaceDark)
+                                                .border(1.dp, if (isSelected) NeonCoral else CardBorder, RoundedCornerShape(20.dp))
+                                                .clickable { selectedStatus = status }
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSelected) NeonCoral else TextSecondary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
 
-                                    Spacer(modifier = Modifier.width(16.dp))
+                                val currentList = uiState.segmentedWatchLists[selectedStatus] ?: emptyList()
 
-                                    // Details
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.Center
+                                if (currentList.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = anime?.getDisplayTitle(preferUk) ?: "Unknown Anime",
-                                            color = TextPrimary,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
+                                            text = strings.socialScreen.noActiveAnime,
+                                            color = TextSecondary,
+                                            fontSize = 15.sp
                                         )
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 24.dp),
+                                        contentPadding = PaddingValues(bottom = 24.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(currentList) { item ->
+                                            val anime = item.anime
+                                            val tracking = item.tracking
 
-                                        Spacer(modifier = Modifier.height(6.dp))
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            // Episode Progress
-                                            val epText = if (anime != null) {
-                                                val totalPlanned = anime.episodes ?: 0
-                                                if (totalPlanned > 0) {
-                                                    String.format(strings.socialScreen.episodeProgress, tracking.episodeProgress, totalPlanned)
-                                                } else {
-                                                    "Ep. ${tracking.episodeProgress}"
-                                                }
-                                            } else {
-                                                "Ep. ${tracking.episodeProgress}"
-                                            }
-                                            Text(
-                                                text = epText,
-                                                color = TextSecondary,
-                                                fontSize = 13.sp
-                                            )
-
-                                            // Score
-                                            if (tracking.score != null) {
+                                            Card(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        if (anime != null) {
+                                                            navController.navigate(Screen.Detail(anilistId = anime.anilistId))
+                                                        }
+                                                    },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                                            ) {
                                                 Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Star,
+                                                    // Poster Image
+                                                    AsyncImage(
+                                                        model = anime?.coverLarge ?: anime?.coverExtraLarge,
                                                         contentDescription = null,
-                                                        tint = Color(0xFFFFD54F), // Amber/Yellow
-                                                        modifier = Modifier.size(16.dp)
+                                                        contentScale = ContentScale.Crop,
+                                                        modifier = Modifier
+                                                            .size(width = 56.dp, height = 80.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(SurfaceCardDark)
                                                     )
-                                                    Text(
-                                                        text = String.format(strings.socialScreen.scoreLabel, tracking.score.toString()),
-                                                        color = TextSecondary,
-                                                        fontSize = 13.sp
-                                                    )
+
+                                                    Spacer(modifier = Modifier.width(16.dp))
+
+                                                    // Details
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Text(
+                                                            text = anime?.getDisplayTitle(preferUk) ?: "Unknown Anime",
+                                                            color = TextPrimary,
+                                                            fontSize = 15.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            maxLines = 2,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+
+                                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                        ) {
+                                                            // Episode Progress
+                                                            val epText = if (anime != null) {
+                                                                val totalPlanned = anime.episodes ?: 0
+                                                                if (totalPlanned > 0) {
+                                                                    String.format(strings.socialScreen.episodeProgress, tracking.episodeProgress, totalPlanned)
+                                                                } else {
+                                                                    "Ep. ${tracking.episodeProgress}"
+                                                                }
+                                                            } else {
+                                                                "Ep. ${tracking.episodeProgress}"
+                                                            }
+                                                            Text(
+                                                                text = epText,
+                                                                color = TextSecondary,
+                                                                fontSize = 13.sp
+                                                            )
+
+                                                            // Score
+                                                            if (tracking.score != null) {
+                                                                Row(
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Star,
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFFFFD54F), // Amber/Yellow
+                                                                        modifier = Modifier.size(16.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = String.format(strings.socialScreen.scoreLabel, tracking.score.toString()),
+                                                                        color = TextSecondary,
+                                                                        fontSize = 13.sp
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
+                            }
+                        }
+                        1 -> {
+                            // Collections Tab
+                            val collectionsList = uiState.collectionsList
+                            if (collectionsList.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = strings.socialScreen.noCollections,
+                                        color = TextSecondary,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                            } else {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(2),
+                                    contentPadding = PaddingValues(bottom = 24.dp, start = 24.dp, end = 24.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(collectionsList) { col ->
+                                        CollectionBentoCard(
+                                            title = col.title,
+                                            description = col.description,
+                                            posters = col.posters,
+                                            totalCount = col.totalCount,
+                                            statusCounts = col.statusCounts,
+                                            isSelected = false,
+                                            onClick = {
+                                                navController.navigate(
+                                                    Screen.SharedCollectionDetail(
+                                                        targetUserId = viewModel.userId,
+                                                        collectionId = col.collectionId
+                                                    )
+                                                )
+                                            },
+                                            onLongClick = null // Disable context actions (delete/edit/drag)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        2 -> {
+                            // Stats Tab
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                            ) {
+                                BentoDashboardGrid(
+                                    stats = uiState.userStats,
+                                    bentoData = uiState.bentoStats,
+                                    trackingStats = uiState.trackingStats,
+                                    onStudioClick = {}, // Read-only: disable action
+                                    onGenreClick = {},
+                                    onCollectionClick = {
+                                        // Switch to Collections tab
+                                        selectedTab = 1
+                                    },
+                                    onStatusClick = { statusId ->
+                                        // Switch to Lists tab and select watch status
+                                        selectedTab = 0
+                                        selectedStatus = statusId
+                                    },
+                                    friends = emptyList(), // Read-only dashboard does not show friends list
+                                    onSocialClick = {}
+                                )
                             }
                         }
                     }

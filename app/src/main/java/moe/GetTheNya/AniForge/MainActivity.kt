@@ -965,6 +965,19 @@ class MainActivity : ComponentActivity() {
                                                              onBack = { triggerDismissAnimation(entry) }
                                                          )
                                                      }
+                                                     is Screen.SharedCollectionDetail -> {
+                                                         val scopedViewModel = remember(entry) {
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedCollectionDetailViewModel::class.java]
+                                                         }
+                                                         moe.GetTheNya.AniForge.ui.social.SharedCollectionDetailScreen(
+                                                             targetUserId = screen.targetUserId,
+                                                             collectionId = screen.collectionId,
+                                                             viewModel = scopedViewModel,
+                                                             navController = navController,
+                                                             modifier = Modifier.padding(innerPadding),
+                                                             onBack = { triggerDismissAnimation(entry) }
+                                                         )
+                                                     }
                                                     is Screen.Tabs -> {} /*
                                                          val scopedViewModel = remember(entry) {
                                                              ViewModelProvider(entry)[FranchiseTreeViewModel::class.java].apply {
