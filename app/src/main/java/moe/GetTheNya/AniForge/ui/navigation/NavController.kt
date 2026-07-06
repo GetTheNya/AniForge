@@ -29,7 +29,7 @@ sealed interface Screen {
     data class Detail(
         val anilistId: Long,
         val sourceStatusId: String? = null,
-        val sourceCollectionId: Int? = null,
+        val sourceCollectionId: String? = null,
         val rouletteCount: Int = 0,
         val visitedIds: String = ""
     ) : Screen
@@ -40,7 +40,7 @@ sealed interface Screen {
     data class ImageViewer(val urls: List<String>, val initialIndex: Int) : Screen
     data object Library : Screen
     data class FranchiseTree(val franchiseId: Long) : Screen
-    data class CollectionDetail(val collectionId: Int) : Screen
+    data class CollectionDetail(val collectionId: String) : Screen
     data object Social : Screen
     data class SharedProfile(val userId: String, val username: String) : Screen
 }
@@ -95,7 +95,7 @@ class BackStackEntry(
                 is Screen.Detail -> {
                     bundle.putLong("anilistId", s.anilistId)
                     s.sourceStatusId?.let { bundle.putString("sourceStatusId", it) }
-                    s.sourceCollectionId?.let { bundle.putInt("sourceCollectionId", it) }
+                    s.sourceCollectionId?.let { bundle.putString("sourceCollectionId", it) }
                     bundle.putInt("rouletteCount", s.rouletteCount)
                     bundle.putString("visitedIds", s.visitedIds)
                 }
@@ -103,7 +103,7 @@ class BackStackEntry(
                     bundle.putLong("franchiseId", s.franchiseId)
                 }
                 is Screen.CollectionDetail -> {
-                    bundle.putInt("collectionId", s.collectionId)
+                    bundle.putString("collectionId", s.collectionId)
                 }
                 is Screen.SharedProfile -> {
                     bundle.putString("userId", s.userId)

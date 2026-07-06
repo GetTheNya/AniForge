@@ -199,7 +199,7 @@ fun rememberDragDropListState(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CollectionDetailScreen(
-    collectionId: Int,
+    collectionId: String,
     viewModel: CollectionDetailViewModel,
     navController: NavController,
     modifier: Modifier = Modifier,

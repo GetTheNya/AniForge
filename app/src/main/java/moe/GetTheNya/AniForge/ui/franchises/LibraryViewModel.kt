@@ -280,7 +280,7 @@ class LibraryViewModel @Inject constructor(
 
     // --- Collections Section ---
 
-    val selectedCollectionIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedCollectionIds = MutableStateFlow<Set<String>>(emptySet())
     val isInSelectionMode: StateFlow<Boolean> = selectedCollectionIds.map { it.isNotEmpty() }
         .stateIn(
             scope = viewModelScope,
@@ -288,7 +288,7 @@ class LibraryViewModel @Inject constructor(
             initialValue = false
         )
 
-    fun toggleCollectionSelection(collectionId: Long) {
+    fun toggleCollectionSelection(collectionId: String) {
         val current = selectedCollectionIds.value
         if (current.contains(collectionId)) {
             selectedCollectionIds.value = current - collectionId
@@ -303,9 +303,9 @@ class LibraryViewModel @Inject constructor(
 
     fun deleteSelectedCollections() {
         viewModelScope.launch(Dispatchers.IO) {
-            val idsToDelete = selectedCollectionIds.value.map { it.toInt() }
+            val idsToDelete = selectedCollectionIds.value.toList()
             if (idsToDelete.isNotEmpty()) {
-                collectionDao.deleteCollectionsWithRefs(idsToDelete)
+                collectionDao.softDeleteCollectionsWithRefs(idsToDelete)
                 clearSelection()
             }
         }
@@ -376,7 +376,10 @@ class LibraryViewModel @Inject constructor(
             val collection = CollectionEntity(
                 title = title,
                 description = description,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                isSynced = false,
+                isDeleted = false,
+                lastModified = System.currentTimeMillis()
             )
             collectionDao.insertCollection(collection)
         }

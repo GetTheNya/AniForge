@@ -22,7 +22,7 @@ import moe.GetTheNya.AniForge.core.database.entity.ImportStatusConverter
         moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity::class,
         PendingImportEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(TargetStatusConverter::class, ImportStatusConverter::class)

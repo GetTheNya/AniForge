@@ -13,7 +13,10 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import moe.GetTheNya.AniForge.core.database.dao.UserTrackingDao
+import moe.GetTheNya.AniForge.core.database.dao.CollectionDao
 import moe.GetTheNya.AniForge.core.database.entity.UserTrackingEntity
+import moe.GetTheNya.AniForge.core.database.entity.CollectionEntity
+import moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
 import moe.GetTheNya.AniForge.core.network.AuthRepository
 import java.time.Instant
@@ -33,10 +36,32 @@ data class SupabaseUserTrackingDto(
     @SerialName("is_deleted") val isDeleted: Boolean = false
 )
 
+@Serializable
+data class SupabaseCollectionDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("collection_id") val collectionId: String,
+    @SerialName("title") val title: String,
+    @SerialName("description") val description: String,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("last_modified") val lastModified: String,
+    @SerialName("is_deleted") val isDeleted: Boolean = false
+)
+
+@Serializable
+data class SupabaseCollectionAnimeCrossRefDto(
+    @SerialName("user_id") val userId: String,
+    @SerialName("collection_id") val collectionId: String,
+    @SerialName("anime_id") val animeId: Long,
+    @SerialName("order_index") val orderIndex: Int,
+    @SerialName("last_modified") val lastModified: String,
+    @SerialName("is_deleted") val isDeleted: Boolean = false
+)
+
 @Singleton
 class SyncEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val userTrackingDao: UserTrackingDao,
+    private val collectionDao: CollectionDao,
     private val authRepository: AuthRepository,
     private val supabaseClient: SupabaseClient
 ) {
@@ -102,6 +127,8 @@ class SyncEngine @Inject constructor(
 
                 performPullSync(userId, lastSyncTime)
                 performPushSync(userId)
+
+                performCollectionsSync(userId)
 
                 val currentUtcTime = Instant.now().toString()
                 prefs.edit().putString(lastSyncTimeKey, currentUtcTime).apply()
@@ -371,5 +398,430 @@ class SyncEngine @Inject constructor(
 
     private fun formatEpochMilliToTimestamptz(epochMilli: Long): String {
         return Instant.ofEpochMilli(epochMilli).toString()
+    }
+
+    private suspend fun performCollectionsSync(userId: String) {
+        val lastSyncTimeKey = "last_successful_collections_sync_time_$userId"
+        val lastSyncTime = prefs.getString(lastSyncTimeKey, null)
+        val isDeltaSync = !lastSyncTime.isNullOrEmpty()
+        AppLogger.d(TAG, "performCollectionsSync starting: lastSyncTime = $lastSyncTime, isDeltaSync = $isDeltaSync")
+
+        if (isDeltaSync) {
+            AppLogger.d(TAG, "Starting Collections Delta Sync Mode for user: $userId")
+        } else {
+            AppLogger.d(TAG, "Starting Collections Initial Full Sync Mode for user: $userId")
+        }
+
+        // Pull Order: save collections first, then cross-references to satisfy Foreign Key constraints
+        performCollectionsPullSync(userId, lastSyncTime)
+
+        // Push Order: upload collections first, then cross-references
+        performCollectionsPushSync(userId)
+
+        val currentUtcTime = Instant.now().toString()
+        prefs.edit().putString(lastSyncTimeKey, currentUtcTime).apply()
+        AppLogger.d(TAG, "Collections sync completed successfully. Saved collections sync time: $currentUtcTime")
+    }
+
+    private suspend fun performCollectionsPullSync(userId: String, lastSyncTime: String?) {
+        val isDeltaSync = !lastSyncTime.isNullOrEmpty()
+
+        // 1. Pull Collections from remote
+        val remoteCollections = mutableListOf<SupabaseCollectionDto>()
+        var page = 0
+        var hasMore = true
+        while (hasMore) {
+            val start = page * PAGE_SIZE
+            val end = start + PAGE_SIZE - 1
+            val pageItems = supabaseClient.from("collections")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                        if (isDeltaSync) {
+                            gt("last_modified", lastSyncTime!!)
+                        }
+                    }
+                    range(start.toLong(), end.toLong())
+                }
+                .decodeList<SupabaseCollectionDto>()
+            remoteCollections.addAll(pageItems)
+            if (pageItems.size < PAGE_SIZE) {
+                hasMore = false
+            } else {
+                page++
+            }
+        }
+        AppLogger.d(TAG, "performCollectionsPullSync: Fetched ${remoteCollections.size} collections from remote.")
+
+        // 2. Pull Cross-references from remote
+        val remoteCrossRefs = mutableListOf<SupabaseCollectionAnimeCrossRefDto>()
+        page = 0
+        hasMore = true
+        while (hasMore) {
+            val start = page * PAGE_SIZE
+            val end = start + PAGE_SIZE - 1
+            val pageItems = supabaseClient.from("collection_anime_cross_ref")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                        if (isDeltaSync) {
+                            gt("last_modified", lastSyncTime!!)
+                        }
+                    }
+                    range(start.toLong(), end.toLong())
+                }
+                .decodeList<SupabaseCollectionAnimeCrossRefDto>()
+            remoteCrossRefs.addAll(pageItems)
+            if (pageItems.size < PAGE_SIZE) {
+                hasMore = false
+            } else {
+                page++
+            }
+        }
+        AppLogger.d(TAG, "performCollectionsPullSync: Fetched ${remoteCrossRefs.size} cross references from remote.")
+
+        // 3. Process Collections pull (Parent Table)
+        val localCollections = collectionDao.getAllCollectionsIncludingDeleted()
+        val localCollMap = localCollections.associateBy { it.id }
+        val remoteCollMap = remoteCollections.associateBy { it.collectionId }
+
+        val toInsertOrUpdateCollections = mutableListOf<CollectionEntity>()
+        val toDeleteCollections = mutableListOf<CollectionEntity>()
+
+        for (remoteItem in remoteCollections) {
+            val remoteMilli = parseTimestamptz(remoteItem.lastModified)
+            val localItem = localCollMap[remoteItem.collectionId]
+
+            if (isDeltaSync) {
+                if (remoteItem.isDeleted) {
+                    if (localItem != null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Delta): Tombstone found for collection ID=${remoteItem.collectionId}. Queueing physical deletion.")
+                        toDeleteCollections.add(localItem)
+                    }
+                } else {
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Delta): Remote-only collection found: ID=${remoteItem.collectionId}. Queueing insertion.")
+                        toInsertOrUpdateCollections.add(
+                            CollectionEntity(
+                                id = remoteItem.collectionId,
+                                title = remoteItem.title,
+                                description = remoteItem.description,
+                                createdAt = parseTimestamptz(remoteItem.createdAt),
+                                isSynced = true,
+                                isDeleted = false,
+                                lastModified = remoteMilli
+                            )
+                        )
+                    } else {
+                        if (remoteMilli > localItem.lastModified) {
+                            AppLogger.d(TAG, "performCollectionsPullSync (Delta): Remote collection is newer for ID=${remoteItem.collectionId}. Queueing update.")
+                            toInsertOrUpdateCollections.add(
+                                localItem.copy(
+                                    title = remoteItem.title,
+                                    description = remoteItem.description,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            AppLogger.d(TAG, "performCollectionsPullSync (Delta): Local collection is newer/equal for ID=${remoteItem.collectionId}. Keeping local.")
+                        }
+                    }
+                }
+            } else {
+                // Initial Sync Mode
+                if (remoteItem.isDeleted) {
+                    if (localItem != null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Remote deleted collection exists locally for ID=${remoteItem.collectionId}. Queueing physical deletion.")
+                        toDeleteCollections.add(localItem)
+                    }
+                } else {
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Remote-only collection: ID=${remoteItem.collectionId}. Queueing insertion.")
+                        toInsertOrUpdateCollections.add(
+                            CollectionEntity(
+                                id = remoteItem.collectionId,
+                                title = remoteItem.title,
+                                description = remoteItem.description,
+                                createdAt = parseTimestamptz(remoteItem.createdAt),
+                                isSynced = true,
+                                isDeleted = false,
+                                lastModified = remoteMilli
+                            )
+                        )
+                    } else {
+                        if (remoteMilli > localItem.lastModified) {
+                            toInsertOrUpdateCollections.add(
+                                localItem.copy(
+                                    title = remoteItem.title,
+                                    description = remoteItem.description,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            toInsertOrUpdateCollections.add(
+                                localItem.copy(isSynced = false)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!isDeltaSync) {
+            // Ghost Cleanup
+            for (localItem in localCollections) {
+                if (!remoteCollMap.containsKey(localItem.id)) {
+                    if (localItem.isSynced) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Ghost collection found (missing on remote): ID=${localItem.id}. Queueing physical deletion.")
+                        toDeleteCollections.add(localItem)
+                    } else {
+                        toInsertOrUpdateCollections.add(
+                            localItem.copy(isSynced = false)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Apply Collections pulls (First in Pull Order)
+        if (toInsertOrUpdateCollections.isNotEmpty() || toDeleteCollections.isNotEmpty()) {
+            collectionDao.applyCollectionsMerge(toInsertOrUpdateCollections, toDeleteCollections)
+            AppLogger.d(TAG, "performCollectionsPullSync: Applied collections merge. Insert/update count = ${toInsertOrUpdateCollections.size}, delete count = ${toDeleteCollections.size}")
+        }
+
+        // 4. Process Cross-references pull (Child Table)
+        val localCrossRefs = collectionDao.getAllCrossRefsIncludingDeleted()
+        val localCrossRefMap = localCrossRefs.associateBy { it.collectionId to it.animeId }
+        val remoteCrossRefMap = remoteCrossRefs.associateBy { it.collectionId to it.animeId }
+
+        val toInsertOrUpdateCrossRefs = mutableListOf<CollectionAnimeCrossRef>()
+        val toDeleteCrossRefs = mutableListOf<CollectionAnimeCrossRef>()
+
+        for (remoteItem in remoteCrossRefs) {
+            val remoteMilli = parseTimestamptz(remoteItem.lastModified)
+            val key = remoteItem.collectionId to remoteItem.animeId
+            val localItem = localCrossRefMap[key]
+
+            if (isDeltaSync) {
+                if (remoteItem.isDeleted) {
+                    if (localItem != null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Delta): Tombstone found for cross-ref CollectionId=${remoteItem.collectionId}, AnimeId=${remoteItem.animeId}. Queueing physical deletion.")
+                        toDeleteCrossRefs.add(localItem)
+                    }
+                } else {
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Delta): Remote-only cross-ref: CollectionId=${remoteItem.collectionId}, AnimeId=${remoteItem.animeId}. Queueing insertion.")
+                        toInsertOrUpdateCrossRefs.add(
+                            CollectionAnimeCrossRef(
+                                collectionId = remoteItem.collectionId,
+                                animeId = remoteItem.animeId,
+                                orderIndex = remoteItem.orderIndex,
+                                isSynced = true,
+                                isDeleted = false,
+                                lastModified = remoteMilli
+                            )
+                        )
+                    } else {
+                        if (remoteMilli > localItem.lastModified) {
+                            AppLogger.d(TAG, "performCollectionsPullSync (Delta): Remote cross-ref is newer. Queueing update.")
+                            toInsertOrUpdateCrossRefs.add(
+                                localItem.copy(
+                                    orderIndex = remoteItem.orderIndex,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            AppLogger.d(TAG, "performCollectionsPullSync (Delta): Local cross-ref is newer/equal. Keeping local.")
+                        }
+                    }
+                }
+            } else {
+                // Initial Sync Mode
+                if (remoteItem.isDeleted) {
+                    if (localItem != null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Remote deleted cross-ref exists locally. Queueing physical deletion.")
+                        toDeleteCrossRefs.add(localItem)
+                    }
+                } else {
+                    if (localItem == null) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Remote-only cross-ref: Queueing insertion.")
+                        toInsertOrUpdateCrossRefs.add(
+                            CollectionAnimeCrossRef(
+                                collectionId = remoteItem.collectionId,
+                                animeId = remoteItem.animeId,
+                                orderIndex = remoteItem.orderIndex,
+                                isSynced = true,
+                                isDeleted = false,
+                                lastModified = remoteMilli
+                            )
+                        )
+                    } else {
+                        if (remoteMilli > localItem.lastModified) {
+                            toInsertOrUpdateCrossRefs.add(
+                                localItem.copy(
+                                    orderIndex = remoteItem.orderIndex,
+                                    lastModified = remoteMilli,
+                                    isSynced = true,
+                                    isDeleted = false
+                                )
+                            )
+                        } else {
+                            toInsertOrUpdateCrossRefs.add(
+                                localItem.copy(isSynced = false)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!isDeltaSync) {
+            // Ghost Cleanup
+            for (localItem in localCrossRefs) {
+                val key = localItem.collectionId to localItem.animeId
+                if (!remoteCrossRefMap.containsKey(key)) {
+                    if (localItem.isSynced) {
+                        AppLogger.d(TAG, "performCollectionsPullSync (Full): Ghost cross-ref found (missing on remote): CollectionId=${localItem.collectionId}, AnimeId=${localItem.animeId}. Queueing physical deletion.")
+                        toDeleteCrossRefs.add(localItem)
+                    } else {
+                        toInsertOrUpdateCrossRefs.add(
+                            localItem.copy(isSynced = false)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Apply Cross-references pulls (Second in Pull Order)
+        if (toInsertOrUpdateCrossRefs.isNotEmpty() || toDeleteCrossRefs.isNotEmpty()) {
+            collectionDao.applyCrossRefsMerge(toInsertOrUpdateCrossRefs, toDeleteCrossRefs)
+            AppLogger.d(TAG, "performCollectionsPullSync: Applied cross-references merge. Insert/update count = ${toInsertOrUpdateCrossRefs.size}, delete count = ${toDeleteCrossRefs.size}")
+        }
+    }
+
+    private suspend fun performCollectionsPushSync(userId: String) {
+        // --- 1. Push Collections ---
+        val unsyncedCollections = collectionDao.getUnsyncedCollections()
+        if (unsyncedCollections.isNotEmpty()) {
+            AppLogger.d(TAG, "performCollectionsPushSync: Found ${unsyncedCollections.size} unsynced collections.")
+            val activeCollections = unsyncedCollections.filter { !it.isDeleted }
+            val deletedCollections = unsyncedCollections.filter { it.isDeleted }
+
+            // A. Process soft-deleted collections (Upsert to remote with is_deleted = true)
+            if (deletedCollections.isNotEmpty()) {
+                AppLogger.d(TAG, "performCollectionsPushSync: Uploading ${deletedCollections.size} deleted collection tombstones...")
+                val currentPushTime = Instant.now().toString()
+                val deleteDtos = deletedCollections.map { entity ->
+                    SupabaseCollectionDto(
+                        userId = userId,
+                        collectionId = entity.id,
+                        title = entity.title,
+                        description = entity.description,
+                        createdAt = formatEpochMilliToTimestamptz(entity.createdAt),
+                        lastModified = currentPushTime,
+                        isDeleted = true
+                    )
+                }
+                try {
+                    supabaseClient.from("collections").upsert(deleteDtos)
+                    // Evict physically locally
+                    collectionDao.deleteCollectionsBatch(deletedCollections)
+                    AppLogger.d(TAG, "performCollectionsPushSync: Successfully deleted ${deletedCollections.size} collections from local DB.")
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "performCollectionsPushSync: Failed to upload deleted collections: ${e.message}", e)
+                    throw e
+                }
+            }
+
+            // B. Process active collections (Upsert to remote)
+            if (activeCollections.isNotEmpty()) {
+                AppLogger.d(TAG, "performCollectionsPushSync: Uploading ${activeCollections.size} active collections...")
+                val activeDtos = activeCollections.map { entity ->
+                    SupabaseCollectionDto(
+                        userId = userId,
+                        collectionId = entity.id,
+                        title = entity.title,
+                        description = entity.description,
+                        createdAt = formatEpochMilliToTimestamptz(entity.createdAt),
+                        lastModified = formatEpochMilliToTimestamptz(entity.lastModified),
+                        isDeleted = false
+                    )
+                }
+                try {
+                    supabaseClient.from("collections").upsert(activeDtos)
+                    val ids = activeCollections.map { it.id }
+                    val timestamps = activeCollections.map { it.lastModified }
+                    collectionDao.markCollectionsSynced(ids, timestamps)
+                    AppLogger.d(TAG, "performCollectionsPushSync: Successfully marked active collections synced.")
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "performCollectionsPushSync: Failed to upload active collections: ${e.message}", e)
+                    throw e
+                }
+            }
+        }
+
+        // --- 2. Push Cross-references ---
+        val unsyncedCrossRefs = collectionDao.getUnsyncedCrossRefs()
+        if (unsyncedCrossRefs.isNotEmpty()) {
+            AppLogger.d(TAG, "performCollectionsPushSync: Found ${unsyncedCrossRefs.size} unsynced cross-references.")
+            val activeCrossRefs = unsyncedCrossRefs.filter { !it.isDeleted }
+            val deletedCrossRefs = unsyncedCrossRefs.filter { it.isDeleted }
+
+            // A. Process soft-deleted cross-references
+            if (deletedCrossRefs.isNotEmpty()) {
+                AppLogger.d(TAG, "performCollectionsPushSync: Uploading ${deletedCrossRefs.size} deleted cross-reference tombstones...")
+                val currentPushTime = Instant.now().toString()
+                val deleteDtos = deletedCrossRefs.map { entity ->
+                    SupabaseCollectionAnimeCrossRefDto(
+                        userId = userId,
+                        collectionId = entity.collectionId,
+                        animeId = entity.animeId,
+                        orderIndex = entity.orderIndex,
+                        lastModified = currentPushTime,
+                        isDeleted = true
+                    )
+                }
+                try {
+                    supabaseClient.from("collection_anime_cross_ref").upsert(deleteDtos)
+                    collectionDao.deleteCrossRefsBatch(deletedCrossRefs)
+                    AppLogger.d(TAG, "performCollectionsPushSync: Successfully deleted ${deletedCrossRefs.size} cross-references from local DB.")
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "performCollectionsPushSync: Failed to upload deleted cross-references: ${e.message}", e)
+                    throw e
+                }
+            }
+
+            // B. Process active cross-references
+            if (activeCrossRefs.isNotEmpty()) {
+                AppLogger.d(TAG, "performCollectionsPushSync: Uploading ${activeCrossRefs.size} active cross-references...")
+                val activeDtos = activeCrossRefs.map { entity ->
+                    SupabaseCollectionAnimeCrossRefDto(
+                        userId = userId,
+                        collectionId = entity.collectionId,
+                        animeId = entity.animeId,
+                        orderIndex = entity.orderIndex,
+                        lastModified = formatEpochMilliToTimestamptz(entity.lastModified),
+                        isDeleted = false
+                    )
+                }
+                try {
+                    supabaseClient.from("collection_anime_cross_ref").upsert(activeDtos)
+                    val collectionIds = activeCrossRefs.map { it.collectionId }
+                    val animeIds = activeCrossRefs.map { it.animeId }
+                    val timestamps = activeCrossRefs.map { it.lastModified }
+                    collectionDao.markCrossRefsSynced(collectionIds, animeIds, timestamps)
+                    AppLogger.d(TAG, "performCollectionsPushSync: Successfully marked active cross-references synced.")
+                } catch (e: Exception) {
+                    AppLogger.e(TAG, "performCollectionsPushSync: Failed to upload active cross-references: ${e.message}", e)
+                    throw e
+                }
+            }
+        }
     }
 }

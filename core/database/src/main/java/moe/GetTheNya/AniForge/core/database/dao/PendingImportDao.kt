@@ -110,13 +110,19 @@ abstract class PendingImportDao(val db: RoomDatabase) {
                 val collectionId = if (collection != null) {
                     collection.id
                 } else {
+                    val newId = java.util.UUID.randomUUID().toString()
                     collectionDao.insertCollection(
                         moe.GetTheNya.AniForge.core.database.entity.CollectionEntity(
+                            id = newId,
                             title = collectionTitle,
                             description = collectionDesc,
-                            createdAt = System.currentTimeMillis()
+                            createdAt = System.currentTimeMillis(),
+                            isSynced = false,
+                            isDeleted = false,
+                            lastModified = System.currentTimeMillis()
                         )
-                    ).toInt()
+                    )
+                    newId
                 }
                 
                 val existingRefs = collectionDao.getCrossRefsForCollectionSync(collectionId)
@@ -127,7 +133,10 @@ abstract class PendingImportDao(val db: RoomDatabase) {
                         moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef(
                             collectionId = collectionId,
                             animeId = matchedId,
-                            orderIndex = maxIndex + 1
+                            orderIndex = maxIndex + 1,
+                            isSynced = false,
+                            isDeleted = false,
+                            lastModified = System.currentTimeMillis()
                         )
                     )
                 }

@@ -27,12 +27,12 @@ class CollectionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    var collectionId: Int = savedStateHandle.get<Int>("collectionId") ?: 0
+    var collectionId: String = savedStateHandle.get<String>("collectionId") ?: ""
         private set
 
     val preferUk = settingsProvider.preferUkTitles
 
-    private val _collectionId = MutableStateFlow<Int>(0)
+    private val _collectionId = MutableStateFlow<String>("")
     private var dbCollectionJob: kotlinx.coroutines.Job? = null
     private var dbCrossRefsJob: kotlinx.coroutines.Job? = null
 
@@ -86,7 +86,7 @@ class CollectionDetailViewModel @Inject constructor(
         clearState()
     }
 
-    fun loadCollection(id: Int) {
+    fun loadCollection(id: String) {
         if (collectionId != id) {
             collectionId = id
         }
@@ -123,8 +123,8 @@ class CollectionDetailViewModel @Inject constructor(
             }
         }
 
-        val id = savedStateHandle.get<Int>("collectionId") ?: 0
-        if (id != 0) {
+        val id = savedStateHandle.get<String>("collectionId") ?: ""
+        if (id.isNotEmpty()) {
             loadCollection(id)
         }
     }
@@ -145,7 +145,10 @@ class CollectionDetailViewModel @Inject constructor(
                 CollectionAnimeCrossRef(
                     collectionId = collectionId,
                     animeId = anime.anilistId,
-                    orderIndex = index
+                    orderIndex = index,
+                    isSynced = false,
+                    isDeleted = false,
+                    lastModified = System.currentTimeMillis()
                 )
             }
             collectionDao.insertCrossRefs(crossRefs)
@@ -158,7 +161,10 @@ class CollectionDetailViewModel @Inject constructor(
             val ref = CollectionAnimeCrossRef(
                 collectionId = collectionId,
                 animeId = animeId,
-                orderIndex = maxIndex + 1
+                orderIndex = maxIndex + 1,
+                isSynced = false,
+                isDeleted = false,
+                lastModified = System.currentTimeMillis()
             )
             collectionDao.insertCrossRef(ref)
         }
@@ -166,21 +172,28 @@ class CollectionDetailViewModel @Inject constructor(
 
     fun removeAnimeFromCollection(animeId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            collectionDao.deleteCrossRef(collectionId, animeId)
+            collectionDao.softDeleteCrossRef(collectionId, animeId)
         }
     }
 
     fun deleteCollection() {
         viewModelScope.launch(Dispatchers.IO) {
-            collectionDao.deleteCollectionById(collectionId)
-            collectionDao.deleteCrossRefsForCollection(collectionId)
+            val timestamp = System.currentTimeMillis()
+            collectionDao.softDeleteCollectionById(collectionId, timestamp)
+            collectionDao.softDeleteCrossRefsForCollection(collectionId, timestamp)
         }
     }
 
     fun updateCollectionDetails(title: String, description: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = _collection.value ?: return@launch
-            val updated = current.copy(title = title, description = description)
+            val updated = current.copy(
+                title = title, 
+                description = description,
+                isSynced = false,
+                isDeleted = false,
+                lastModified = System.currentTimeMillis()
+            )
             collectionDao.updateCollection(updated)
         }
     }

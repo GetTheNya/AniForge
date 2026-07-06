@@ -43,7 +43,7 @@ class DetailViewModel @Inject constructor(
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val animeCollectionIds: StateFlow<List<Int>> = savedStateHandle.getStateFlow<Long>("anilistId", 0L)
+    val animeCollectionIds: StateFlow<List<String>> = savedStateHandle.getStateFlow<Long>("anilistId", 0L)
         .flatMapLatest { animeId ->
             collectionDao.observeCollectionIdsForAnime(animeId)
         }
@@ -53,18 +53,21 @@ class DetailViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    fun toggleAnimeInCollection(collectionId: Int) {
+    fun toggleAnimeInCollection(collectionId: String) {
         val animeId = currentAnimeId
         viewModelScope.launch(Dispatchers.IO) {
             val list = animeCollectionIds.value
             if (list.contains(collectionId)) {
-                collectionDao.deleteCrossRef(collectionId, animeId)
+                collectionDao.softDeleteCrossRef(collectionId, animeId)
             } else {
                 val maxIndex = collectionDao.getMaxOrderIndex(collectionId) ?: -1
                 val ref = moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef(
                     collectionId = collectionId,
                     animeId = animeId,
-                    orderIndex = maxIndex + 1
+                    orderIndex = maxIndex + 1,
+                    isSynced = false,
+                    isDeleted = false,
+                    lastModified = System.currentTimeMillis()
                 )
                 collectionDao.insertCrossRef(ref)
             }
@@ -79,7 +82,7 @@ class DetailViewModel @Inject constructor(
     }
 
     var sourceStatusId: String? = savedStateHandle.get<String>("sourceStatusId")
-    var sourceCollectionId: Int? = savedStateHandle.get<Int>("sourceCollectionId")
+    var sourceCollectionId: String? = savedStateHandle.get<String>("sourceCollectionId")
     var rouletteCount: Int = savedStateHandle.get<Int>("rouletteCount") ?: 0
     var visitedIds: String = savedStateHandle.get<String>("visitedIds") ?: ""
 
@@ -143,7 +146,7 @@ class DetailViewModel @Inject constructor(
     fun loadAnimeDetail(
         anilistId: Long,
         sourceStatusId: String? = null,
-        sourceCollectionId: Int? = null,
+        sourceCollectionId: String? = null,
         rouletteCount: Int = 0,
         visitedIds: String = ""
     ) {

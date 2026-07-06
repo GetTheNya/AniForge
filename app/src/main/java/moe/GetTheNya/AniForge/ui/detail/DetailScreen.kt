@@ -106,7 +106,7 @@ import androidx.compose.ui.graphics.toColorLong
 fun DetailScreen(
     anilistId: Long,
     sourceStatusId: String? = null,
-    sourceCollectionId: Int? = null,
+    sourceCollectionId: String? = null,
     rouletteCount: Int = 0,
     visitedIds: String = "",
     navController: NavController,

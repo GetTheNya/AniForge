@@ -605,7 +605,7 @@ fun LibraryScreen(
                                 items = collectionsList,
                                 key = { it.collection.id }
                             ) { item ->
-                                val collectionId = item.collection.id.toLong()
+                                val collectionId = item.collection.id
                                 val isSelected = selectedCollectionIds.contains(collectionId)
                                 CollectionBentoCard(
                                     collection = item.collection,
