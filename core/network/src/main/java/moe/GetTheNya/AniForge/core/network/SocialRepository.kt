@@ -3,6 +3,8 @@ package moe.GetTheNya.AniForge.core.network
 import android.util.Log
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -44,14 +46,11 @@ data class FriendshipUpdateDto(
 
 @Serializable
 data class SupabaseUserTrackingDto(
-    @SerialName("user_id") val userId: String,
     @SerialName("anilist_id") val anilistId: Long,
     @SerialName("watch_status") val watchStatus: String,
     @SerialName("episode_progress") val episodeProgress: Int,
     @SerialName("score") val score: Double? = null,
-    @SerialName("notes") val notes: String? = null,
-    @SerialName("last_modified") val lastModified: String,
-    @SerialName("is_deleted") val isDeleted: Boolean = false
+    @SerialName("notes") val notes: String? = null
 )
 
 @Serializable
@@ -67,12 +66,9 @@ data class SupabaseCollectionDto(
 
 @Serializable
 data class SupabaseCollectionAnimeCrossRefDto(
-    @SerialName("user_id") val userId: String,
     @SerialName("collection_id") val collectionId: String,
     @SerialName("anime_id") val animeId: Long,
-    @SerialName("order_index") val orderIndex: Int,
-    @SerialName("last_modified") val lastModified: String,
-    @SerialName("is_deleted") val isDeleted: Boolean = false
+    @SerialName("order_index") val orderIndex: Int
 )
 
 
@@ -259,12 +255,13 @@ class SocialRepository @Inject constructor(
     suspend fun getFriendTrackingList(friendUserId: String): List<SupabaseUserTrackingDto> = withContext(Dispatchers.IO) {
         try {
             supabaseClient.from("user_tracking")
-                .select {
+                .select(columns = Columns.list("anilist_id", "watch_status", "score", "episode_progress", "notes")) {
                     filter {
                         eq("user_id", friendUserId)
                         eq("watch_status", "CURRENT")
                         eq("is_deleted", false)
                     }
+                    order("last_modified", Order.DESCENDING)
                 }
                 .decodeList<SupabaseUserTrackingDto>()
         } catch (e: Exception) {
@@ -282,11 +279,12 @@ class SocialRepository @Inject constructor(
                 val start = page * 1000
                 val end = start + 999
                 val pageItems = supabaseClient.from("user_tracking")
-                    .select {
+                    .select(columns = Columns.list("anilist_id", "watch_status", "score", "episode_progress", "notes")) {
                         filter {
                             eq("user_id", targetUserId)
                             eq("is_deleted", false)
                         }
+                        order("last_modified", Order.DESCENDING)
                         range(start.toLong(), end.toLong())
                     }
                     .decodeList<SupabaseUserTrackingDto>()
@@ -344,11 +342,12 @@ class SocialRepository @Inject constructor(
                 val start = page * 1000
                 val end = start + 999
                 val pageItems = supabaseClient.from("collection_anime_cross_ref")
-                    .select {
+                    .select(columns = Columns.list("collection_id", "anime_id", "order_index")) {
                         filter {
                             eq("user_id", targetUserId)
                             eq("is_deleted", false)
                         }
+                        order("order_index", Order.ASCENDING)
                         range(start.toLong(), end.toLong())
                     }
                     .decodeList<SupabaseCollectionAnimeCrossRefDto>()
@@ -392,12 +391,13 @@ class SocialRepository @Inject constructor(
                 val start = page * 1000
                 val end = start + 999
                 val pageItems = supabaseClient.from("collection_anime_cross_ref")
-                    .select {
+                    .select(columns = Columns.list("collection_id", "anime_id", "order_index")) {
                         filter {
                             eq("user_id", targetUserId)
                             eq("collection_id", collectionId)
                             eq("is_deleted", false)
                         }
+                        order("order_index", Order.ASCENDING)
                         range(start.toLong(), end.toLong())
                     }
                     .decodeList<SupabaseCollectionAnimeCrossRefDto>()
