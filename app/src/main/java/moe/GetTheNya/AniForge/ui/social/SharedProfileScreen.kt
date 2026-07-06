@@ -38,6 +38,7 @@ import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
+import moe.GetTheNya.AniForge.ui.utils.AnimeStatusColors
 
 @Composable
 fun SharedProfileScreen(
@@ -304,17 +305,18 @@ fun SharedProfileScreen(
                                     )
                                     statusPairs.forEach { (status, label) ->
                                         val isSelected = selectedStatus == status
+                                        val chipColor = AnimeStatusColors[status] ?: NeonCoral
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(20.dp))
-                                                .background(if (isSelected) NeonCoral.copy(alpha = 0.15f) else SurfaceDark)
-                                                .border(1.dp, if (isSelected) NeonCoral else CardBorder, RoundedCornerShape(20.dp))
+                                                .background(if (isSelected) chipColor.copy(alpha = 0.15f) else SurfaceDark)
+                                                .border(1.dp, if (isSelected) chipColor else CardBorder, RoundedCornerShape(20.dp))
                                                 .clickable { viewModel.setSingleFriendStatus(status) }
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Text(
                                                 text = label,
-                                                color = if (isSelected) NeonCoral else TextSecondary,
+                                                color = if (isSelected) chipColor else TextSecondary,
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.SemiBold
                                             )
