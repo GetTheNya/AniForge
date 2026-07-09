@@ -27,7 +27,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SharedCollectionDetailViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
+    val savedStateHandle: SavedStateHandle,
     private val socialRepository: SocialRepository,
     private val animeRepository: AnimeRepository,
     private val settingsProvider: SettingsProvider,
@@ -40,8 +40,8 @@ class SharedCollectionDetailViewModel @Inject constructor(
         .map { list -> list.filter { it.watchStatus == "COMPLETED" }.map { it.anilistId }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
-    val targetUserId: String = savedStateHandle.get<String>("targetUserId") ?: ""
-    val collectionId: String = savedStateHandle.get<String>("collectionId") ?: ""
+    val targetUserId: String get() = savedStateHandle.get<String>("targetUserId") ?: ""
+    val collectionId: String get() = savedStateHandle.get<String>("collectionId") ?: ""
 
     private val _collectionTitle = MutableStateFlow("")
     val collectionTitle = _collectionTitle.asStateFlow()
@@ -63,13 +63,15 @@ class SharedCollectionDetailViewModel @Inject constructor(
 
     val preferUk = settingsProvider.preferUkTitles
 
+    private var loadJob: kotlinx.coroutines.Job? = null
+
     init {
-        loadSharedCollection()
     }
 
     fun loadSharedCollection() {
         if (targetUserId.isBlank() || collectionId.isBlank()) return
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
             try {

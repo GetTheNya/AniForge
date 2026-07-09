@@ -64,14 +64,14 @@ data class SharedProfileUiState(
 
 @HiltViewModel
 class SharedProfileViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
+    val savedStateHandle: SavedStateHandle,
     private val socialRepository: SocialRepository,
     private val animeRepository: AnimeRepository,
     private val userTrackingDao: UserTrackingDao
 ) : ViewModel() {
 
-    val userId: String = savedStateHandle.get<String>("userId") ?: ""
-    val username: String = savedStateHandle.get<String>("username") ?: ""
+    val userId: String get() = savedStateHandle.get<String>("userId") ?: ""
+    val username: String get() = savedStateHandle.get<String>("username") ?: ""
 
     private val _uiState = MutableStateFlow(
         SharedProfileUiState(
@@ -83,6 +83,7 @@ class SharedProfileViewModel @Inject constructor(
 
     private val _allFriendTrackingItems = MutableStateFlow<List<FriendTrackingItem>>(emptyList())
     private val _localTrackingMap = MutableStateFlow<Map<Long, UserTrackingEntity>>(emptyMap())
+    private var loadJob: kotlinx.coroutines.Job? = null
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -258,13 +259,18 @@ class SharedProfileViewModel @Inject constructor(
                 _localTrackingMap.value = list.associateBy { it.anilistId }
             }
         }
-        loadProfileData()
     }
 
     fun loadProfileData() {
         if (userId.isBlank()) return
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                username = username,
+                avatarLetter = username.firstOrNull()?.uppercase() ?: "?",
+                isLoading = true,
+                errorMessage = null
+            )
             try {
                 // Fetch user tracking list, collections, and cross references in parallel
                 val (trackingRecords, remoteCollections, crossRefs) = coroutineScope {

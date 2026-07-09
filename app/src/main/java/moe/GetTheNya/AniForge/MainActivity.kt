@@ -972,7 +972,13 @@ class MainActivity : ComponentActivity() {
                                                      }
                                                      is Screen.SharedProfile -> {
                                                          val scopedViewModel = remember(entry) {
-                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedProfileViewModel::class.java]
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedProfileViewModel::class.java].apply {
+                                                                 entry.savedStateHandle.keys().forEach { key ->
+                                                                     this.savedStateHandle.set(key, entry.savedStateHandle.get<Any>(key))
+                                                                 }
+                                                                 entry.savedStateHandle = this.savedStateHandle
+                                                                 loadProfileData()
+                                                             }
                                                          }
                                                          moe.GetTheNya.AniForge.ui.social.SharedProfileScreen(
                                                              viewModel = scopedViewModel,
@@ -984,7 +990,13 @@ class MainActivity : ComponentActivity() {
                                                      }
                                                      is Screen.SharedCollectionDetail -> {
                                                          val scopedViewModel = remember(entry) {
-                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedCollectionDetailViewModel::class.java]
+                                                             ViewModelProvider(entry)[moe.GetTheNya.AniForge.ui.social.SharedCollectionDetailViewModel::class.java].apply {
+                                                                 entry.savedStateHandle.keys().forEach { key ->
+                                                                     this.savedStateHandle.set(key, entry.savedStateHandle.get<Any>(key))
+                                                                 }
+                                                                 entry.savedStateHandle = this.savedStateHandle
+                                                                 loadSharedCollection()
+                                                             }
                                                          }
                                                          moe.GetTheNya.AniForge.ui.social.SharedCollectionDetailScreen(
                                                              targetUserId = screen.targetUserId,
