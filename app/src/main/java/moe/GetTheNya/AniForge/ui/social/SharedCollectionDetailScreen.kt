@@ -3,6 +3,8 @@ package moe.GetTheNya.AniForge.ui.social
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,12 +13,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Check
 import android.widget.Toast
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,12 +34,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.localization.getPlural
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
+import moe.GetTheNya.AniForge.core.model.Anime
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
+import moe.GetTheNya.AniForge.ui.utils.AnimeStatusColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +62,20 @@ fun SharedCollectionDetailScreen(
     val preferUk by viewModel.preferUk.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val friendStatusFilters by viewModel.friendStatusFilters.collectAsState()
+    val localStatusFilters by viewModel.localStatusFilters.collectAsState()
+    val coWatchActive by viewModel.coWatchActive.collectAsState()
+    val moviesOnlyActive by viewModel.moviesOnlyActive.collectAsState()
+    val filteredAnimeList by viewModel.filteredAnimeList.collectAsState()
+
+    var showFilterSheet by remember { mutableStateOf(false) }
+
+    val selectedStatus = remember(friendStatusFilters) {
+        val included = friendStatusFilters.filter { it.value == 1 }.keys
+        if (included.size == 1) included.first() else ""
+    }
 
     Box(
         modifier = modifier
@@ -137,7 +161,7 @@ fun SharedCollectionDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val countText = strings.libraryScreen.itemsCount.getPlural(animeList.size)
+                    val countText = strings.libraryScreen.itemsCount.getPlural(filteredAnimeList.size)
                     Text(
                         text = countText,
                         color = TextSecondary,
@@ -161,6 +185,150 @@ fun SharedCollectionDetailScreen(
                     color = ElectricViolet,
                     trackColor = CardBorder
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Search & Filtering Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.setSearchQuery(it) },
+                        placeholder = {
+                            Text(
+                                text = strings.misc.search,
+                                color = TextSecondary
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = TextSecondary
+                            )
+                        },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = NeonCoral,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { showFilterSheet = true },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = strings.dashboardScreen.filterTooltip,
+                            tint = TextPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Extra modifier chips: Co-Watch, Movies Only
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = coWatchActive,
+                        onClick = { viewModel.toggleCoWatch() },
+                        label = { Text(text = strings.socialScreen.coWatch) },
+                        leadingIcon = if (coWatchActive) {
+                            { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ElectricViolet.copy(alpha = 0.15f),
+                            selectedLabelColor = ElectricViolet,
+                            selectedLeadingIconColor = ElectricViolet,
+                            containerColor = SurfaceDark,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = coWatchActive,
+                            borderColor = if (coWatchActive) ElectricViolet else CardBorder,
+                            selectedBorderColor = ElectricViolet,
+                            borderWidth = 1.dp
+                        )
+                    )
+
+                    FilterChip(
+                        selected = moviesOnlyActive,
+                        onClick = { viewModel.toggleMoviesOnly() },
+                        label = { Text(text = strings.socialScreen.moviesOnly) },
+                        leadingIcon = if (moviesOnlyActive) {
+                            { Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = NeonCoral.copy(alpha = 0.15f),
+                            selectedLabelColor = NeonCoral,
+                            selectedLeadingIconColor = NeonCoral,
+                            containerColor = SurfaceDark,
+                            labelColor = TextSecondary
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = moviesOnlyActive,
+                            borderColor = if (moviesOnlyActive) NeonCoral else CardBorder,
+                            selectedBorderColor = NeonCoral,
+                            borderWidth = 1.dp
+                        )
+                    )
+                }
+
+                if (!coWatchActive) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Scrollable Row of Status Chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val statusPairs = listOf(
+                            "CURRENT" to strings.misc.watching,
+                            "PLANNING" to strings.misc.planning,
+                            "COMPLETED" to strings.misc.completed,
+                            "PAUSED" to strings.misc.paused,
+                            "DROPPED" to strings.misc.dropped
+                        )
+                        statusPairs.forEach { (status, label) ->
+                            val isSelected = selectedStatus == status
+                            val chipColor = AnimeStatusColors[status] ?: NeonCoral
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (isSelected) chipColor.copy(alpha = 0.15f) else SurfaceDark)
+                                    .border(1.dp, if (isSelected) chipColor else CardBorder, RoundedCornerShape(20.dp))
+                                    .clickable { viewModel.setSingleFriendStatus(status) }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) chipColor else TextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             // Content List
@@ -206,6 +374,24 @@ fun SharedCollectionDetailScreen(
                             fontSize = 15.sp
                         )
                     }
+                } else if (filteredAnimeList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val hintText = when {
+                            coWatchActive && moviesOnlyActive -> strings.socialScreen.noOverlappingMovies
+                            coWatchActive -> strings.socialScreen.noOverlappingPlanning
+                            else -> strings.socialScreen.noActiveAnime
+                        }
+                        Text(
+                            text = hintText,
+                            color = TextSecondary,
+                            fontSize = 15.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                    }
                 } else {
                     LazyColumn(
                         modifier = Modifier
@@ -214,7 +400,7 @@ fun SharedCollectionDetailScreen(
                         contentPadding = PaddingValues(bottom = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(animeList, key = { it.anilistId }) { anime ->
+                        items(filteredAnimeList, key = { it.anilistId }) { anime ->
                             val tracking = trackingMap[anime.anilistId]
 
                             Card(
@@ -335,6 +521,25 @@ fun SharedCollectionDetailScreen(
                     }
                 }
             }
+        }
+
+        if (showFilterSheet) {
+            FilterBottomSheet(
+                isCatalog = false,
+                onDismiss = { showFilterSheet = false },
+                allGenres = emptyList(),
+                allTags = emptyList(),
+                allStudios = emptyList(),
+                allStaff = emptyList(),
+                preferUkTitles = preferUk,
+                filteredCount = filteredAnimeList.size,
+                friendStatusFilters = friendStatusFilters,
+                localStatusFilters = localStatusFilters,
+                onFriendStatusFilterToggled = { viewModel.toggleFriendStatusFilter(it) },
+                onLocalStatusFilterToggled = { viewModel.toggleLocalStatusFilter(it) },
+                onClearAllFilters = { viewModel.clearAllFilters() },
+                isSharedProfile = true
+            )
         }
     }
 }
