@@ -1,6 +1,8 @@
 package moe.GetTheNya.AniForge
 
 import android.os.Bundle
+import android.content.Intent
+import moe.GetTheNya.AniForge.ui.navigation.NavController
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.Context
 import android.hardware.Sensor
@@ -176,10 +178,16 @@ class MainActivity : ComponentActivity() {
     private val libraryViewModel: LibraryViewModel by viewModels()
     private val socialViewModel: moe.GetTheNya.AniForge.ui.social.SocialViewModel by viewModels()
 
+    private val currentIntentState = mutableStateOf<Intent?>(null)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        
+        if (savedInstanceState == null) {
+            currentIntentState.value = intent
+        }
         
         splashScreen.setKeepOnScreenCondition {
             homeViewModel.isInitializing.value
@@ -243,6 +251,14 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(pagerState.settledPage) {
                 selectedTab = pagerState.settledPage
+            }
+
+            val currentIntent by currentIntentState
+            LaunchedEffect(currentIntent, navController) {
+                currentIntent?.let {
+                    handleIntent(it, navController)
+                    currentIntentState.value = null
+                }
             }
             
             navController.onSelectTab = { tab ->
@@ -1025,6 +1041,26 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         sensorListener?.let { listener ->
             sensorManager?.unregisterListener(listener)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        currentIntentState.value = intent
+    }
+
+    private fun handleIntent(intent: Intent, navController: NavController) {
+        val data = intent.data ?: return
+        if ((data.scheme == "http" || data.scheme == "https") &&
+            data.host == "aniforge.pages.dev" &&
+            data.path?.trimEnd('/') == "/anime"
+        ) {
+            val idStr = data.getQueryParameter("id")
+            val id = idStr?.toLongOrNull()
+            if (id != null) {
+                navController.navigate(Screen.Detail(id))
+            }
         }
     }
 }
