@@ -172,6 +172,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun performPullSync(userId: String, lastSyncTime: String?) {
         val isDeltaSync = !lastSyncTime.isNullOrEmpty()
+        val querySyncTime = if (isDeltaSync) getBufferSyncTime(lastSyncTime!!) else ""
         val remoteList = mutableListOf<SupabaseUserTrackingDto>()
         var page = 0
         var hasMore = true
@@ -186,7 +187,7 @@ class SyncEngine @Inject constructor(
                     filter {
                         eq("user_id", userId)
                         if (isDeltaSync) {
-                            gt("last_modified", lastSyncTime!!)
+                            gt("synced_at", querySyncTime)
                         }
                     }
                     range(start.toLong(), end.toLong())
@@ -431,6 +432,14 @@ class SyncEngine @Inject constructor(
         return Instant.ofEpochMilli(epochMilli).toString()
     }
 
+    private fun getBufferSyncTime(lastSyncTime: String): String {
+        return try {
+            Instant.parse(lastSyncTime).minusSeconds(120).toString()
+        } catch (e: Exception) {
+            lastSyncTime
+        }
+    }
+
     private suspend fun performCollectionsSync(userId: String) {
         val lastSyncTimeKey = "last_successful_collections_sync_time_$userId"
         val lastSyncTime = prefs.getString(lastSyncTimeKey, null)
@@ -456,6 +465,7 @@ class SyncEngine @Inject constructor(
 
     private suspend fun performCollectionsPullSync(userId: String, lastSyncTime: String?) {
         val isDeltaSync = !lastSyncTime.isNullOrEmpty()
+        val querySyncTime = if (isDeltaSync) getBufferSyncTime(lastSyncTime!!) else ""
 
         // 1. Pull Collections from remote
         val remoteCollections = mutableListOf<SupabaseCollectionDto>()
@@ -469,7 +479,7 @@ class SyncEngine @Inject constructor(
                     filter {
                         eq("user_id", userId)
                         if (isDeltaSync) {
-                            gt("last_modified", lastSyncTime!!)
+                            gt("synced_at", querySyncTime)
                         }
                     }
                     range(start.toLong(), end.toLong())
@@ -496,7 +506,7 @@ class SyncEngine @Inject constructor(
                     filter {
                         eq("user_id", userId)
                         if (isDeltaSync) {
-                            gt("last_modified", lastSyncTime!!)
+                            gt("synced_at", querySyncTime)
                         }
                     }
                     range(start.toLong(), end.toLong())
