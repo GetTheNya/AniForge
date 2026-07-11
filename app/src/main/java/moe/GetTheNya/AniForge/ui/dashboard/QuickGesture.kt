@@ -921,7 +921,7 @@ fun handleQuickGestureAction(
         QuickGestureAction.Immediate.ShareLink -> {
             val sendIntent = android.content.Intent().apply {
                 setAction(android.content.Intent.ACTION_SEND)
-                putExtra(android.content.Intent.EXTRA_TEXT, "Check out ${anime.titleRomaji} on AniForge: https://anilist.co/anime/${anime.anilistId}")
+                putExtra(android.content.Intent.EXTRA_TEXT, "Check out ${anime.titleRomaji} on AniForge: https://aniforge.pages.dev/anime?id=${anime.anilistId}")
                 setType("text/plain")
             }
             val shareIntent = android.content.Intent.createChooser(sendIntent, null)
