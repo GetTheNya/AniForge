@@ -35,6 +35,7 @@ import moe.GetTheNya.AniForge.core.model.ListSortOption
 import moe.GetTheNya.AniForge.core.model.ListFilterState
 import moe.GetTheNya.AniForge.ui.localization.getMediaStatusLabel
 import moe.GetTheNya.AniForge.ui.localization.getMediaSourceLabel
+import moe.GetTheNya.AniForge.ui.localization.getSeasonLabel
 import moe.GetTheNya.AniForge.ui.theme.*
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -62,6 +63,9 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.BorderStroke
 
 private enum class SortCategory {
     RELEVANCE, SCORE, POPULARITY, RELEASE_DATE, EPISODES, TITLE
@@ -112,7 +116,10 @@ fun FilterBottomSheet(
         onClearGenreFilters = { viewModel.clearGenreFilters() },
         onClearTagFilters = { viewModel.clearTagFilters() },
         onClearStudioFilters = { viewModel.clearStudioFilters() },
-        onClearStaffFilters = { viewModel.clearStaffFilters() }
+        onClearStaffFilters = { viewModel.clearStaffFilters() },
+        onYearChanged = { viewModel.updateYear(it) },
+        onSeasonToggled = { viewModel.toggleSeason(it) },
+        onCurrentSeasonClicked = { viewModel.setCurrentSeasonFilter() }
     )
 }
 
@@ -149,6 +156,9 @@ fun FilterBottomSheet(
     onClearTagFilters: (() -> Unit)? = null,
     onClearStudioFilters: (() -> Unit)? = null,
     onClearStaffFilters: (() -> Unit)? = null,
+    onYearChanged: ((String) -> Unit)? = null,
+    onSeasonToggled: ((String) -> Unit)? = null,
+    onCurrentSeasonClicked: (() -> Unit)? = null,
     isSharedProfile: Boolean = false,
     friendStatusFilters: Map<String, Int> = emptyMap(),
     localStatusFilters: Map<String, Int> = emptyMap(),
@@ -721,6 +731,121 @@ fun FilterBottomSheet(
                 }
 
                 if (isCatalog) {
+                    item {
+                        // Season Selection
+                        Column {
+                            Text(
+                                text = strings.dashboardScreen.season,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val seasonOptions = listOf("WINTER", "SPRING", "SUMMER", "FALL")
+                                for (seas in seasonOptions) {
+                                    val isIncluded = catalogFilter?.season == seas
+                                    val label = strings.seasons.getSeasonLabel(seas)
+                                    TriStateChip(
+                                        label = label,
+                                        isIncluded = isIncluded,
+                                        isExcluded = false,
+                                        onClick = { onSeasonToggled?.invoke(seas) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        // Year Selection
+                        Column {
+                            Text(
+                                text = strings.dashboardScreen.year,
+                                color = TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                var yearInput by remember(catalogFilter?.year) {
+                                    mutableStateOf(catalogFilter?.year?.toString() ?: "")
+                                }
+                                OutlinedTextField(
+                                    value = yearInput,
+                                    onValueChange = { newValue ->
+                                        if (newValue.length <= 4 && newValue.matches(Regex("^\\d*$"))) {
+                                            yearInput = newValue
+                                            onYearChanged?.invoke(newValue)
+                                        }
+                                    },
+                                    placeholder = { Text(strings.dashboardScreen.anyYear, color = TextSecondary, fontSize = 12.sp) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary,
+                                        focusedContainerColor = SurfaceDark,
+                                        unfocusedContainerColor = SurfaceDark,
+                                        focusedBorderColor = ElectricViolet,
+                                        unfocusedBorderColor = CardBorder
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Number
+                                    ),
+                                    modifier = Modifier
+                                        .width(120.dp)
+                                        .height(52.dp)
+                                )
+
+                                if (catalogFilter?.year != null) {
+                                    TextButton(
+                                        onClick = {
+                                            onYearChanged?.invoke("")
+                                        }
+                                    ) {
+                                        Text(
+                                            text = strings.dashboardScreen.clearYear,
+                                            color = NeonCoral,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.weight(1f))
+
+                                Button(
+                                    onClick = {
+                                        onCurrentSeasonClicked?.invoke()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ElectricViolet.copy(alpha = 0.1f),
+                                        contentColor = ElectricViolet
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.2f)),
+                                    modifier = Modifier.height(52.dp)
+                                ) {
+                                    Text(
+                                        text = strings.dashboardScreen.currentSeason,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     item {
                         // 4. Episode Count groups
                         Column {

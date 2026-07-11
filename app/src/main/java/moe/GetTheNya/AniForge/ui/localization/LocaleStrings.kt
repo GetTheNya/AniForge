@@ -168,7 +168,12 @@ data class DashboardScreenStrings(
     val sortReleaseDesc: String = "[dashboardScreen.sortReleaseDesc]",
     val sortReleaseAsc: String = "[dashboardScreen.sortReleaseAsc]",
     val sortEpisodesDesc: String = "[dashboardScreen.sortEpisodesDesc]",
-    val sortEpisodesAsc: String = "[dashboardScreen.sortEpisodesAsc]"
+    val sortEpisodesAsc: String = "[dashboardScreen.sortEpisodesAsc]",
+    val year: String = "[dashboardScreen.year]",
+    val season: String = "[dashboardScreen.season]",
+    val anyYear: String = "[dashboardScreen.anyYear]",
+    val clearYear: String = "[dashboardScreen.clearYear]",
+    val currentSeason: String = "[dashboardScreen.currentSeason]"
 )
 
 @Serializable

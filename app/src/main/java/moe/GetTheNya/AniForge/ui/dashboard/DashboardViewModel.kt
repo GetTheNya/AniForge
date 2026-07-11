@@ -441,6 +441,32 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
+    fun updateYear(yearString: String) {
+        val parsed = yearString.toIntOrNull()
+        _searchFilter.value = _searchFilter.value.copy(year = parsed)
+    }
+
+    fun toggleSeason(season: String) {
+        val current = _searchFilter.value.season
+        val newVal = if (current == season) null else season
+        _searchFilter.value = _searchFilter.value.copy(season = newVal)
+    }
+
+    fun setCurrentSeasonFilter() {
+        val cal = java.util.Calendar.getInstance()
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH)
+
+        val season = when (month) {
+            java.util.Calendar.JANUARY, java.util.Calendar.FEBRUARY, java.util.Calendar.MARCH -> "WINTER"
+            java.util.Calendar.APRIL, java.util.Calendar.MAY, java.util.Calendar.JUNE -> "SPRING"
+            java.util.Calendar.JULY, java.util.Calendar.AUGUST, java.util.Calendar.SEPTEMBER -> "SUMMER"
+            else -> "FALL"
+        }
+
+        _searchFilter.value = _searchFilter.value.copy(year = year, season = season)
+    }
+
 
     fun clearAllFilters() {
         _searchFilter.value = SearchFilterQuery(textQuery = _searchFilter.value.textQuery)

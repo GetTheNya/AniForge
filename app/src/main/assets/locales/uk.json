@@ -156,7 +156,12 @@
     "sortReleaseDesc": "Новіші випуски",
     "sortReleaseAsc": "Старіші випуски",
     "sortEpisodesDesc": "Більше серій",
-    "sortEpisodesAsc": "Менше серій"
+    "sortEpisodesAsc": "Менше серій",
+    "year": "Рік",
+    "season": "Сезон",
+    "anyYear": "Будь-який рік",
+    "clearYear": "Очистити",
+    "currentSeason": "Поточний сезон"
   },
   "detailScreen": {
     "synopsis": "Синопсис",

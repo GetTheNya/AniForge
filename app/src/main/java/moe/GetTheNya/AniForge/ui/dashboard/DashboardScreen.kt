@@ -135,7 +135,9 @@ fun DashboardScreen(
                         searchFilter.mediaStatuses.isNotEmpty() ||
                         searchFilter.excludedMediaStatuses.isNotEmpty() ||
                         searchFilter.mediaSources.isNotEmpty() ||
-                        searchFilter.excludedMediaSources.isNotEmpty()
+                        searchFilter.excludedMediaSources.isNotEmpty() ||
+                        searchFilter.year != null ||
+                        searchFilter.season != null
                     }
 
                     Column(modifier = Modifier.fillMaxSize()) {

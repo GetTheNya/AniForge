@@ -153,7 +153,12 @@
     "sortReleaseDesc": "Newest Release",
     "sortReleaseAsc": "Oldest Release",
     "sortEpisodesDesc": "Max Episodes",
-    "sortEpisodesAsc": "Min Episodes"
+    "sortEpisodesAsc": "Min Episodes",
+    "year": "Year",
+    "season": "Season",
+    "anyYear": "Any Year",
+    "clearYear": "Clear",
+    "currentSeason": "Current Season"
   },
   "detailScreen": {
     "synopsis": "Synopsis",

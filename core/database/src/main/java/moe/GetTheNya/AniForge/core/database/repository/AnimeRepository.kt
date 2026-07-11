@@ -1026,6 +1026,20 @@ class AnimeRepository @Inject constructor(
             whereClauses.add("anime.source NOT IN ($placeholders)")
             args.addAll(filter.excludedMediaSources)
         }
+
+        // Year filter
+        val year = filter.year
+        if (year != null) {
+            whereClauses.add("anime.season_year = ?")
+            args.add(year)
+        }
+
+        // Season filter
+        val season = filter.season
+        if (season != null) {
+            whereClauses.add("anime.season = ?")
+            args.add(season)
+        }
         
         if (whereClauses.isNotEmpty()) {
             queryBuilder.append(" WHERE ")

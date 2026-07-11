@@ -36,6 +36,8 @@ data class SearchFilterQuery(
     val excludedMediaStatuses: List<String> = emptyList(),
     val mediaSources: List<String> = emptyList(),
     val excludedMediaSources: List<String> = emptyList(),
+    val year: Int? = null,
+    val season: String? = null,
     val sortBy: SortOption = SortOption.SCORE
 )
 
