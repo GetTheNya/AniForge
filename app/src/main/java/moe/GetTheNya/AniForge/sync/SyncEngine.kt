@@ -24,7 +24,9 @@ import moe.GetTheNya.AniForge.core.network.AuthRepository
 import java.time.Instant
 import java.time.OffsetDateTime
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
+import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
 
 @Serializable
 data class SupabaseUserTrackingDto(
@@ -65,7 +67,8 @@ class SyncEngine @Inject constructor(
     private val userTrackingDao: UserTrackingDao,
     private val collectionDao: CollectionDao,
     private val authRepository: AuthRepository,
-    private val supabaseClient: SupabaseClient
+    private val supabaseClient: SupabaseClient,
+    private val userTrackingRepositoryProvider: Provider<UserTrackingRepository>
 ) {
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val syncMutex = Mutex()
@@ -338,6 +341,12 @@ class SyncEngine @Inject constructor(
         if (toInsertOrUpdate.isNotEmpty() || toDeleteIds.isNotEmpty()) {
             userTrackingDao.applyMergeResults(toInsertOrUpdate = toInsertOrUpdate, toDeleteIds = toDeleteIds)
             AppLogger.d(TAG, "performPullSync: DB Transaction committed successfully")
+            try {
+                userTrackingRepositoryProvider.get().recalculateTotalWatchTime()
+                AppLogger.d(TAG, "performPullSync: Recalculated watch timer after sync updates.")
+            } catch (e: Exception) {
+                AppLogger.e(TAG, "performPullSync: Failed to recalculate watch timer after sync updates", e)
+            }
         } else {
             AppLogger.d(TAG, "performPullSync: No database changes required for pull.")
         }
