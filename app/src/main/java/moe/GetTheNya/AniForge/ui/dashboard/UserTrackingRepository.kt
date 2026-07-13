@@ -222,20 +222,21 @@ class UserTrackingRepository @Inject constructor(
         val totalPlanned = anime?.episodes
         val currentStatus = currentTracking?.watchStatus ?: ""
 
+        val oldProgress = currentTracking?.episodeProgress ?: 0
+
         // Determine the new auto-status based on progress:
         // • progress reaches the total planned count  → COMPLETED
-        // • For RELEASING anime without a known total, we don't auto-complete
-        //   (the user must do that manually via the status picker).
+        // • progress less than total planned and current status is COMPLETED → CURRENT (Watching)
         // • progress 0→1+ and current status is empty or PLANNING → CURRENT (Watching)
         // • otherwise, keep the existing status unchanged
         val status = when {
             totalPlanned != null && totalPlanned > 0 && progress >= totalPlanned -> "COMPLETED"
+            currentStatus == "COMPLETED" && (totalPlanned != null && totalPlanned > 0 && progress < totalPlanned) -> "CURRENT"
+            currentStatus == "COMPLETED" && (totalPlanned == null || totalPlanned <= 0) && progress < oldProgress -> "CURRENT"
             progress >= 1 && (currentStatus.isEmpty() || currentStatus == "PLANNING") -> "CURRENT"
             progress >= 1 -> currentStatus  // keep existing status (e.g., PAUSED, DROPPED)
             else -> currentStatus
         }
-
-        val oldProgress = currentTracking?.episodeProgress ?: 0
         val deltaEpisodes = progress - oldProgress
         if (deltaEpisodes != 0) {
             val duration = (anime?.duration ?: 0).toLong()
