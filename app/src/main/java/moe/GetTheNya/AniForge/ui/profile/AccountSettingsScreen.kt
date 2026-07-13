@@ -212,7 +212,7 @@ fun AccountSettingsScreen(
                             .size(72.dp)
                             .clip(CircleShape)
                             .background(TransparentAccent)
-                            .border(2.dp, NeonCoral, CircleShape),
+                            .border(2.dp, if (!currentUser?.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         val avatarUrl = currentUser?.avatarUrl

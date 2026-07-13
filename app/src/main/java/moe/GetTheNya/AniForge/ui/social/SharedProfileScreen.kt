@@ -123,15 +123,25 @@ fun SharedProfileScreen(
                             .size(64.dp)
                             .clip(CircleShape)
                             .background(TransparentAccent)
-                            .border(2.dp, NeonCoral, CircleShape),
+                            .border(2.dp, if (!uiState.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = uiState.avatarLetter,
-                            color = NeonCoral,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        val avatarUrl = uiState.avatarUrl
+                        if (!avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "User Avatar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = uiState.avatarLetter,
+                                color = NeonCoral,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))

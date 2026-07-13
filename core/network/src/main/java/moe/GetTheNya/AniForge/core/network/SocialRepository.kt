@@ -31,7 +31,8 @@ data class FriendshipDto(
 @Serializable
 data class UserProfileDto(
     val id: String,
-    val username: String
+    val username: String,
+    @SerialName("avatar_url") val avatarUrl: String? = null
 )
 
 @Serializable
@@ -179,6 +180,21 @@ class SocialRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching outgoing requests: ${e.message}", e)
             emptyList()
+        }
+    }
+
+    suspend fun getUserProfile(userId: String): UserProfileDto? = withContext(Dispatchers.IO) {
+        try {
+            supabaseClient.from("user_profiles")
+                .select {
+                    filter {
+                        eq("id", userId)
+                    }
+                }
+                .decodeSingleOrNull<UserProfileDto>()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching user profile: ${e.message}", e)
+            null
         }
     }
 

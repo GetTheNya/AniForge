@@ -37,6 +37,8 @@ import moe.GetTheNya.AniForge.core.network.UserProfileDto
 import moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import moe.GetTheNya.AniForge.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -222,7 +224,7 @@ fun SocialScreen(
                                     },
                                     onRowClick = {
                                         if (friendship?.status == FriendshipStatus.ACCEPTED) {
-                                            navController.navigate(Screen.SharedProfile(user.id, user.username))
+                                            navController.navigate(Screen.SharedProfile(user.id, user.username, user.avatarUrl))
                                         }
                                     }
                                 )
@@ -326,7 +328,7 @@ fun SocialScreen(
                                             },
                                             isLoading = actionLoadingStates[friend.id] == true,
                                             onClick = {
-                                                navController.navigate(Screen.SharedProfile(friend.id, friend.username))
+                                                navController.navigate(Screen.SharedProfile(friend.id, friend.username, friend.avatarUrl))
                                             }
                                         )
                                     }
@@ -524,15 +526,25 @@ fun UserSearchResultRow(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(TransparentAccent)
-                    .border(1.5.dp, NeonCoral, CircleShape),
+                    .border(1.5.dp, if (!user.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = user.username.firstOrNull()?.uppercase() ?: "?",
-                    color = NeonCoral,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                val avatarUrl = user.avatarUrl
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "User Avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = user.username.firstOrNull()?.uppercase() ?: "?",
+                        color = NeonCoral,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -666,15 +678,25 @@ fun FriendRow(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(TransparentAccent)
-                    .border(1.5.dp, NeonCoral, CircleShape),
+                    .border(1.5.dp, if (!friend.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = friend.username.firstOrNull()?.uppercase() ?: "?",
-                    color = NeonCoral,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                val avatarUrl = friend.avatarUrl
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Friend Avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = friend.username.firstOrNull()?.uppercase() ?: "?",
+                        color = NeonCoral,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -739,15 +761,25 @@ fun RequestRow(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(TransparentAccent)
-                    .border(1.5.dp, NeonCoral, CircleShape),
+                    .border(1.5.dp, if (!request.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = request.username.firstOrNull()?.uppercase() ?: "?",
-                    color = NeonCoral,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                val avatarUrl = request.avatarUrl
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Request Avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = request.username.firstOrNull()?.uppercase() ?: "?",
+                        color = NeonCoral,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -829,15 +861,25 @@ fun SentRequestRow(
                     .size(44.dp)
                     .clip(CircleShape)
                     .background(TransparentAccent)
-                    .border(1.5.dp, NeonCoral, CircleShape),
+                    .border(1.5.dp, if (!request.avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = request.username.firstOrNull()?.uppercase() ?: "?",
-                    color = NeonCoral,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                val avatarUrl = request.avatarUrl
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Request Avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = request.username.firstOrNull()?.uppercase() ?: "?",
+                        color = NeonCoral,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

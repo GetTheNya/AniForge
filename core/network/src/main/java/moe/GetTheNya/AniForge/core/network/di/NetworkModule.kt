@@ -16,6 +16,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import okhttp3.Cache
+import java.io.File
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -40,10 +44,27 @@ abstract class NetworkModule {
         @Provides
         @Singleton
         fun provideOkHttpClient(
+            @ApplicationContext context: Context,
             loggingInterceptor: HttpLoggingInterceptor
         ): OkHttpClient {
+            val cacheSize = 10 * 1024 * 1024L // 10 MB
+            val cacheDir = File(context.cacheDir, "http_cache")
+            val cache = Cache(cacheDir, cacheSize)
+
             return OkHttpClient.Builder()
+                .cache(cache)
                 .addInterceptor(loggingInterceptor)
+                .addNetworkInterceptor { chain ->
+                    val request = chain.request()
+                    val response = chain.proceed(request)
+                    if (request.url.toString().contains("avatar.webp")) {
+                        response.newBuilder()
+                            .header("Cache-Control", "public, max-age=31536000")
+                            .build()
+                    } else {
+                        response
+                    }
+                }
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)

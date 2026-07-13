@@ -58,6 +58,7 @@ data class SharedProfileUiState(
     val trackingStats: Map<String, Int> = emptyMap(),
     val collectionsList: List<SharedCollectionWithData> = emptyList(),
     val segmentedWatchLists: Map<String, List<FriendTrackingItem>> = emptyMap(),
+    val avatarUrl: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -72,11 +73,13 @@ class SharedProfileViewModel @Inject constructor(
 
     val userId: String get() = savedStateHandle.get<String>("userId") ?: ""
     val username: String get() = savedStateHandle.get<String>("username") ?: ""
+    val initialAvatarUrl: String? get() = savedStateHandle.get<String>("avatarUrl")
 
     private val _uiState = MutableStateFlow(
         SharedProfileUiState(
             username = username,
-            avatarLetter = username.firstOrNull()?.uppercase() ?: "?"
+            avatarLetter = username.firstOrNull()?.uppercase() ?: "?",
+            avatarUrl = initialAvatarUrl
         )
     )
     val uiState = _uiState.asStateFlow()
@@ -285,6 +288,8 @@ class SharedProfileViewModel @Inject constructor(
                     )
                 }
 
+                val profile = socialRepository.getUserProfile(userId)
+
                 // Gather all anime IDs to resolve details in one batch
                 val trackingAnimeIds = trackingRecords.map { it.anilistId }
                 val crossRefAnimeIds = crossRefs.map { it.animeId }
@@ -390,6 +395,9 @@ class SharedProfileViewModel @Inject constructor(
                 // 6. Update UI state
                 _allFriendTrackingItems.value = pairedItems
                 _uiState.value = _uiState.value.copy(
+                    username = profile?.username ?: username,
+                    avatarLetter = (profile?.username ?: username).firstOrNull()?.uppercase() ?: "?",
+                    avatarUrl = profile?.avatarUrl ?: initialAvatarUrl ?: _uiState.value.avatarUrl,
                     userStats = userStats,
                     bentoStats = bentoStats,
                     trackingStats = trackingStats,

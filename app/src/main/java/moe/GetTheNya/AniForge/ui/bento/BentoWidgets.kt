@@ -855,26 +855,6 @@ fun FriendsWidget(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.CenterStart
             ) {
-                displayFriends.forEachIndexed { index, friend ->
-                    Box(
-                        modifier = Modifier
-                            .padding(start = (index * 24).dp)
-                            .size(40.dp)
-                            .border(2.dp, BackgroundDark, CircleShape) // Dark border separation
-                            .padding(2.dp)
-                            .clip(CircleShape)
-                            .background(TransparentAccent)
-                            .border(1.dp, NeonCoral, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = friend.username.firstOrNull()?.uppercase() ?: "?",
-                            color = NeonCoral,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
                 if (friends.size > 5) {
                     Box(
                         modifier = Modifier
@@ -893,6 +873,37 @@ fun FriendsWidget(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    }
+                }
+                for (index in displayFriends.indices.reversed()) {
+                    val friend = displayFriends[index]
+                    val avatarUrl = friend.avatarUrl
+                    Box(
+                        modifier = Modifier
+                            .padding(start = (index * 24).dp)
+                            .size(40.dp)
+                            .border(2.dp, BackgroundDark, CircleShape) // Dark border separation
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(TransparentAccent)
+                            .border(1.dp, if (!avatarUrl.isNullOrBlank()) CardBorder else NeonCoral, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Friend Avatar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = friend.username.firstOrNull()?.uppercase() ?: "?",
+                                color = NeonCoral,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
