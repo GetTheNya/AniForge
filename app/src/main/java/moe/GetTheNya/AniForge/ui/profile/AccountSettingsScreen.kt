@@ -1,23 +1,59 @@
 package moe.GetTheNya.AniForge.ui.profile
 
 import android.widget.Toast
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.theme.*
@@ -47,6 +83,58 @@ fun AccountSettingsScreen(
     }
 
     var showSignOutDialog by remember { mutableStateOf(false) }
+
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cropBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isLoadingBitmap by remember { mutableStateOf(false) }
+
+    val pickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            selectedImageUri = uri
+        }
+    }
+
+    LaunchedEffect(selectedImageUri) {
+        val uri = selectedImageUri
+        if (uri != null) {
+            isLoadingBitmap = true
+            cropBitmap = withContext(Dispatchers.IO) {
+                try {
+                    val contentResolver = context.contentResolver
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val source = ImageDecoder.createSource(contentResolver, uri)
+                        ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                            decoder.isMutableRequired = true
+                            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(contentResolver, uri)
+                            .copy(Bitmap.Config.ARGB_8888, true)
+                    }
+                } catch (e: Exception) {
+                    Log.e("AccountSettings", "Failed to decode bitmap: ${e.message}", e)
+                    null
+                }
+            }
+            isLoadingBitmap = false
+        } else {
+            cropBitmap = null
+        }
+    }
+
+    LaunchedEffect(cropBitmap) {
+        scale = 1f
+        offset = Offset.Zero
+    }
 
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
@@ -113,6 +201,70 @@ fun AccountSettingsScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Avatar Option
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(TransparentAccent)
+                            .border(2.dp, NeonCoral, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val avatarUrl = currentUser?.avatarUrl
+                        if (!avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "User Avatar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = currentUser?.username?.firstOrNull()?.uppercase() ?: "?",
+                                color = NeonCoral,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = strings.accountSettings.avatarLabel,
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            pickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCoral),
+                        border = BorderStroke(1.dp, NeonCoral),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = strings.accountSettings.avatarChangeBtn,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = CardBorder, thickness = 1.dp)
+
                 // Username Field
                 Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
@@ -285,5 +437,207 @@ fun AccountSettingsScreen(
             containerColor = AlertBackground,
             shape = RoundedCornerShape(24.dp)
         )
+    }
+
+    if (selectedImageUri != null) {
+        Dialog(
+            onDismissRequest = {
+                selectedImageUri = null
+                cropBitmap = null
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black
+            ) {
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val parentWidthPx = constraints.maxWidth.toFloat()
+                    val parentHeightPx = constraints.maxHeight.toFloat()
+                    
+                    val cropBoxSizePx = parentWidthPx
+                    val cropBoxSizeDp = maxWidth
+                    
+                    val bitmap = cropBitmap
+                    if (bitmap == null || isLoadingBitmap) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = NeonCoral
+                        )
+                    } else {
+                        val w = bitmap.width.toFloat()
+                        val h = bitmap.height.toFloat()
+                        val aspectRatio = w / h
+                        
+                        val displayHeightPx = if (w >= h) cropBoxSizePx else cropBoxSizePx / aspectRatio
+                        val displayWidthPx = if (w >= h) cropBoxSizePx * aspectRatio else cropBoxSizePx
+                        
+                        val displayWidthDp = with(density) { displayWidthPx.toDp() }
+                        val displayHeightDp = with(density) { displayHeightPx.toDp() }
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTransformGestures { _, pan, zoom, _ ->
+                                        scale = (scale * zoom).coerceIn(1f, 5f)
+                                        
+                                        val maxOffsetX = (displayWidthPx * scale) / 2f - parentWidthPx / 2f
+                                        val minOffsetX = -maxOffsetX
+                                        val maxOffsetY = (displayHeightPx * scale) / 2f - cropBoxSizePx / 2f
+                                        val minOffsetY = -maxOffsetY
+                                        
+                                        val targetX = offset.x + pan.x
+                                        val targetY = offset.y + pan.y
+                                        
+                                        offset = Offset(
+                                            x = targetX.coerceIn(minOffsetX, maxOffsetX),
+                                            y = targetY.coerceIn(minOffsetY, maxOffsetY)
+                                        )
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(displayWidthDp, displayHeightDp)
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationX = offset.x
+                                        translationY = offset.y
+                                    },
+                                contentScale = ContentScale.FillBounds
+                            )
+
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val circleRadius = size.width / 2f
+                                val path = Path().apply {
+                                    addOval(Rect(center, circleRadius))
+                                }
+                                clipPath(path, clipOp = ClipOp.Difference) {
+                                    drawRect(
+                                        color = Color.Black.copy(alpha = 0.7f)
+                                    )
+                                }
+                                drawCircle(
+                                    center = center,
+                                    radius = circleRadius,
+                                    color = Color.White,
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+                                drawCircle(
+                                    center = center,
+                                    radius = circleRadius,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    style = Stroke(
+                                        width = 1.dp.toPx(),
+                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                                    )
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .statusBarsPadding()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = strings.accountSettings.avatarEditDialogTitle,
+                                    color = TextPrimary,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        selectedImageUri = null
+                                        cropBitmap = null
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                                    border = BorderStroke(1.dp, CardBorder)
+                                ) {
+                                    Text(strings.accountSettings.avatarCancel)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            val cropped = withContext(Dispatchers.IO) {
+                                                try {
+                                                    val cropLeftDisp = displayWidthPx / 2f - (parentWidthPx / 2f + offset.x) / scale
+                                                    val cropTopDisp = displayHeightPx / 2f - (cropBoxSizePx / 2f + offset.y) / scale
+                                                    val cropWidthDisp = cropBoxSizePx / scale
+                                                    val cropHeightDisp = cropBoxSizePx / scale
+                                                    
+                                                    val left = (cropLeftDisp / displayWidthPx) * bitmap.width
+                                                    val top = (cropTopDisp / displayHeightPx) * bitmap.height
+                                                    val width = (cropWidthDisp / displayWidthPx) * bitmap.width
+                                                    val height = (cropHeightDisp / displayHeightPx) * bitmap.height
+                                                    
+                                                    val finalLeft = left.roundToInt().coerceIn(0, bitmap.width - 1)
+                                                    val finalTop = top.roundToInt().coerceIn(0, bitmap.height - 1)
+                                                    val finalWidth = width.roundToInt().coerceAtMost(bitmap.width - finalLeft)
+                                                    val finalHeight = height.roundToInt().coerceAtMost(bitmap.height - finalTop)
+                                                    
+                                                    Bitmap.createBitmap(bitmap, finalLeft, finalTop, finalWidth, finalHeight)
+                                                } catch (e: Exception) {
+                                                    Log.e("AccountSettings", "Error cropping bitmap: ${e.message}", e)
+                                                    null
+                                                }
+                                            }
+
+                                            if (cropped != null) {
+                                                val optimizedBytes = AvatarCompressionEngine.optimizeAvatar(cropped)
+                                                cropped.recycle()
+
+                                                viewModel.uploadAvatar(optimizedBytes) { uploadResult ->
+                                                    if (uploadResult.isSuccess) {
+                                                        Toast.makeText(context, strings.accountSettings.avatarUpdateSuccess, Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, String.format(strings.accountSettings.avatarUploadFailed, uploadResult.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                            selectedImageUri = null
+                                            cropBitmap = null
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonCoral)
+                                ) {
+                                    Text(strings.accountSettings.avatarSave, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

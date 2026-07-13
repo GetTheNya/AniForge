@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.createSupabaseClient
 import moe.GetTheNya.AniForge.core.network.BuildConfig
 import android.util.Log
@@ -38,6 +39,7 @@ object SupabaseModule {
                 // By default, Supabase Kotlin SDK persists the session on Android.
             }
             install(Postgrest)
+            install(Storage)
         }
     }
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import moe.GetTheNya.AniForge.core.network.AuthRepository
+import moe.GetTheNya.AniForge.core.network.ProfileRepository
 import moe.GetTheNya.AniForge.core.network.UserInfo
 import moe.GetTheNya.AniForge.core.network.UsernameTakenException
 import moe.GetTheNya.AniForge.core.network.UsernameFormatException
@@ -25,8 +26,19 @@ sealed interface SaveError {
 
 @HiltViewModel
 class AccountSettingsViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
+
+    fun uploadAvatar(byteArray: ByteArray, onResult: (Result<Unit>) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = profileRepository.uploadUserAvatar(byteArray)
+            if (result.isSuccess) {
+                authRepository.fetchUserProfile()
+            }
+            onResult(result)
+        }
+    }
 
     private val _username = MutableStateFlow("")
     val username: StateFlow<String> = _username.asStateFlow()

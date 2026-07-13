@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -27,7 +28,8 @@ class UsernameFormatException(message: String, cause: Throwable? = null) : Excep
 
 @Serializable
 private data class DbUserProfile(
-    val username: String
+    val username: String,
+    @SerialName("avatar_url") val avatarUrl: String? = null
 )
 
 @Serializable
@@ -38,6 +40,7 @@ private data class DbUserProfileUpdate(
 data class UserInfo(
     val id: String,
     val username: String,
+    val avatarUrl: String? = null,
     val isProfileLoading: Boolean = false
 )
 
@@ -47,6 +50,7 @@ class AuthRepository @Inject constructor(
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _customUsername = MutableStateFlow<String?>(null)
+    private val _avatarUrl = MutableStateFlow<String?>(null)
     private val _isProfileLoading = MutableStateFlow(false)
 
     init {
@@ -61,6 +65,7 @@ class AuthRepository @Inject constructor(
                     }
                     else -> {
                         _customUsername.value = null
+                        _avatarUrl.value = null
                         _isProfileLoading.value = false
                     }
                 }
@@ -71,8 +76,9 @@ class AuthRepository @Inject constructor(
     val currentUser: Flow<UserInfo?> = combine(
         supabaseClient.auth.sessionStatus,
         _customUsername,
+        _avatarUrl,
         _isProfileLoading
-    ) { status, customName, isLoading ->
+    ) { status, customName, avatar, isLoading ->
         when (status) {
             is SessionStatus.Authenticated -> {
                 val user = status.session.user ?: return@combine null
@@ -84,6 +90,7 @@ class AuthRepository @Inject constructor(
                 UserInfo(
                     id = user.id,
                     username = customName ?: defaultUsername,
+                    avatarUrl = avatar,
                     isProfileLoading = isLoading
                 )
             }
@@ -102,9 +109,15 @@ class AuthRepository @Inject constructor(
             return UserInfo(
                 id = user.id,
                 username = _customUsername.value ?: defaultUsername,
+                avatarUrl = _avatarUrl.value,
                 isProfileLoading = _isProfileLoading.value
             )
         }
+
+    suspend fun fetchUserProfile() {
+        val user = supabaseClient.auth.currentUserOrNull() ?: return
+        fetchAndCacheUsername(user.id)
+    }
 
     private suspend fun fetchAndCacheUsername(userId: String) {
         _isProfileLoading.value = true
@@ -118,6 +131,7 @@ class AuthRepository @Inject constructor(
                 .decodeSingleOrNull<DbUserProfile>()
             if (profile != null) {
                 _customUsername.value = profile.username
+                _avatarUrl.value = profile.avatarUrl
             }
         } catch (e: Exception) {
             Log.e("AuthRepository", "Error fetching username from user_profiles: ${e.message}", e)

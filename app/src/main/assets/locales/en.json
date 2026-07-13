@@ -221,7 +221,14 @@
     "signOutConfirmTitle": "Sign Out",
     "signOutConfirmText": "⚠️ Warning! Important notice\nYou are signing out of your account. All your data remains on this device, and you can continue using the app offline.\n\nHowever, if you decide to log into ANOTHER account on this device:\n\n🛑 All your unsynced changes (new episodes or ratings) will be automatically uploaded to this new account.\n\n🌪️ Previous synced data might disappear from your device, as the new account's cloud data will replace it.\n\nTo avoid messing up your lists, only log back into your current account. We warned you!",
     "signOutConfirmOk": "Sign Out",
-    "signOutConfirmCancel": "Cancel"
+    "signOutConfirmCancel": "Cancel",
+    "avatarLabel": "Profile Picture",
+    "avatarChangeBtn": "Change",
+    "avatarEditDialogTitle": "Edit Avatar",
+    "avatarCancel": "Cancel",
+    "avatarSave": "Save",
+    "avatarUpdateSuccess": "Avatar updated successfully!",
+    "avatarUploadFailed": "Upload failed: %s"
   },
   "settingsScreen": {
     "title": "Settings",

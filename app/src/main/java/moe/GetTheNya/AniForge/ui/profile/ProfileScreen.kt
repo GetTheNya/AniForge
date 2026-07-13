@@ -1,6 +1,35 @@
 package moe.GetTheNya.AniForge.ui.profile
 
 import android.util.Log
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -214,12 +243,22 @@ fun ProfileScreen(
                                         .border(2.dp, NeonCoral, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = currentUser!!.username.firstOrNull()?.uppercase() ?: "?",
-                                        color = NeonCoral,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    val avatarUrl = currentUser!!.avatarUrl
+                                    if (!avatarUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = avatarUrl,
+                                            contentDescription = "User Avatar",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Text(
+                                            text = currentUser!!.username.firstOrNull()?.uppercase() ?: "?",
+                                            color = NeonCoral,
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                                 
                                 Spacer(modifier = Modifier.width(16.dp))

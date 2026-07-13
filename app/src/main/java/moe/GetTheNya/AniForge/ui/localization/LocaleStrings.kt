@@ -285,7 +285,14 @@ data class AccountSettingsStrings(
     val signOutConfirmTitle: String = "[accountSettings.signOutConfirmTitle]",
     val signOutConfirmText: String = "[accountSettings.signOutConfirmText]",
     val signOutConfirmOk: String = "[accountSettings.signOutConfirmOk]",
-    val signOutConfirmCancel: String = "[accountSettings.signOutConfirmCancel]"
+    val signOutConfirmCancel: String = "[accountSettings.signOutConfirmCancel]",
+    val avatarLabel: String = "[accountSettings.avatarLabel]",
+    val avatarChangeBtn: String = "[accountSettings.avatarChangeBtn]",
+    val avatarEditDialogTitle: String = "[accountSettings.avatarEditDialogTitle]",
+    val avatarCancel: String = "[accountSettings.avatarCancel]",
+    val avatarSave: String = "[accountSettings.avatarSave]",
+    val avatarUpdateSuccess: String = "[accountSettings.avatarUpdateSuccess]",
+    val avatarUploadFailed: String = "[accountSettings.avatarUploadFailed]"
 )
 
 @Serializable

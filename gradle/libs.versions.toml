@@ -78,6 +78,7 @@ paging-common = { group = "androidx.paging", name = "paging-common", version.ref
 supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
 supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
 supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+supabase-storage = { group = "io.github.jan-tennert.supabase", name = "storage-kt" }
 
 # Ktor HTTP Engine (required by Supabase SDK)
 ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }

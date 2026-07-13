@@ -15,6 +15,7 @@ import moe.GetTheNya.AniForge.core.database.repository.BentoWidgetRepository
 import moe.GetTheNya.AniForge.core.database.util.AppLogger
 import moe.GetTheNya.AniForge.core.database.util.LogEntry
 import moe.GetTheNya.AniForge.core.network.AuthRepository
+import moe.GetTheNya.AniForge.core.network.ProfileRepository
 import moe.GetTheNya.AniForge.core.network.UserInfo
 import javax.inject.Inject
 
@@ -23,8 +24,19 @@ class ProfileViewModel @Inject constructor(
     private val settingsProvider: SettingsProvider,
     private val userTrackingDao: UserTrackingDao,
     private val bentoWidgetRepository: BentoWidgetRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
+
+    fun uploadAvatar(byteArray: ByteArray, onResult: (Result<Unit>) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = profileRepository.uploadUserAvatar(byteArray)
+            if (result.isSuccess) {
+                authRepository.fetchUserProfile()
+            }
+            onResult(result)
+        }
+    }
 
     init {
         viewModelScope.launch {
