@@ -28,6 +28,7 @@ fun AppearanceTab(
     val strings = LocalLocaleStrings.current
     val preferUk by viewModel.preferUkTitles.collectAsState()
     val show18Plus by viewModel.show18Plus.collectAsState()
+    val hideNavigationBar by viewModel.hideNavigationBar.collectAsState()
     val currentLangCode by viewModel.currentLanguage.collectAsState()
     val availableLangs by viewModel.availableLanguages.collectAsState()
 
@@ -194,6 +195,39 @@ fun AppearanceTab(
                             viewModel.setShow18Plus(false)
                         }
                     },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = BackgroundDark,
+                        checkedTrackColor = NeonCoral,
+                        uncheckedThumbColor = TextSecondary,
+                        uncheckedTrackColor = Color(0x33FFFFFF)
+                    )
+                )
+            }
+
+            HorizontalDivider(Modifier, thickness = 1.dp, color = CardBorder)
+
+            // 4. Hide Navigation Bar Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        text = strings.settingsScreen.hideNavigationBarTitle,
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = strings.settingsScreen.hideNavigationBarDesc,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+                Switch(
+                    checked = hideNavigationBar,
+                    onCheckedChange = viewModel::setHideNavigationBar,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = BackgroundDark,
                         checkedTrackColor = NeonCoral,

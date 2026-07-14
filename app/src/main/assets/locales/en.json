@@ -240,6 +240,8 @@
     "preferUkDesc": "Use translated titles when available",
     "show18PlusTitle": "18+ Mode (NSFW)",
     "show18PlusDesc": "Show adult content in catalog and search",
+    "hideNavigationBarTitle": "Hide Navigation Bar",
+    "hideNavigationBarDesc": "Hide the system bottom navigation bar (swipe from the bottom to show it)",
     "confirm18PlusTitle": "Enable NSFW Mode?",
     "confirm18PlusText": "Make sure nobody is looking over your shoulder. We take no responsibility for what you see!",
     "confirm18PlusOk": "I don't care, turn it on",

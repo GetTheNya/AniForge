@@ -16,6 +16,9 @@ import android.os.Build
 import moe.GetTheNya.AniForge.ui.settings.DevSettingsScreen
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -244,6 +247,19 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
+            val hideNavigationBar by settingsProvider.hideNavigationBar.collectAsState()
+            LaunchedEffect(hideNavigationBar) {
+                val window = this@MainActivity.window
+                val view = window.decorView
+                val windowInsetsController = WindowCompat.getInsetsController(window, view)
+                if (hideNavigationBar) {
+                    windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars())
+                    windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                } else {
+                    windowInsetsController.show(WindowInsetsCompat.Type.navigationBars())
+                }
+            }
+
             val navController = rememberNavController()
             val pagerState = rememberPagerState(initialPage = 0) { TabScreen.entries.size }
             val coroutineScope = rememberCoroutineScope()

@@ -128,6 +128,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     val preferUkTitles: StateFlow<Boolean> = settingsProvider.preferUkTitles
+    val hideNavigationBar: StateFlow<Boolean> = settingsProvider.hideNavigationBar
 
     val currentLanguage: StateFlow<String> = settingsRepository.getSettingFlow(
         SettingsKeys.LANGUAGE,
@@ -149,6 +150,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setShow18Plus(value: Boolean) {
         settingsProvider.setShow18Plus(value)
+    }
+
+    fun setHideNavigationBar(value: Boolean) {
+        settingsProvider.setHideNavigationBar(value)
     }
 
     fun setSelectedLanguage(langCode: String) {

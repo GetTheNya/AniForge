@@ -47,6 +47,17 @@ class SettingsProvider @Inject constructor(
         initialValue = false
     )
 
+    val hideNavigationBar: StateFlow<Boolean> = settingsRepository.getSettingFlow(
+        SettingsKeys.HIDE_NAVIGATION_BAR,
+        "false"
+    )
+    .map { it.toBoolean() }
+    .stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = false
+    )
+
     val titleAnimStyleStr: StateFlow<String> = settingsRepository.getSettingFlow(
         SettingsKeys.TITLE_ANIM_STYLE,
         "DECODING"
@@ -232,6 +243,16 @@ class SettingsProvider @Inject constructor(
     fun setShow18Plus(value: Boolean) {
         scope.launch {
             settingsRepository.saveSetting(SettingsKeys.SHOW_18_PLUS, value.toString())
+        }
+    }
+
+    fun getHideNavigationBar(): Boolean {
+        return hideNavigationBar.value
+    }
+
+    fun setHideNavigationBar(value: Boolean) {
+        scope.launch {
+            settingsRepository.saveSetting(SettingsKeys.HIDE_NAVIGATION_BAR, value.toString())
         }
     }
 }

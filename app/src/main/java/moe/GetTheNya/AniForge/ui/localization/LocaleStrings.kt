@@ -306,6 +306,8 @@ data class SettingsScreenStrings(
     val preferUkDesc: String = "[settingsScreen.preferUkDesc]",
     val show18PlusTitle: String = "[settingsScreen.show18PlusTitle]",
     val show18PlusDesc: String = "[settingsScreen.show18PlusDesc]",
+    val hideNavigationBarTitle: String = "[settingsScreen.hideNavigationBarTitle]",
+    val hideNavigationBarDesc: String = "[settingsScreen.hideNavigationBarDesc]",
     val confirm18PlusTitle: String = "[settingsScreen.confirm18PlusTitle]",
     val confirm18PlusText: String = "[settingsScreen.confirm18PlusText]",
     val confirm18PlusOk: String = "[settingsScreen.confirm18PlusOk]",

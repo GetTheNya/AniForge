@@ -12,4 +12,5 @@ object SettingsKeys {
     const val GESTURE_LEFT = "gesture_left"
     const val GESTURE_RIGHT = "gesture_right"
     const val SHOW_18_PLUS = "show_18_plus"
+    const val HIDE_NAVIGATION_BAR = "hide_navigation_bar"
 }
