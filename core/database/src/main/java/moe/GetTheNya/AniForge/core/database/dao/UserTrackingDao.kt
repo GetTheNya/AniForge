@@ -48,6 +48,9 @@ abstract class UserTrackingDao(val db: RoomDatabase) {
     @Query("SELECT * FROM user_tracking WHERE is_deleted = 0")
     abstract suspend fun getAllTrackingSync(): List<UserTrackingEntity>
 
+    @Query("SELECT * FROM user_tracking WHERE is_waiting_continuation = 1 AND is_deleted = 0")
+    abstract suspend fun getWaitingTrackingSync(): List<UserTrackingEntity>
+
     @Query("SELECT * FROM user_tracking")
     abstract suspend fun getAllTrackingIncludingDeleted(): List<UserTrackingEntity>
 

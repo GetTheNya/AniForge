@@ -129,7 +129,14 @@ data class LibraryScreenStrings(
     val sequelReleased: String = "[libraryScreen.sequelReleased]",
     val addToPlanned: String = "[libraryScreen.addToPlanned]",
     val addToWatching: String = "[libraryScreen.addToWatching]",
-    val hideSequel: String = "[libraryScreen.hideSequel]"
+    val hideSequel: String = "[libraryScreen.hideSequel]",
+    val currentlyAiring: String = "[libraryScreen.currentlyAiring]",
+    val readyToWatch: String = "[libraryScreen.readyToWatch]",
+    val continuationHandoverTitle: String = "[libraryScreen.continuationHandoverTitle]",
+    val continuationHandoverContent: String = "[libraryScreen.continuationHandoverContent]",
+    val waitForNextSeason: String = "[libraryScreen.waitForNextSeason]",
+    val airingWaitedSequels: String = "[libraryScreen.airingWaitedSequels]",
+    val eps: String = "[libraryScreen.eps]"
 )
 
 @Serializable

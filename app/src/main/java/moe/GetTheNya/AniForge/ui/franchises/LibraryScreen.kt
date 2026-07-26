@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
 import moe.GetTheNya.AniForge.core.model.WaitingItem
 import moe.GetTheNya.AniForge.core.model.CandidateStatus
+import moe.GetTheNya.AniForge.ui.localization.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -195,6 +196,10 @@ fun UserTrackedListContent(
             }
         }
 
+        val activeFilter by viewModel.activeFilter.collectAsState()
+        val isPlannedTab = activeFilter == LibraryFilter.PLANNING
+        val readyToWatchItems by viewModel.readyToWatchItems.collectAsState()
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -211,6 +216,17 @@ fun UserTrackedListContent(
                     .disableSplitTouch(),
                 userScrollEnabled = scrollEnabled
             ) {
+                if (isPlannedTab && readyToWatchItems.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        PinnedAiringSection(
+                            readyToWatchItems = readyToWatchItems,
+                            onItemClick = { animeId -> navController.navigate(Screen.Detail(animeId, sourceStatusId = null)) },
+                            onStartWatching = { animeId -> viewModel.updateWatchStatus(animeId, "CURRENT") },
+                            preferUk = preferUk
+                        )
+                    }
+                }
+
                 items(
                     items = animeList,
                     key = { it.anilistId }
@@ -376,6 +392,11 @@ fun WaitingAnimeCard(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         val (badgeBg, badgeFg, badgeText) = when (item.candidateStatus) {
+                            CandidateStatus.READY_TO_WATCH -> Triple(
+                                CyberTeal.copy(alpha = 0.18f),
+                                CyberTeal,
+                                strings.libraryScreen.readyToWatch
+                            )
                             CandidateStatus.RELEASED -> Triple(
                                 CyberTeal.copy(alpha = 0.18f),
                                 CyberTeal,
@@ -420,8 +441,9 @@ fun WaitingAnimeCard(
             }
 
             if (candidate != null && item.candidateStatus != CandidateStatus.QUIET) {
-                val highlightBg = if (item.candidateStatus == CandidateStatus.RELEASED) CyberTeal.copy(alpha = 0.08f) else ElectricViolet.copy(alpha = 0.08f)
-                val highlightBorder = if (item.candidateStatus == CandidateStatus.RELEASED) CyberTeal.copy(alpha = 0.3f) else ElectricViolet.copy(alpha = 0.3f)
+                val isReleasedOrReady = item.candidateStatus == CandidateStatus.READY_TO_WATCH || item.candidateStatus == CandidateStatus.RELEASED
+                val highlightBg = if (isReleasedOrReady) CyberTeal.copy(alpha = 0.08f) else ElectricViolet.copy(alpha = 0.08f)
+                val highlightBorder = if (isReleasedOrReady) CyberTeal.copy(alpha = 0.3f) else ElectricViolet.copy(alpha = 0.3f)
 
                 Box(
                     modifier = Modifier
@@ -442,12 +464,15 @@ fun WaitingAnimeCard(
                             modifier = Modifier.clickable { navController.navigate(Screen.Detail(candidate.anilistId)) }
                         )
                         val metaInfo = buildString {
-                            if (candidate.format != null) append("${candidate.format} • ")
-                            if (item.candidateStatus == CandidateStatus.RELEASED) {
-                                if (candidate.episodes != null) append("${candidate.episodes} eps") else append("Released")
+                            val fmt = candidate.format
+                            if (fmt != null) append("${strings.formats.getFormatLabel(fmt)} • ")
+                            if (isReleasedOrReady) {
+                                if (candidate.episodes != null) append("${candidate.episodes} ${strings.libraryScreen.eps}") else append(strings.mediaStatuses.getMediaStatusLabel("FINISHED"))
                             } else {
-                                val timeframe = listOfNotNull(candidate.season, candidate.seasonYear?.toString() ?: candidate.startDateYear?.toString()).joinToString(" ")
-                                if (timeframe.isNotBlank()) append(timeframe) else append("Announced")
+                                val seasonLabel = candidate.season?.let { strings.seasons.getSeasonLabel(it) }
+                                val yearLabel = candidate.seasonYear?.toString() ?: candidate.startDateYear?.toString()
+                                val timeframe = listOfNotNull(seasonLabel, yearLabel).joinToString(" ")
+                                if (timeframe.isNotBlank()) append(timeframe) else append(strings.mediaStatuses.getMediaStatusLabel("NOT_YET_RELEASED"))
                             }
                         }
                         Text(
@@ -465,10 +490,11 @@ fun WaitingAnimeCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (candidate != null && item.candidateStatus != CandidateStatus.QUIET) {
-                    val primaryLabel = if (item.candidateStatus == CandidateStatus.RELEASED) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
-                    val primaryStatus = if (item.candidateStatus == CandidateStatus.RELEASED) "CURRENT" else "PLANNING"
+                    val isReleasedOrReady = item.candidateStatus == CandidateStatus.READY_TO_WATCH || item.candidateStatus == CandidateStatus.RELEASED
+                    val primaryLabel = if (isReleasedOrReady) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
+                    val primaryStatus = if (isReleasedOrReady) "CURRENT" else "PLANNING"
                     val primaryColor = statusConfigs.firstOrNull { it.id == primaryStatus }?.color
-                        ?: if (item.candidateStatus == CandidateStatus.RELEASED) Color(0xFF3B82F6) else Color(0xFF9067C6)
+                        ?: if (isReleasedOrReady) Color(0xFF3B82F6) else Color(0xFF9067C6)
 
                     Button(
                         onClick = { viewModel.updateWatchStatus(candidate.anilistId, primaryStatus) },
@@ -777,71 +803,73 @@ fun LibraryScreen(
                     strings.libraryScreen.searchPlaceholder
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        LibrarySearchBar(
-                            query = searchQuery,
-                            onQueryChange = { viewModel.searchQuery.value = it },
-                            placeholder = searchPlaceholder,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                if (activeFilter != LibraryFilter.WAITING) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            LibrarySearchBar(
+                                query = searchQuery,
+                                onQueryChange = { viewModel.searchQuery.value = it },
+                                placeholder = searchPlaceholder,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
-                    if (activeFilter != LibraryFilter.COLLECTIONS) {
-                        val context = LocalContext.current
-                        Box {
+                        if (activeFilter != LibraryFilter.COLLECTIONS) {
+                            val context = LocalContext.current
+                            Box {
+                                IconButton(
+                                    onClick = { showFilterSheet = true },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
+                                    ),
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = strings.dashboardScreen.filterTooltip,
+                                        tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                if (hasActiveFilters) {
+                                    Badge(
+                                        containerColor = NeonCoral,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(10.dp)
+                                    )
+                                }
+                            }
+
                             IconButton(
-                                onClick = { showFilterSheet = true },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = if (hasActiveFilters) ElectricViolet.copy(alpha = 0.2f) else SurfaceDark
-                                ),
+                                onClick = {
+                                    val success = viewModel.pickRandomAnime(navController)
+                                    if (!success) {
+                                        Toast.makeText(context, strings.libraryScreen.randomEmpty, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(20.dp))
-                                    .border(1.dp, if (hasActiveFilters) ElectricViolet else CardBorder, RoundedCornerShape(20.dp))
+                                    .background(SurfaceDark)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = strings.dashboardScreen.filterTooltip,
-                                    tint = if (hasActiveFilters) ElectricViolet else TextPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    imageVector = Icons.Default.Casino,
+                                    contentDescription = "Random Anime",
+                                    tint = TextPrimary
                                 )
                             }
-                            if (hasActiveFilters) {
-                                Badge(
-                                    containerColor = NeonCoral,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .size(10.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val success = viewModel.pickRandomAnime(navController)
-                                if (!success) {
-                                    Toast.makeText(context, strings.libraryScreen.randomEmpty, Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(SurfaceDark)
-                                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Casino,
-                                contentDescription = "Random Anime",
-                                tint = TextPrimary
-                            )
                         }
                     }
                 }
@@ -1843,4 +1871,156 @@ fun LibrarySearchBar(
             .fillMaxWidth()
             .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
     )
+}
+
+@Composable
+fun PinnedAiringSection(
+    readyToWatchItems: List<WaitingItem>,
+    onItemClick: (Long) -> Unit,
+    onStartWatching: (Long) -> Unit,
+    preferUk: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark.copy(alpha = 0.9f)),
+        border = BorderStroke(1.dp, CyberTeal.copy(alpha = 0.4f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(CyberTeal)
+                )
+                Text(
+                    text = strings.libraryScreen.airingWaitedSequels,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(CyberTeal.copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${readyToWatchItems.size}",
+                        color = CyberTeal,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(
+                    items = readyToWatchItems,
+                    key = { it.candidateSequel?.anilistId ?: it.baseAnime.anilistId }
+                ) { item ->
+                    val candidate = item.candidateSequel ?: return@items
+                    val airedEpisodes = candidate.getReleasedEpisodes() ?: 1
+                    val totalEpisodes = candidate.episodes?.toString() ?: "?"
+                    val statusBadgeText = "🟢 Ep $airedEpisodes/$totalEpisodes"
+
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f)),
+                        border = BorderStroke(1.dp, CardBorder),
+                        modifier = Modifier
+                            .width(250.dp)
+                            .clickable { onItemClick(candidate.anilistId) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp, 76.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(CardBorder)
+                            ) {
+                                val cover = candidate.coverLarge ?: item.baseAnime.coverLarge
+                                if (!cover.isNullOrEmpty()) {
+                                    coil.compose.AsyncImage(
+                                        model = cover,
+                                        contentDescription = candidate.getDisplayTitle(preferUk),
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = statusBadgeText,
+                                    color = CyberTeal,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Text(
+                                    text = candidate.getDisplayTitle(preferUk),
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Text(
+                                    text = "Base: ${item.baseAnime.getDisplayTitle(preferUk)}",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Button(
+                                    onClick = { onStartWatching(candidate.anilistId) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = CyberTeal),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .height(28.dp)
+                                ) {
+                                    Text(
+                                        text = strings.libraryScreen.addToWatching,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

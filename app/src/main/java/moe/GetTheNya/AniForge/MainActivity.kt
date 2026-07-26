@@ -371,6 +371,24 @@ class MainActivity : ComponentActivity() {
                         // Main tabs layout (always kept alive in background)
                         val density = LocalDensity.current
                         val preferUk by settingsProvider.preferUkTitles.collectAsState()
+                        val handoverState by userTrackingRepository.activeHandoverState.collectAsState()
+
+                        handoverState?.let { state ->
+                            moe.GetTheNya.AniForge.ui.components.ContinuationHandoverBottomSheet(
+                                prequelAnime = state.prequelAnime,
+                                completedAnime = state.completedAnime,
+                                onWaitNextSeason = { prequelId, completedId ->
+                                    userTrackingRepository.transferWaitingStatus(prequelId, completedId)
+                                },
+                                onStopWaiting = { prequelId, completedId ->
+                                    userTrackingRepository.stopWaitingStatus(prequelId, completedId)
+                                },
+                                onDismiss = {
+                                    userTrackingRepository.dismissHandover()
+                                },
+                                preferUk = preferUk
+                            )
+                        }
 
                         // Scroll-to-hide gesture logic using NestedScroll
                         var isBottomBarVisible by remember { mutableStateOf(true) }

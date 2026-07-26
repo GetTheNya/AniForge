@@ -119,7 +119,14 @@
     "sequelReleased": "🎉 Вийшло",
     "addToPlanned": "В заплановані",
     "addToWatching": "В перегляд",
-    "hideSequel": "Сховати"
+    "hideSequel": "Сховати",
+    "currentlyAiring": "🟢 Зараз у ефірі",
+    "readyToWatch": "🚀 Готово до перегляду",
+    "continuationHandoverTitle": "Передача естафети очікування",
+    "continuationHandoverContent": "Ви завершили {title}! Бажаєте продовжити очікування наступного сезону/фільму?",
+    "waitForNextSeason": "🔥 Чекати наступний сезон",
+    "airingWaitedSequels": "Очікувані продовження в ефірі",
+    "eps": "еп."
   },
   "dashboardScreen": {
     "name": "Аніме",

@@ -116,7 +116,14 @@
     "sequelReleased": "🎉 Sequel Released",
     "addToPlanned": "Add to Planned",
     "addToWatching": "Add to Watching",
-    "hideSequel": "Hide This Sequel"
+    "hideSequel": "Hide This Sequel",
+    "currentlyAiring": "🟢 Currently Airing",
+    "readyToWatch": "🚀 Ready to Watch",
+    "continuationHandoverTitle": "Continuation Handover",
+    "continuationHandoverContent": "You completed {title}! Do you want to continue waiting for the next season/movie?",
+    "waitForNextSeason": "🔥 Wait for Next Season",
+    "airingWaitedSequels": "Airing Waited Sequels",
+    "eps": "eps"
   },
   "dashboardScreen": {
     "name": "Anime",

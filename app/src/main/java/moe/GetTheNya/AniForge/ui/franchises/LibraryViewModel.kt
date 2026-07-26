@@ -250,8 +250,16 @@ class LibraryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    val readyToWatchItems: StateFlow<List<WaitingItem>> = waitingItems
+        .map { list -> list.filter { it.candidateStatus == CandidateStatus.READY_TO_WATCH && it.candidateSequel != null } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     val hasWaitingUpdates: StateFlow<Boolean> = waitingItems
-        .map { list -> list.any { it.candidateStatus == CandidateStatus.RELEASED || it.candidateStatus == CandidateStatus.ANNOUNCED } }
+        .map { list -> list.any { it.candidateStatus == CandidateStatus.READY_TO_WATCH || it.candidateStatus == CandidateStatus.RELEASED || it.candidateStatus == CandidateStatus.ANNOUNCED } }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

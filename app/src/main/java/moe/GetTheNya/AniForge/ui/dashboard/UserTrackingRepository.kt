@@ -93,9 +93,21 @@ class UserTrackingRepository @Inject constructor(
             return@combine emptyList<WaitingItem>()
         }
 
-        val trackedIds = trackingList.filter { !it.isDeleted && (it.watchStatus.isNotBlank() || it.episodeProgress > 0) }.map { it.anilistId }.toSet()
+        val trackingMap = trackingList.associateBy { it.anilistId }
+        val nonPlanningTrackedIds = trackingList.filter {
+            !it.isDeleted && it.watchStatus.isNotBlank() && it.watchStatus != "PLANNING"
+        }.map { it.anilistId }.toSet()
+
+        val nonReleasingPlannedIds = trackingList.filter {
+            !it.isDeleted && it.watchStatus == "PLANNING"
+        }.mapNotNull { tracking ->
+            val anime = animeRepository.getAnimeById(tracking.anilistId)
+            val isReleasing = anime != null && (anime.isReleasing() || (anime.getReleasedEpisodes() ?: 0) > 0 || anime.airingEpisode != null)
+            if (!isReleasing) tracking.anilistId else null
+        }.toSet()
+
         val dismissedIds = dismissedList.map { it.animeId }.toSet()
-        val excludedIds = trackedIds + dismissedIds
+        val excludedIds = nonPlanningTrackedIds + nonReleasingPlannedIds + dismissedIds
 
         val items = mutableListOf<WaitingItem>()
         for (tracking in waitingTracking) {
@@ -104,6 +116,8 @@ class UserTrackingRepository @Inject constructor(
 
             val candidateStatus = when {
                 candidateSequel == null -> CandidateStatus.QUIET
+                trackingMap[candidateSequel.anilistId]?.watchStatus == "PLANNING" &&
+                    (candidateSequel.isReleasing() || (candidateSequel.getReleasedEpisodes() ?: 0) > 0 || candidateSequel.airingEpisode != null) -> CandidateStatus.READY_TO_WATCH
                 candidateSequel.status?.uppercase() in listOf("FINISHED", "RELEASING") -> CandidateStatus.RELEASED
                 else -> CandidateStatus.ANNOUNCED
             }
@@ -120,9 +134,10 @@ class UserTrackingRepository @Inject constructor(
         items.sortedWith(
             compareBy<WaitingItem> {
                 when (it.candidateStatus) {
-                    CandidateStatus.RELEASED -> 0
-                    CandidateStatus.ANNOUNCED -> 1
-                    CandidateStatus.QUIET -> 2
+                    CandidateStatus.READY_TO_WATCH -> 0
+                    CandidateStatus.RELEASED -> 1
+                    CandidateStatus.ANNOUNCED -> 2
+                    CandidateStatus.QUIET -> 3
                 }
             }.thenByDescending {
                 it.candidateSequel?.startDateYear ?: it.candidateSequel?.seasonYear ?: it.baseAnime.seasonYear ?: 0
@@ -200,6 +215,11 @@ class UserTrackingRepository @Inject constructor(
                 isDeleted = false
             )
             userTrackingDao.insertOrUpdate(updated)
+            if (status == "COMPLETED") {
+                repositoryScope.launch {
+                    checkAndTriggerContinuationHandover(anilistId)
+                }
+            }
             repositoryScope.launch {
                 syncEngine.pushDirtyAnimeOnly()
             }
@@ -351,10 +371,53 @@ class UserTrackingRepository @Inject constructor(
         )
         userTrackingDao.insertOrUpdate(updated)
         if (isModified) {
+            if (status == "COMPLETED" && statusChanged) {
+                repositoryScope.launch {
+                    checkAndTriggerContinuationHandover(anilistId)
+                }
+            }
             repositoryScope.launch {
                 syncEngine.pushDirtyAnimeOnly()
             }
         }
+    }
+
+    // --- Continuation Handover Workflow ---
+
+    data class ContinuationHandoverState(
+        val prequelAnime: moe.GetTheNya.AniForge.core.model.Anime,
+        val completedAnime: moe.GetTheNya.AniForge.core.model.Anime
+    )
+
+    val activeHandoverState = kotlinx.coroutines.flow.MutableStateFlow<ContinuationHandoverState?>(null)
+
+    private suspend fun checkAndTriggerContinuationHandover(completedAnimeId: Long) {
+        val waitingTracking = userTrackingDao.getWaitingTrackingSync()
+        if (waitingTracking.isEmpty()) return
+        val waitingIds = waitingTracking.map { it.anilistId }.toSet()
+        val prequelAnime = animeRepository.findWaitingPrequel(completedAnimeId, waitingIds) ?: return
+        val completedAnime = animeRepository.getAnimeById(completedAnimeId) ?: return
+        activeHandoverState.value = ContinuationHandoverState(prequelAnime = prequelAnime, completedAnime = completedAnime)
+    }
+
+    fun transferWaitingStatus(prequelId: Long, completedId: Long) {
+        repositoryScope.launch {
+            toggleWaitingStatus(prequelId, false)
+            toggleWaitingStatus(completedId, true)
+            activeHandoverState.value = null
+        }
+    }
+
+    fun stopWaitingStatus(prequelId: Long, completedId: Long) {
+        repositoryScope.launch {
+            toggleWaitingStatus(prequelId, false)
+            toggleWaitingStatus(completedId, false)
+            activeHandoverState.value = null
+        }
+    }
+
+    fun dismissHandover() {
+        activeHandoverState.value = null
     }
 
     suspend fun recalculateTotalWatchTime() = withContext(Dispatchers.IO) {

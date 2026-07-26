@@ -49,7 +49,7 @@ fun ContinuationUpdatesWidget(
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     val activeUpdates = waitingItems.filter {
-        it.candidateStatus == CandidateStatus.RELEASED || it.candidateStatus == CandidateStatus.ANNOUNCED
+        it.candidateStatus == CandidateStatus.READY_TO_WATCH || it.candidateStatus == CandidateStatus.RELEASED || it.candidateStatus == CandidateStatus.ANNOUNCED
     }
 
     Card(
@@ -164,12 +164,22 @@ fun ContinuationUpdatesWidget(
                         key = { it.baseAnime.anilistId }
                     ) { item ->
                         val candidate = item.candidateSequel ?: return@items
+                        val isReadyToWatch = item.candidateStatus == CandidateStatus.READY_TO_WATCH
                         val isReleased = item.candidateStatus == CandidateStatus.RELEASED
-                        val statusColor = if (isReleased) CyberTeal else NeonCoral
-                        val targetStatus = if (isReleased) "CURRENT" else "PLANNING"
+                        val statusColor = when (item.candidateStatus) {
+                            CandidateStatus.READY_TO_WATCH -> CyberTeal
+                            CandidateStatus.RELEASED -> CyberTeal
+                            else -> NeonCoral
+                        }
+                        val targetStatus = if (isReadyToWatch || isReleased) "CURRENT" else "PLANNING"
                         val actionButtonColor = statusConfigs.firstOrNull { it.id == targetStatus }?.color
-                            ?: (if (isReleased) Color(0xFF3B82F6) else Color(0xFF9067C6))
-                        val buttonText = if (isReleased) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
+                            ?: (if (isReadyToWatch || isReleased) Color(0xFF3B82F6) else Color(0xFF9067C6))
+                        val badgeText = when (item.candidateStatus) {
+                            CandidateStatus.READY_TO_WATCH -> strings.libraryScreen.readyToWatch
+                            CandidateStatus.RELEASED -> strings.libraryScreen.sequelReleased
+                            else -> strings.libraryScreen.sequelAnnounced
+                        }
+                        val buttonText = if (isReadyToWatch || isReleased) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
 
                         Card(
                             shape = RoundedCornerShape(16.dp),
@@ -215,7 +225,7 @@ fun ContinuationUpdatesWidget(
                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
                                             Text(
-                                                text = if (isReleased) strings.libraryScreen.sequelReleased else strings.libraryScreen.sequelAnnounced,
+                                                text = badgeText,
                                                 color = statusColor,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold

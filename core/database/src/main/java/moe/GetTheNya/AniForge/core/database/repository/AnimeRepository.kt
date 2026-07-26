@@ -220,6 +220,62 @@ class AnimeRepository @Inject constructor(
         null
     }
 
+    /**
+     * Checks if completedAnimeId is a direct or transitive sequel of any
+     * source anime in waitingAnilistIds (which have is_waiting_continuation == true).
+     * Returns the matching prequel Anime if found, or null otherwise.
+     */
+    suspend fun findWaitingPrequel(completedAnimeId: Long, waitingAnilistIds: Set<Long>): Anime? = withContext(Dispatchers.IO) {
+        if (waitingAnilistIds.isEmpty()) return@withContext null
+        val db = databaseProvider.getDatabase()
+
+        // 1. Direct backwards check (fastest path)
+        try {
+            val queryStr = "SELECT source_anilist_id FROM relations WHERE target_anilist_id = ? AND relation_type = 'SEQUEL'"
+            db.query(queryStr, arrayOf(completedAnimeId.toString())).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val directSourceId = cursor.getLong(0)
+                    if (waitingAnilistIds.contains(directSourceId)) {
+                        return@withContext getAnimeById(directSourceId)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Transitive forward traversal from each waiting source ID
+        for (sourceId in waitingAnilistIds) {
+            if (sourceId == completedAnimeId) continue
+            var currentSourceId = sourceId
+            val visited = mutableSetOf<Long>()
+
+            while (visited.add(currentSourceId)) {
+                val queryStr = "SELECT target_anilist_id FROM relations WHERE source_anilist_id = ? AND relation_type = 'SEQUEL'"
+                val targets = mutableListOf<Long>()
+                try {
+                    db.query(queryStr, arrayOf(currentSourceId.toString())).use { cursor ->
+                        while (cursor.moveToNext()) {
+                            targets.add(cursor.getLong(0))
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                if (targets.isEmpty()) break
+
+                if (targets.contains(completedAnimeId)) {
+                    return@withContext getAnimeById(sourceId)
+                }
+
+                currentSourceId = targets.first()
+            }
+        }
+
+        null
+    }
+
     private fun cursorToAnime(cursor: android.database.Cursor): Anime {
         val anilistId = cursor.getLong(cursor.getColumnIndexOrThrow("anilist_id"))
         val malId = if (cursor.isNull(cursor.getColumnIndexOrThrow("mal_id"))) null else cursor.getLong(cursor.getColumnIndexOrThrow("mal_id"))
