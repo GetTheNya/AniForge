@@ -246,6 +246,12 @@ class DetailViewModel @Inject constructor(
             userTrackingRepository.updateScore(currentAnimeId, dbScore)
         }
     }
+
+    fun toggleWaitingStatus(isWaiting: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            userTrackingRepository.toggleWaitingStatus(currentAnimeId, isWaiting)
+        }
+    }
 }
 
 @Immutable

@@ -14,6 +14,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
+import moe.GetTheNya.AniForge.core.model.WaitingItem
+import moe.GetTheNya.AniForge.core.model.CandidateStatus
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -134,13 +138,17 @@ fun LibraryFilter.getLabel(strings: moe.GetTheNya.AniForge.ui.localization.Local
         LibraryFilter.COMPLETED -> strings.misc.completed
         LibraryFilter.PAUSED -> strings.misc.paused
         LibraryFilter.DROPPED -> strings.misc.dropped
+        LibraryFilter.WAITING -> strings.libraryScreen.waiting
         LibraryFilter.COLLECTIONS -> strings.libraryScreen.collections
     }
 }
 
 fun LibraryFilter.getColor(): Color {
     val matched = statusConfigs.firstOrNull { it.id == this.dbStatus }
-    return matched?.color ?: ElectricViolet
+    return when (this) {
+        LibraryFilter.WAITING -> Color(0xFFF59E0B)
+        else -> matched?.color ?: ElectricViolet
+    }
 }
 
 @Composable
@@ -255,12 +263,267 @@ private fun getCenteredItemIndex(lazyListState: androidx.compose.foundation.lazy
     return closest?.index ?: 0
 }
 
+@Composable
+fun WaitingListContent(
+    itemsList: List<WaitingItem>,
+    viewModel: LibraryViewModel,
+    navController: NavController,
+    preferUk: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+
+    if (itemsList.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = strings.libraryScreen.emptyState,
+                color = TextSecondary,
+                fontSize = 14.sp
+            )
+        }
+    } else {
+        val lazyListState = rememberLazyListState()
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp, top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = modifier.fillMaxSize()
+        ) {
+            items(
+                items = itemsList,
+                key = { it.baseAnime.anilistId }
+            ) { item ->
+                WaitingAnimeCard(
+                    item = item,
+                    viewModel = viewModel,
+                    navController = navController,
+                    preferUk = preferUk
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WaitingAnimeCard(
+    item: WaitingItem,
+    viewModel: LibraryViewModel,
+    navController: NavController,
+    preferUk: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
+    val candidate = item.candidateSequel
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        border = BorderStroke(1.dp, CardBorder),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardBorder)
+                        .clickable { navController.navigate(Screen.Detail(item.baseAnime.anilistId)) }
+                ) {
+                    val cover = item.baseAnime.coverLarge ?: item.baseAnime.coverExtraLarge
+                    if (!cover.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = cover,
+                            contentDescription = item.baseAnime.getDisplayTitle(preferUk),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = item.baseAnime.getDisplayTitle(preferUk),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { navController.navigate(Screen.Detail(item.baseAnime.anilistId)) }
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        val (badgeBg, badgeFg, badgeText) = when (item.candidateStatus) {
+                            CandidateStatus.RELEASED -> Triple(
+                                CyberTeal.copy(alpha = 0.18f),
+                                CyberTeal,
+                                strings.libraryScreen.sequelReleased
+                            )
+                            CandidateStatus.ANNOUNCED -> Triple(
+                                NeonCoral.copy(alpha = 0.18f),
+                                NeonCoral,
+                                strings.libraryScreen.sequelAnnounced
+                            )
+                            CandidateStatus.QUIET -> Triple(
+                                Color.White.copy(alpha = 0.08f),
+                                TextSecondary,
+                                strings.libraryScreen.noAnnouncements
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(badgeBg)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = badgeFg,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    val baseFormat = item.baseAnime.format
+                    if (baseFormat != null) {
+                        Text(
+                            text = baseFormat,
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+
+            if (candidate != null && item.candidateStatus != CandidateStatus.QUIET) {
+                val highlightBg = if (item.candidateStatus == CandidateStatus.RELEASED) CyberTeal.copy(alpha = 0.08f) else ElectricViolet.copy(alpha = 0.08f)
+                val highlightBorder = if (item.candidateStatus == CandidateStatus.RELEASED) CyberTeal.copy(alpha = 0.3f) else ElectricViolet.copy(alpha = 0.3f)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(highlightBg)
+                        .border(1.dp, highlightBorder, RoundedCornerShape(14.dp))
+                        .padding(12.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = candidate.getDisplayTitle(preferUk),
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable { navController.navigate(Screen.Detail(candidate.anilistId)) }
+                        )
+                        val metaInfo = buildString {
+                            if (candidate.format != null) append("${candidate.format} • ")
+                            if (item.candidateStatus == CandidateStatus.RELEASED) {
+                                if (candidate.episodes != null) append("${candidate.episodes} eps") else append("Released")
+                            } else {
+                                val timeframe = listOfNotNull(candidate.season, candidate.seasonYear?.toString() ?: candidate.startDateYear?.toString()).joinToString(" ")
+                                if (timeframe.isNotBlank()) append(timeframe) else append("Announced")
+                            }
+                        }
+                        Text(
+                            text = metaInfo,
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (candidate != null && item.candidateStatus != CandidateStatus.QUIET) {
+                    val primaryLabel = if (item.candidateStatus == CandidateStatus.RELEASED) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
+                    val primaryStatus = if (item.candidateStatus == CandidateStatus.RELEASED) "CURRENT" else "PLANNING"
+                    val primaryColor = statusConfigs.firstOrNull { it.id == primaryStatus }?.color
+                        ?: if (item.candidateStatus == CandidateStatus.RELEASED) Color(0xFF3B82F6) else Color(0xFF9067C6)
+
+                    Button(
+                        onClick = { viewModel.updateWatchStatus(candidate.anilistId, primaryStatus) },
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = primaryLabel,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { viewModel.dismissSequelCandidate(candidate.anilistId) },
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, CardBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text(
+                            text = strings.libraryScreen.hideSequel,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                TextButton(
+                    onClick = { viewModel.toggleWaitingStatus(item.baseAnime.anilistId, false) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = strings.libraryScreen.stopWaiting,
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CategorySelectionRotor(
     lazyListState: androidx.compose.foundation.lazy.LazyListState,
     strings: moe.GetTheNya.AniForge.ui.localization.LocaleStrings,
     onItemClick: (LibraryFilter) -> Unit,
+    hasWaitingUpdates: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -289,41 +552,69 @@ fun CategorySelectionRotor(
             modifier = Modifier.fillMaxSize()
         ) {
             itemsIndexed(LibraryFilter.values()) { idx, filter ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .graphicsLayer {
-                            val layoutInfo = lazyListState.layoutInfo
-                            val visibleItems = layoutInfo.visibleItemsInfo
-                            val itemInfo = visibleItems.firstOrNull { it.index == idx }
-                            if (itemInfo != null) {
-                                val viewportCenter = (layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset) / 2f
-                                val itemCenter = itemInfo.offset + itemInfo.size / 2f
-                                val distanceFromCenter = kotlin.math.abs(itemCenter - viewportCenter)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (filter == LibraryFilter.WAITING) {
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .height(1.dp)
+                                .background(CardBorder.copy(alpha = 0.5f))
+                        )
+                    }
 
-                                val maxDistance = ((layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2f).coerceAtLeast(1f)
-                                val fraction = (distanceFromCenter / maxDistance).coerceIn(0f, 1f)
-                                scaleX = 1f - 0.35f * fraction
-                                scaleY = 1f - 0.35f * fraction
-                                alpha = 1f - 0.7f * fraction
-                            } else {
-                                alpha = 0.3f
-                                scaleX = 0.65f
-                                scaleY = 0.65f
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .graphicsLayer {
+                                val layoutInfo = lazyListState.layoutInfo
+                                val visibleItems = layoutInfo.visibleItemsInfo
+                                val itemInfo = visibleItems.firstOrNull { it.index == idx }
+                                if (itemInfo != null) {
+                                    val viewportCenter = (layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset) / 2f
+                                    val itemCenter = itemInfo.offset + itemInfo.size / 2f
+                                    val distanceFromCenter = kotlin.math.abs(itemCenter - viewportCenter)
+
+                                    val maxDistance = ((layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2f).coerceAtLeast(1f)
+                                    val fraction = (distanceFromCenter / maxDistance).coerceIn(0f, 1f)
+                                    scaleX = 1f - 0.35f * fraction
+                                    scaleY = 1f - 0.35f * fraction
+                                    alpha = 1f - 0.7f * fraction
+                                } else {
+                                    alpha = 0.3f
+                                    scaleX = 0.65f
+                                    scaleY = 0.65f
+                                }
+                            }
+                            .clickable {
+                                onItemClick(filter)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = filter.getLabel(strings),
+                                color = filter.getColor(),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (filter == LibraryFilter.WAITING && hasWaitingUpdates) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(NeonCoral)
+                                )
                             }
                         }
-                        .clickable {
-                            onItemClick(filter)
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = filter.getLabel(strings),
-                        color = filter.getColor(),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    }
                 }
             }
         }
@@ -353,8 +644,8 @@ fun LibraryScreen(
 
     val activeFilter by viewModel.activeFilter.collectAsState()
     val activeSectionData by viewModel.activeSectionData.collectAsState()
-
     val listFilterState by viewModel.listFilterState.collectAsState()
+    val hasWaitingUpdates by viewModel.hasWaitingUpdates.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
     val hasActiveFilters = remember(listFilterState) {
         listFilterState.genres.isNotEmpty() ||
@@ -630,6 +921,15 @@ fun LibraryScreen(
                             }
                         }
                     }
+                    LibraryFilter.WAITING -> {
+                        val waitingList = (activeSectionData as? LibrarySectionData.Waiting)?.list ?: emptyList()
+                        WaitingListContent(
+                            itemsList = waitingList,
+                            viewModel = viewModel,
+                            navController = navController,
+                            preferUk = preferUk
+                        )
+                    }
                     else -> {
                         val animeList = (activeSectionData as? LibrarySectionData.TrackedAnime)?.list ?: emptyList()
                         UserTrackedListContent(
@@ -657,6 +957,7 @@ fun LibraryScreen(
             CategorySelectionRotor(
                 lazyListState = dragLazyListState,
                 strings = strings,
+                hasWaitingUpdates = hasWaitingUpdates,
                 onItemClick = { filter ->
                     viewModel.setActiveFilter(filter)
                     showDragOverlay = false
@@ -792,6 +1093,18 @@ fun LibraryScreen(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+
+                if (hasWaitingUpdates) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-3).dp)
+                            .size(9.dp)
+                            .clip(CircleShape)
+                            .background(NeonCoral)
+                            .border(1.5.dp, BackgroundDark, CircleShape)
+                    )
+                }
             }
         }
 
@@ -864,6 +1177,7 @@ fun LibraryScreen(
                     CategorySelectionRotor(
                         lazyListState = lazyListState,
                         strings = strings,
+                        hasWaitingUpdates = hasWaitingUpdates,
                         onItemClick = { filter ->
                             viewModel.setActiveFilter(filter)
                             showRotor = false

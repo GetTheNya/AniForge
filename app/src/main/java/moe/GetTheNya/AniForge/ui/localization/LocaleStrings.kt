@@ -121,7 +121,15 @@ data class LibraryScreenStrings(
     val sortByPersonalScore: String = "[libraryScreen.sortByPersonalScore]",
     val sortByProgress: String = "[libraryScreen.sortByProgress]",
     val sortByDateAdded: String = "[libraryScreen.sortByDateAdded]",
-    val sortByAlphabetical: String = "[libraryScreen.sortByAlphabetical]"
+    val sortByAlphabetical: String = "[libraryScreen.sortByAlphabetical]",
+    val waiting: String = "[libraryScreen.waiting]",
+    val noAnnouncements: String = "[libraryScreen.noAnnouncements]",
+    val stopWaiting: String = "[libraryScreen.stopWaiting]",
+    val sequelAnnounced: String = "[libraryScreen.sequelAnnounced]",
+    val sequelReleased: String = "[libraryScreen.sequelReleased]",
+    val addToPlanned: String = "[libraryScreen.addToPlanned]",
+    val addToWatching: String = "[libraryScreen.addToWatching]",
+    val hideSequel: String = "[libraryScreen.hideSequel]"
 )
 
 @Serializable
@@ -541,7 +549,8 @@ data class BentoWidgetStrings(
     val activeCollections: String = "[bentoWidgets.activeCollections]",
     val episodesTotal: Map<String, String> = emptyMap(),
     val watchTimeTitle: String = "[bentoWidgets.watchTimeTitle]",
-    val watchStatusTitle: String = "[bentoWidgets.watchStatusTitle]"
+    val watchStatusTitle: String = "[bentoWidgets.watchStatusTitle]",
+    val continuationUpdates: String = "[bentoWidgets.continuationUpdates]"
 )
 
 @Serializable

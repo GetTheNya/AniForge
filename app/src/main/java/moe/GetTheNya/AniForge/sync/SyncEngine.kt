@@ -37,7 +37,8 @@ data class SupabaseUserTrackingDto(
     @SerialName("score") val score: Double? = null,
     @SerialName("notes") val notes: String? = null,
     @SerialName("last_modified") val lastModified: String,
-    @SerialName("is_deleted") val isDeleted: Boolean = false
+    @SerialName("is_deleted") val isDeleted: Boolean = false,
+    @SerialName("is_waiting_continuation") val isWaitingContinuation: Boolean = false
 )
 
 @Serializable
@@ -240,7 +241,8 @@ class SyncEngine @Inject constructor(
                                 notes = remoteItem.notes,
                                 lastModified = remoteMilli,
                                 isSynced = true,
-                                isDeleted = false
+                                isDeleted = false,
+                                isWaitingContinuation = remoteItem.isWaitingContinuation
                             )
                         )
                     } else {
@@ -256,7 +258,8 @@ class SyncEngine @Inject constructor(
                                     notes = remoteItem.notes,
                                     lastModified = remoteMilli,
                                     isSynced = true,
-                                    isDeleted = false
+                                    isDeleted = false,
+                                    isWaitingContinuation = remoteItem.isWaitingContinuation
                                 )
                             )
                         } else {
@@ -283,7 +286,8 @@ class SyncEngine @Inject constructor(
                                 notes = remoteItem.notes,
                                 lastModified = remoteMilli,
                                 isSynced = true,
-                                isDeleted = false
+                                isDeleted = false,
+                                isWaitingContinuation = remoteItem.isWaitingContinuation
                             )
                         )
                     } else {
@@ -298,7 +302,8 @@ class SyncEngine @Inject constructor(
                                     notes = remoteItem.notes,
                                     lastModified = remoteMilli,
                                     isSynced = true,
-                                    isDeleted = false
+                                    isDeleted = false,
+                                    isWaitingContinuation = remoteItem.isWaitingContinuation
                                 )
                             )
                         } else {
@@ -378,7 +383,8 @@ class SyncEngine @Inject constructor(
                     score = entity.score,
                     notes = entity.notes,
                     lastModified = currentPushTime,
-                    isDeleted = true
+                    isDeleted = true,
+                    isWaitingContinuation = entity.isWaitingContinuation
                 )
             }
             try {
@@ -406,7 +412,8 @@ class SyncEngine @Inject constructor(
                     score = entity.score,
                     notes = entity.notes,
                     lastModified = formatEpochMilliToTimestamptz(entity.lastModified),
-                    isDeleted = false
+                    isDeleted = false,
+                    isWaitingContinuation = entity.isWaitingContinuation
                 )
             }
             try {

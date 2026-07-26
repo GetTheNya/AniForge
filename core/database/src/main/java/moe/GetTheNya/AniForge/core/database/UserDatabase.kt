@@ -11,6 +11,8 @@ import moe.GetTheNya.AniForge.core.database.entity.UserSettingEntity
 import moe.GetTheNya.AniForge.core.database.entity.PendingImportEntity
 import moe.GetTheNya.AniForge.core.database.entity.TargetStatusConverter
 import moe.GetTheNya.AniForge.core.database.entity.ImportStatusConverter
+import moe.GetTheNya.AniForge.core.database.dao.DismissedSequelDao
+import moe.GetTheNya.AniForge.core.database.entity.DismissedSequelEntity
 
 @Database(
     entities = [
@@ -20,9 +22,10 @@ import moe.GetTheNya.AniForge.core.database.entity.ImportStatusConverter
         moe.GetTheNya.AniForge.core.database.entity.CollectionAnimeCrossRef::class,
         moe.GetTheNya.AniForge.core.database.entity.UserStatsEntity::class,
         moe.GetTheNya.AniForge.core.database.entity.WidgetConfigEntity::class,
-        PendingImportEntity::class
+        PendingImportEntity::class,
+        DismissedSequelEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(TargetStatusConverter::class, ImportStatusConverter::class)
@@ -33,4 +36,5 @@ abstract class UserDatabase : RoomDatabase() {
     abstract fun userStatsDao(): moe.GetTheNya.AniForge.core.database.dao.UserStatsDao
     abstract fun widgetConfigDao(): moe.GetTheNya.AniForge.core.database.dao.WidgetConfigDao
     abstract fun pendingImportDao(): PendingImportDao
+    abstract fun dismissedSequelDao(): DismissedSequelDao
 }

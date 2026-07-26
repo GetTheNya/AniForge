@@ -29,5 +29,8 @@ data class UserTrackingEntity(
     val isSynced: Boolean = false,
 
     @ColumnInfo(name = "is_deleted", defaultValue = "0")
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+
+    @ColumnInfo(name = "is_waiting_continuation", defaultValue = "0")
+    val isWaitingContinuation: Boolean = false
 )

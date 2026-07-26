@@ -577,6 +577,7 @@ class MainActivity : ComponentActivity() {
                                                                      "COMPLETED" -> LibraryFilter.COMPLETED
                                                                      "PAUSED" -> LibraryFilter.PAUSED
                                                                      "DROPPED" -> LibraryFilter.DROPPED
+                                                                     "WAITING" -> LibraryFilter.WAITING
                                                                      else -> LibraryFilter.WATCHING
                                                                  }
                                                                  libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)
@@ -632,6 +633,7 @@ class MainActivity : ComponentActivity() {
                                                                           "COMPLETED" -> LibraryFilter.COMPLETED
                                                                           "PAUSED" -> LibraryFilter.PAUSED
                                                                           "DROPPED" -> LibraryFilter.DROPPED
+                                                                          "WAITING" -> LibraryFilter.WAITING
                                                                           else -> LibraryFilter.WATCHING
                                                                       }
                                                                       libraryViewModel.setActiveFilter(targetFilter); navController.navigate(Screen.Library); if (false)

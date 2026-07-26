@@ -119,6 +119,18 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_tracking` ADD COLUMN `is_waiting_continuation` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `dismissed_sequels` (" +
+            "`userId` TEXT NOT NULL, " +
+            "`animeId` INTEGER NOT NULL, " +
+            "PRIMARY KEY(`userId`, `animeId`))"
+        )
+    }
+}
+
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -135,7 +147,7 @@ object DatabaseModule {
             "user_data.db"
         )
         .openHelperFactory(RequerySQLiteOpenHelperFactory())
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
         
         val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         if (isDebuggable) {
@@ -191,5 +203,13 @@ object DatabaseModule {
         userDatabase: UserDatabase
     ): moe.GetTheNya.AniForge.core.database.dao.WidgetConfigDao {
         return userDatabase.widgetConfigDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDismissedSequelDao(
+        userDatabase: UserDatabase
+    ): moe.GetTheNya.AniForge.core.database.dao.DismissedSequelDao {
+        return userDatabase.dismissedSequelDao()
     }
 }

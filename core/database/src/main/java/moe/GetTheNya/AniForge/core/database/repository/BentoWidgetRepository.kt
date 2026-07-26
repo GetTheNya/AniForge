@@ -23,17 +23,28 @@ class BentoWidgetRepository @Inject constructor(
     val observeWidgetConfigs: Flow<List<WidgetConfigEntity>> = widgetConfigDao.observeWidgetConfigs()
         .onStart {
             val current = widgetConfigDao.getWidgetConfigsSync()
+            val defaults = listOf(
+                 WidgetConfigEntity("watch_time", false, 0),
+                 WidgetConfigEntity("watch_status_chart", false, 1),
+                 WidgetConfigEntity("continuation_updates", false, 2),
+                 WidgetConfigEntity("chaos_meter", false, 3),
+                 WidgetConfigEntity("personal_collections", false, 4),
+                 WidgetConfigEntity("top_studios", false, 5),
+                 WidgetConfigEntity("top_genres", false, 6),
+                 WidgetConfigEntity("franchise_giant", false, 7)
+            )
             if (current.isEmpty()) {
-                val defaults = listOf(
-                     WidgetConfigEntity("watch_time", false, 0),
-                     WidgetConfigEntity("watch_status_chart", false, 1),
-                     WidgetConfigEntity("chaos_meter", false, 2),
-                     WidgetConfigEntity("personal_collections", false, 3),
-                     WidgetConfigEntity("top_studios", false, 4),
-                     WidgetConfigEntity("top_genres", false, 5),
-                     WidgetConfigEntity("franchise_giant", false, 6)
-                )
                 widgetConfigDao.insertOrUpdate(defaults)
+            } else {
+                val existingIds = current.map { it.widgetId }.toSet()
+                val missingDefaults = defaults.filter { it.widgetId !in existingIds }
+                if (missingDefaults.isNotEmpty()) {
+                    val maxOrder = current.maxOfOrNull { it.orderIndex } ?: 0
+                    val toInsert = missingDefaults.mapIndexed { idx, entity ->
+                        entity.copy(orderIndex = maxOrder + 1 + idx)
+                    }
+                    widgetConfigDao.insertOrUpdate(toInsert)
+                }
             }
         }
         .flowOn(Dispatchers.IO)

@@ -182,6 +182,44 @@ class AnimeRepository @Inject constructor(
         list
     }
 
+    /**
+     * Traverses the SEQUEL relations starting from sourceAnilistId.
+     * Skips any sequel target whose ID is in excludedAnimeIds (tracked or dismissed)
+     * and continues to evaluate the next sequel in the transitive relation chain.
+     */
+    suspend fun findCandidateSequel(sourceAnilistId: Long, excludedAnimeIds: Set<Long>): Anime? = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        var currentSourceId = sourceAnilistId
+        val visited = mutableSetOf<Long>()
+
+        while (visited.add(currentSourceId)) {
+            val queryStr = "SELECT target_anilist_id FROM relations WHERE source_anilist_id = ? AND relation_type = 'SEQUEL' LIMIT 1"
+            var targetId: Long? = null
+            try {
+                db.query(queryStr, arrayOf(currentSourceId.toString())).use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        targetId = cursor.getLong(0)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            if (targetId == null) {
+                return@withContext null
+            }
+
+            val tid = targetId!!
+            if (excludedAnimeIds.contains(tid)) {
+                // Transitive sequel evaluation: target is excluded, check target's sequel
+                currentSourceId = tid
+            } else {
+                return@withContext getAnimeById(tid)
+            }
+        }
+        null
+    }
+
     private fun cursorToAnime(cursor: android.database.Cursor): Anime {
         val anilistId = cursor.getLong(cursor.getColumnIndexOrThrow("anilist_id"))
         val malId = if (cursor.isNull(cursor.getColumnIndexOrThrow("mal_id"))) null else cursor.getLong(cursor.getColumnIndexOrThrow("mal_id"))

@@ -108,7 +108,15 @@
     "sortByPersonalScore": "Personal Score",
     "sortByProgress": "Episode Progress",
     "sortByDateAdded": "Date Added",
-    "sortByAlphabetical": "Alphabetical"
+    "sortByAlphabetical": "Alphabetical",
+    "waiting": "Waiting for сontinuation",
+    "noAnnouncements": "No Updates",
+    "stopWaiting": "Stop Waiting",
+    "sequelAnnounced": "🔥 Sequel Announced",
+    "sequelReleased": "🎉 Sequel Released",
+    "addToPlanned": "Add to Planned",
+    "addToWatching": "Add to Watching",
+    "hideSequel": "Hide This Sequel"
   },
   "dashboardScreen": {
     "name": "Anime",
@@ -433,8 +441,9 @@
       "one": "%d episode total",
       "many": "%d episodes total"
     },
-    "watchTimeTitle": "Time Watched",
-    "watchStatusTitle": "Library Status"
+    "watchTimeTitle": "Watch Time",
+    "watchStatusTitle": "Watch Statuses",
+    "continuationUpdates": "Continuation Updates"
   },
   "mediaStatuses": {
     "finished": "Finished",

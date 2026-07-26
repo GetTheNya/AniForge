@@ -263,6 +263,7 @@ fun getWidgetName(widgetId: String, strings: LocaleStrings): String {
         "top_genres" -> strings.dashboardScreen.genres
         "franchise_giant" -> strings.bentoWidgets.mostWatchedUniverse
         "watch_status_chart" -> strings.bentoWidgets.watchStatusTitle
+        "continuation_updates" -> strings.bentoWidgets.continuationUpdates
         "friends" -> strings.socialScreen.name
         else -> widgetId
     }
@@ -1507,6 +1508,8 @@ fun HomeScreen(
                                 HomeScreenWidget(
                                     widgetId = activeDraggedId,
                                     state = successState,
+                                    viewModel = viewModel,
+                                    onAnimeClick = onAnimeClick,
                                     onGenreClick = onGenreClick,
                                     onStudioClick = onStudioClick,
                                     onCollectionClick = onCollectionClick,
@@ -1564,6 +1567,8 @@ fun HomeScreen(
                             HomeScreenWidget(
                                 widgetId = placingWidgetId!!,
                                 state = successState,
+                                viewModel = viewModel,
+                                onAnimeClick = onAnimeClick,
                                 onGenreClick = onGenreClick,
                                 onStudioClick = onStudioClick,
                                 onCollectionClick = onCollectionClick,
@@ -1610,6 +1615,8 @@ fun HomeScreen(
                             HomeScreenWidget(
                                 widgetId = activeDismissingId,
                                 state = successState,
+                                viewModel = viewModel,
+                                onAnimeClick = onAnimeClick,
                                 onGenreClick = onGenreClick,
                                 onStudioClick = onStudioClick,
                                 onCollectionClick = onCollectionClick,
@@ -1629,6 +1636,8 @@ fun HomeScreen(
 private fun HomeScreenWidget(
     widgetId: String,
     state: HomeUiState.Success,
+    viewModel: HomeViewModel,
+    onAnimeClick: (Long) -> Unit,
     onGenreClick: (String) -> Unit,
     onStudioClick: (Long) -> Unit,
     onCollectionClick: () -> Unit,
@@ -1640,6 +1649,19 @@ private fun HomeScreenWidget(
     modifier: Modifier = Modifier
 ) {
     when (widgetId) {
+        "continuation_updates" -> {
+            moe.GetTheNya.AniForge.ui.bento.ContinuationUpdatesWidget(
+                waitingItems = state.waitingItems,
+                onAddClick = { id, status -> viewModel.updateWatchStatus(id, status) },
+                onDismissClick = { id -> viewModel.dismissSequelCandidate(id) },
+                onItemClick = onAnimeClick,
+                onHeaderClick = { onStatusClick("WAITING") },
+                onLongClick = onLongClick,
+                isEditMode = isEditMode,
+                preferUk = state.preferUk,
+                modifier = modifier
+            )
+        }
         "watch_time" -> {
             WatchTimeWidget(
                 totalMinutes = state.userStats.totalWatchTimeMinutes,
@@ -2310,6 +2332,8 @@ fun HomeScreenGrid(
                     HomeScreenWidget(
                         widgetId = config.widgetId,
                         state = state,
+                        viewModel = viewModel,
+                        onAnimeClick = onAnimeClick,
                         onGenreClick = onGenreClick,
                         onStudioClick = onStudioClick,
                         onCollectionClick = onCollectionClick,

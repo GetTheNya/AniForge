@@ -111,7 +111,15 @@
     "sortByPersonalScore": "Особиста оцінка",
     "sortByProgress": "Прогрес серій",
     "sortByDateAdded": "Дата додавання",
-    "sortByAlphabetical": "Алфавітний порядок"
+    "sortByAlphabetical": "Алфавітний порядок",
+    "waiting": "Очікую продовження",
+    "noAnnouncements": "Спокійно",
+    "stopWaiting": "Не чекати",
+    "sequelAnnounced": "🔥 Оголошено",
+    "sequelReleased": "🎉 Вийшло",
+    "addToPlanned": "В заплановані",
+    "addToWatching": "В перегляд",
+    "hideSequel": "Сховати"
   },
   "dashboardScreen": {
     "name": "Аніме",
@@ -443,7 +451,8 @@
       "many": "%d епізодів всього"
     },
     "watchTimeTitle": "Час за переглядом",
-    "watchStatusTitle": "Статус медіатеки"
+    "watchStatusTitle": "Статус медіатеки",
+    "continuationUpdates": "Оновлення продовжень"
   },
   "mediaStatuses": {
     "finished": "Завершено",

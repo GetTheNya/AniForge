@@ -16,6 +16,13 @@ import moe.GetTheNya.AniForge.core.database.settings.SettingsProvider
 import moe.GetTheNya.AniForge.sync.SyncEngine
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.flowOn
+import moe.GetTheNya.AniForge.core.database.dao.DismissedSequelDao
+import moe.GetTheNya.AniForge.core.database.entity.DismissedSequelEntity
+import moe.GetTheNya.AniForge.core.model.CandidateStatus
+import moe.GetTheNya.AniForge.core.model.WaitingItem
 
 @Singleton
 class UserTrackingRepository @Inject constructor(
@@ -23,7 +30,8 @@ class UserTrackingRepository @Inject constructor(
     private val animeRepository: AnimeRepository,
     private val settingsProvider: SettingsProvider,
     private val userStatsDao: UserStatsDao,
-    private val syncEngine: SyncEngine
+    private val syncEngine: SyncEngine,
+    private val dismissedSequelDao: DismissedSequelDao
 ) {
     val gestureCenter: Flow<QuickGestureAction> = settingsProvider.gestureCenterStr
         .map { QuickGestureAction.fromString(it) }
@@ -45,6 +53,83 @@ class UserTrackingRepository @Inject constructor(
     suspend fun incrementChaosMeter() = withContext(Dispatchers.IO) {
         userStatsDao.incrementChaosMeter(1)
     }
+
+    suspend fun toggleWaitingStatus(anilistId: Long, isWaiting: Boolean) = withContext(Dispatchers.IO) {
+        val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
+        val updated = currentTracking?.copy(
+            isWaitingContinuation = isWaiting,
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false
+        ) ?: UserTrackingEntity(
+            anilistId = anilistId,
+            watchStatus = "",
+            episodeProgress = 0,
+            score = null,
+            notes = null,
+            lastModified = System.currentTimeMillis(),
+            isSynced = false,
+            isDeleted = false,
+            isWaitingContinuation = isWaiting
+        )
+
+        userTrackingDao.insertOrUpdate(updated)
+        repositoryScope.launch {
+            syncEngine.pushDirtyAnimeOnly()
+        }
+    }
+
+    suspend fun dismissSequelCandidate(candidateId: Long, userId: String = "local_user") = withContext(Dispatchers.IO) {
+        dismissedSequelDao.insert(DismissedSequelEntity(userId = userId, animeId = candidateId))
+    }
+
+    fun observeWaitingItems(userId: String = "local_user"): Flow<List<WaitingItem>> = combine(
+        userTrackingDao.observeAllTracking(),
+        dismissedSequelDao.observeAllDismissed(userId),
+        animeRepository.swapSignal.onStart { emit(Unit) }
+    ) { trackingList, dismissedList, _ ->
+        val waitingTracking = trackingList.filter { it.isWaitingContinuation && !it.isDeleted }
+        if (waitingTracking.isEmpty()) {
+            return@combine emptyList<WaitingItem>()
+        }
+
+        val trackedIds = trackingList.filter { !it.isDeleted && (it.watchStatus.isNotBlank() || it.episodeProgress > 0) }.map { it.anilistId }.toSet()
+        val dismissedIds = dismissedList.map { it.animeId }.toSet()
+        val excludedIds = trackedIds + dismissedIds
+
+        val items = mutableListOf<WaitingItem>()
+        for (tracking in waitingTracking) {
+            val baseAnime = animeRepository.getAnimeById(tracking.anilistId) ?: continue
+            val candidateSequel = animeRepository.findCandidateSequel(baseAnime.anilistId, excludedIds)
+
+            val candidateStatus = when {
+                candidateSequel == null -> CandidateStatus.QUIET
+                candidateSequel.status?.uppercase() in listOf("FINISHED", "RELEASING") -> CandidateStatus.RELEASED
+                else -> CandidateStatus.ANNOUNCED
+            }
+
+            items.add(
+                WaitingItem(
+                    baseAnime = baseAnime,
+                    candidateSequel = candidateSequel,
+                    candidateStatus = candidateStatus
+                )
+            )
+        }
+
+        items.sortedWith(
+            compareBy<WaitingItem> {
+                when (it.candidateStatus) {
+                    CandidateStatus.RELEASED -> 0
+                    CandidateStatus.ANNOUNCED -> 1
+                    CandidateStatus.QUIET -> 2
+                }
+            }.thenByDescending {
+                it.candidateSequel?.startDateYear ?: it.candidateSequel?.seasonYear ?: it.baseAnime.seasonYear ?: 0
+            }
+        )
+    }.flowOn(Dispatchers.IO)
+
 
     suspend fun updateWatchStatus(anilistId: Long, status: String) = withContext(Dispatchers.IO) {
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)

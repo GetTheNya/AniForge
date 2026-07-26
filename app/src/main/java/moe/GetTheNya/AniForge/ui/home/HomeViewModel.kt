@@ -21,7 +21,10 @@ import moe.GetTheNya.AniForge.core.database.sync.DatabaseManager
 import moe.GetTheNya.AniForge.core.database.sync.CatalogUpdateState
 import moe.GetTheNya.AniForge.core.database.util.AnimeSeasonCalculator
 import moe.GetTheNya.AniForge.ui.update.UpdateManager
+import moe.GetTheNya.AniForge.ui.dashboard.UserTrackingRepository
+import moe.GetTheNya.AniForge.core.model.WaitingItem
 import javax.inject.Inject
+
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -31,7 +34,8 @@ class HomeViewModel @Inject constructor(
     private val localizationService: LocalizationService,
     private val bentoWidgetRepository: BentoWidgetRepository,
     private val databaseManager: DatabaseManager,
-    private val updateManager: UpdateManager
+    private val updateManager: UpdateManager,
+    private val userTrackingRepository: UserTrackingRepository
 ) : ViewModel() {
 
     val isSplashFinished = MutableStateFlow(false)
@@ -184,7 +188,8 @@ class HomeViewModel @Inject constructor(
         bentoWidgetRepository.bentoStatsFlow,
         continueWatchingFlow,
         nextUpFlow,
-        seasonalAnimeFlow
+        seasonalAnimeFlow,
+        userTrackingRepository.observeWaitingItems()
     ) { array ->
         val trackingList = array[0] as List<UserTrackingEntity>
         val preferUk = array[1] as Boolean
@@ -195,6 +200,7 @@ class HomeViewModel @Inject constructor(
         val continueWatching = array[6] as List<Anime>
         val nextUp = array[7] as List<Anime>
         val seasonalData = array[8] as Pair<String, List<Anime>>
+        val waitingItems = array[9] as List<WaitingItem>
 
         val stats = calculateStats(trackingList)
         val featured = animeList.firstOrNull {
@@ -213,7 +219,8 @@ class HomeViewModel @Inject constructor(
             continueWatchingList = continueWatching,
             nextUpList = nextUp,
             seasonalTitle = seasonalData.first,
-            seasonalAnimeList = seasonalData.second
+            seasonalAnimeList = seasonalData.second,
+            waitingItems = waitingItems
         ) as HomeUiState
     }
     .catch { e ->
@@ -224,6 +231,18 @@ class HomeViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = HomeUiState.Loading
     )
+
+    fun updateWatchStatus(anilistId: Long, status: String) {
+        viewModelScope.launch {
+            userTrackingRepository.updateWatchStatus(anilistId, status)
+        }
+    }
+
+    fun dismissSequelCandidate(candidateId: Long) {
+        viewModelScope.launch {
+            userTrackingRepository.dismissSequelCandidate(candidateId)
+        }
+    }
 
     val isInitializing: StateFlow<Boolean> = homeUiState
         .map { it is HomeUiState.Loading }
@@ -325,7 +344,8 @@ sealed interface HomeUiState {
         val continueWatchingList: List<Anime> = emptyList(),
         val nextUpList: List<Anime> = emptyList(),
         val seasonalTitle: String = "",
-        val seasonalAnimeList: List<Anime> = emptyList()
+        val seasonalAnimeList: List<Anime> = emptyList(),
+        val waitingItems: List<WaitingItem> = emptyList()
     ) : HomeUiState
     @Immutable
     data class Error(val message: String) : HomeUiState

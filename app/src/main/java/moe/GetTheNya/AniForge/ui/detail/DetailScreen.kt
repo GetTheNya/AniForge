@@ -8,6 +8,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.animateContentSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -242,6 +248,7 @@ fun DetailScreen(
                         onDecrementProgress = viewModel::decrementEpisodeProgress,
                         onSaveNotes = viewModel::saveNotes,
                         onScoreChange = viewModel::updateScore,
+                        onToggleWaiting = viewModel::toggleWaitingStatus,
                         onAnimeClick = { newId ->
                             navController.navigate(Screen.Detail(newId))
                         },
@@ -671,6 +678,7 @@ fun DetailContent(
     onStatusClick: (String) -> Unit,
     onSourceClick: (String) -> Unit,
     onRecommendationsClick: () -> Unit,
+    onToggleWaiting: (Boolean) -> Unit = {},
     preferUk: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -1021,7 +1029,8 @@ fun DetailContent(
                         onIncrement = onIncrementProgress,
                         onDecrement = onDecrementProgress,
                         onSaveNotes = onSaveNotes,
-                        onScoreChange = onScoreChange
+                        onScoreChange = onScoreChange,
+                        onToggleWaiting = onToggleWaiting
                     )
 
                     LiveCountdownBanner(
@@ -1680,7 +1689,8 @@ fun TrackingWidget(
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
     onSaveNotes: (String) -> Unit,
-    onScoreChange: (Double) -> Unit
+    onScoreChange: (Double) -> Unit,
+    onToggleWaiting: (Boolean) -> Unit = {}
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
     var noteText by remember(tracking?.notes) { mutableStateOf(tracking?.notes ?: "") }
@@ -1760,48 +1770,87 @@ fun TrackingWidget(
                 }
             }
         }
-
-        // Episode counter
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        // Episode Counter & Waiting for Continuation Section
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
         ) {
-            Text(text = strings.detailScreen.episodesWatched, color = TextSecondary, fontSize = 14.sp)
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val isDecrementEnabled = !anime.isNotYetReleased() && currentProgress > 0
-                OutlinedButton(
-                    onClick = onDecrement,
-                    enabled = isDecrementEnabled,
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, if (isDecrementEnabled) CardBorder else CardBorder.copy(alpha = 0.3f))
+                Text(text = strings.detailScreen.episodesWatched, color = TextSecondary, fontSize = 14.sp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("-", color = if (isDecrementEnabled) TextPrimary else TextSecondary.copy(alpha = 0.3f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
-                Text(
-                    text = progressText,
-                    color = if (anime.isNotYetReleased()) TextSecondary.copy(alpha = 0.4f) else TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Button(
-                    onClick = onIncrement,
-                    enabled = isIncrementEnabled && !anime.isNotYetReleased(),
-                    contentPadding = PaddingValues(0.dp),
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonCoral,
-                        disabledContainerColor = NeonCoral.copy(alpha = 0.3f)
+                    val isDecrementEnabled = !anime.isNotYetReleased() && currentProgress > 0
+                    OutlinedButton(
+                        onClick = onDecrement,
+                        enabled = isDecrementEnabled,
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(36.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, if (isDecrementEnabled) CardBorder else CardBorder.copy(alpha = 0.3f))
+                    ) {
+                        Text("-", color = if (isDecrementEnabled) TextPrimary else TextSecondary.copy(alpha = 0.3f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text(
+                        text = progressText,
+                        color = if (anime.isNotYetReleased()) TextSecondary.copy(alpha = 0.4f) else TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                ) {
-                    val plusEnabled = isIncrementEnabled && !anime.isNotYetReleased()
-                    Text("+", color = if (plusEnabled) BackgroundDark else TextSecondary.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = onIncrement,
+                        enabled = isIncrementEnabled && !anime.isNotYetReleased(),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(36.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonCoral,
+                            disabledContainerColor = NeonCoral.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        val plusEnabled = isIncrementEnabled && !anime.isNotYetReleased()
+                        Text("+", color = if (plusEnabled) BackgroundDark else TextSecondary.copy(alpha = 0.5f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // Waiting for Continuation Toggle Row (Visible only when watch status is COMPLETED)
+            AnimatedVisibility(
+                visible = tracking?.watchStatus == "COMPLETED",
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = strings.libraryScreen.waiting,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Switch(
+                            checked = tracking?.isWaitingContinuation == true,
+                            onCheckedChange = { onToggleWaiting(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = ElectricViolet,
+                                uncheckedThumbColor = TextSecondary,
+                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
                 }
             }
         }

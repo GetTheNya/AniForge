@@ -27,6 +27,8 @@ import moe.GetTheNya.AniForge.core.model.Staff
 import moe.GetTheNya.AniForge.core.model.SearchFilterQuery
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
+import moe.GetTheNya.AniForge.core.model.WaitingItem
+import moe.GetTheNya.AniForge.core.model.CandidateStatus
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -46,18 +48,21 @@ data class CollectionWithData(
     val statusCounts: Map<String, Int>
 )
 
+
 enum class LibraryFilter(val dbStatus: String?) {
     PLANNING("PLANNING"),
     WATCHING("CURRENT"),
     COMPLETED("COMPLETED"),
     PAUSED("PAUSED"),
     DROPPED("DROPPED"),
+    WAITING(null),
     COLLECTIONS(null)
 }
 
 sealed interface LibrarySectionData {
     data class TrackedAnime(val list: List<Anime>) : LibrarySectionData
     data class Collections(val list: List<CollectionWithData>) : LibrarySectionData
+    data class Waiting(val list: List<WaitingItem>) : LibrarySectionData
 }
 
 @HiltViewModel
@@ -238,6 +243,21 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    val waitingItems: StateFlow<List<WaitingItem>> = userTrackingRepository.observeWaitingItems()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val hasWaitingUpdates: StateFlow<Boolean> = waitingItems
+        .map { list -> list.any { it.candidateStatus == CandidateStatus.RELEASED || it.candidateStatus == CandidateStatus.ANNOUNCED } }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     private val _activeFilter = MutableStateFlow<LibraryFilter>(LibraryFilter.WATCHING)
     val activeFilter = _activeFilter.asStateFlow()
 
@@ -248,11 +268,13 @@ class LibraryViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val activeSectionData: StateFlow<LibrarySectionData> = activeFilter
         .flatMapLatest { filter ->
-            if (filter == LibraryFilter.COLLECTIONS) {
-                filteredCollections.map { LibrarySectionData.Collections(it) }
-            } else {
-                val dbStatus = filter.dbStatus ?: ""
-                observeTrackedAnimeForStatus(dbStatus).map { LibrarySectionData.TrackedAnime(it) }
+            when (filter) {
+                LibraryFilter.COLLECTIONS -> filteredCollections.map { LibrarySectionData.Collections(it) }
+                LibraryFilter.WAITING -> waitingItems.map { LibrarySectionData.Waiting(it) }
+                else -> {
+                    val dbStatus = filter.dbStatus ?: ""
+                    observeTrackedAnimeForStatus(dbStatus).map { LibrarySectionData.TrackedAnime(it) }
+                }
             }
         }
         .flowOn(Dispatchers.IO)
@@ -261,6 +283,18 @@ class LibraryViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = LibrarySectionData.TrackedAnime(emptyList())
         )
+
+    fun toggleWaitingStatus(anilistId: Long, isWaiting: Boolean) {
+        viewModelScope.launch {
+            userTrackingRepository.toggleWaitingStatus(anilistId, isWaiting)
+        }
+    }
+
+    fun dismissSequelCandidate(candidateId: Long) {
+        viewModelScope.launch {
+            userTrackingRepository.dismissSequelCandidate(candidateId)
+        }
+    }
 
     fun updateWatchStatus(anilistId: Long, status: String) {
         viewModelScope.launch {
