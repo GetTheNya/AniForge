@@ -230,14 +230,19 @@ class UserTrackingRepository @Inject constructor(
 
     suspend fun updateScore(anilistId: Long, score: Double?) = withContext(Dispatchers.IO) {
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
+        val hasStatus = !currentTracking?.watchStatus.isNullOrEmpty() && currentTracking?.isDeleted != true
+        val targetStatus = if (!hasStatus && score != null && score > 0.0) "PLANNING" else (currentTracking?.watchStatus ?: "")
+        val isStatusChanging = currentTracking == null || currentTracking.isDeleted || currentTracking.watchStatus != targetStatus
+
         val updated = currentTracking?.copy(
+            watchStatus = targetStatus,
             score = score,
-            lastModified = currentTracking.lastModified,
+            lastModified = if (isStatusChanging) System.currentTimeMillis() else currentTracking.lastModified,
             isSynced = false,
             isDeleted = false
         ) ?: UserTrackingEntity(
             anilistId = anilistId,
-            watchStatus = "",
+            watchStatus = if (score != null && score > 0.0) "PLANNING" else "",
             episodeProgress = 0,
             score = score,
             notes = null,

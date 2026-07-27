@@ -1771,11 +1771,9 @@ fun TrackingWidget(
                 }
             }
         }
-        // Episode Counter & Waiting for Continuation Section
+        // Episode Counter, Waiting toggle & Score/Notes Section
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .animateContentSize(animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1825,7 +1823,8 @@ fun TrackingWidget(
             AnimatedVisibility(
                 visible = tracking?.watchStatus == "COMPLETED",
                 enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                modifier = Modifier.clipToBounds()
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -1854,88 +1853,105 @@ fun TrackingWidget(
                     }
                 }
             }
-        }
 
-        // Score Rating Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                var sliderValue by remember(tracking?.score) { mutableFloatStateOf(tracking?.score?.toFloat() ?: 0.0f) }
-                val targetScoreColor = if (sliderValue > 0f) moe.GetTheNya.AniForge.ui.theme.getScoreColor(sliderValue.toDouble()) else NeonCoral
-                val animatedScoreColor by animateColorAsState(
-                    targetValue = targetScoreColor,
-                    animationSpec = tween(durationMillis = 500),
-                    label = "animatedScoreColor"
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            // Score Rating & Notes Section (Visible only when user has anime in any list)
+            val hasAnimeInList = tracking != null && !tracking.watchStatus.isNullOrBlank()
+            AnimatedVisibility(
+                visible = hasAnimeInList,
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                modifier = Modifier.clipToBounds()
+            ) {
+                Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(text = strings.misc.score, color = TextSecondary, fontSize = 14.sp)
-                    Text(
-                        text = if (sliderValue > 0f) String.format("%.1f", sliderValue) else "-",
-                        color = if (sliderValue > 0f) animatedScoreColor else TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Slider(
-                    value = sliderValue,
-                    onValueChange = { 
-                        sliderValue = (Math.round(it * 2.0) / 2.0).toFloat()
-                    },
-                    onValueChangeFinished = {
-                        onScoreChange(sliderValue.toDouble())
-                    },
-                    valueRange = 0.0f..10.0f,
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = animatedScoreColor,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                        thumbColor = animatedScoreColor
-                    ),
-                    modifier = Modifier.fillMaxWidth().height(32.dp)
-                )
-            }
-        }
+                    Spacer(modifier = Modifier.height(16.dp))
 
-        // Notes Input
-        Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(text = strings.detailScreen.personalNotes, color = TextSecondary, fontSize = 13.sp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    placeholder = { Text(strings.detailScreen.addCustomNotes, color = TextSecondary, fontSize = 13.sp) },
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedContainerColor = Color(0x1AFFFFFF),
-                        unfocusedContainerColor = Color(0x1AFFFFFF),
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = { onSaveNotes(noteText) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CyberTeal)
-                ) {
-                    Text(strings.misc.save, color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    // Score Rating Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            var sliderValue by remember(tracking?.score) { mutableFloatStateOf(tracking?.score?.toFloat() ?: 0.0f) }
+                            val targetScoreColor = if (sliderValue > 0f) moe.GetTheNya.AniForge.ui.theme.getScoreColor(sliderValue.toDouble()) else NeonCoral
+                            val animatedScoreColor by animateColorAsState(
+                                targetValue = targetScoreColor,
+                                animationSpec = tween(durationMillis = 500),
+                                label = "animatedScoreColor"
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = strings.misc.score, color = TextSecondary, fontSize = 14.sp)
+                                Text(
+                                    text = if (sliderValue > 0f) String.format("%.1f", sliderValue) else "-",
+                                    color = if (sliderValue > 0f) animatedScoreColor else TextPrimary,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Slider(
+                                value = sliderValue,
+                                onValueChange = { 
+                                    sliderValue = (Math.round(it * 2.0) / 2.0).toFloat()
+                                },
+                                onValueChangeFinished = {
+                                    onScoreChange(sliderValue.toDouble())
+                                },
+                                valueRange = 0.0f..10.0f,
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = animatedScoreColor,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                                    thumbColor = animatedScoreColor
+                                ),
+                                modifier = Modifier.fillMaxWidth().height(32.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Notes Input
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(text = strings.detailScreen.personalNotes, color = TextSecondary, fontSize = 13.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextField(
+                                value = noteText,
+                                onValueChange = { noteText = it },
+                                placeholder = { Text(strings.detailScreen.addCustomNotes, color = TextSecondary, fontSize = 13.sp) },
+                                colors = TextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedContainerColor = Color(0x1AFFFFFF),
+                                    unfocusedContainerColor = Color(0x1AFFFFFF),
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(56.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { onSaveNotes(noteText) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = CyberTeal)
+                            ) {
+                                Text(strings.misc.save, color = BackgroundDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             }
         }
