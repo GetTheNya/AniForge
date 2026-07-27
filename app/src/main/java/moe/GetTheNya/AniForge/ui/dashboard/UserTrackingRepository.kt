@@ -60,7 +60,7 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val updated = currentTracking?.copy(
             isWaitingContinuation = isWaiting,
-            lastModified = System.currentTimeMillis(),
+            lastModified = currentTracking.lastModified,
             isSynced = false,
             isDeleted = false
         ) ?: UserTrackingEntity(
@@ -232,7 +232,7 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val updated = currentTracking?.copy(
             score = score,
-            lastModified = System.currentTimeMillis(),
+            lastModified = currentTracking.lastModified,
             isSynced = false,
             isDeleted = false
         ) ?: UserTrackingEntity(
@@ -250,7 +250,7 @@ class UserTrackingRepository @Inject constructor(
                 val softDeleted = currentTracking.copy(
                     isDeleted = true,
                     isSynced = false,
-                    lastModified = System.currentTimeMillis()
+                    lastModified = currentTracking.lastModified
                 )
                 userTrackingDao.insertOrUpdate(softDeleted)
                 repositoryScope.launch {
@@ -269,7 +269,7 @@ class UserTrackingRepository @Inject constructor(
         val currentTracking = userTrackingDao.getTrackingForAnimeSync(anilistId)
         val updated = currentTracking?.copy(
             notes = notes,
-            lastModified = System.currentTimeMillis(),
+            lastModified = currentTracking.lastModified,
             isSynced = false,
             isDeleted = false
         ) ?: UserTrackingEntity(
@@ -287,7 +287,7 @@ class UserTrackingRepository @Inject constructor(
                 val softDeleted = currentTracking.copy(
                     isDeleted = true,
                     isSynced = false,
-                    lastModified = System.currentTimeMillis()
+                    lastModified = currentTracking.lastModified
                 )
                 userTrackingDao.insertOrUpdate(softDeleted)
                 repositoryScope.launch {
@@ -358,7 +358,7 @@ class UserTrackingRepository @Inject constructor(
         val updated = currentTracking?.copy(
             watchStatus = status,
             episodeProgress = progress,
-            lastModified = if (isModified) System.currentTimeMillis() else currentTracking.lastModified,
+            lastModified = if (statusChanged) System.currentTimeMillis() else currentTracking.lastModified,
             isSynced = if (isModified) false else currentTracking.isSynced,
             isDeleted = false
         ) ?: UserTrackingEntity(
