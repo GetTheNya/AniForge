@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -1863,6 +1864,12 @@ fun TrackingWidget(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 var sliderValue by remember(tracking?.score) { mutableFloatStateOf(tracking?.score?.toFloat() ?: 0.0f) }
+                val targetScoreColor = if (sliderValue > 0f) moe.GetTheNya.AniForge.ui.theme.getScoreColor(sliderValue.toDouble()) else NeonCoral
+                val animatedScoreColor by animateColorAsState(
+                    targetValue = targetScoreColor,
+                    animationSpec = tween(durationMillis = 500),
+                    label = "animatedScoreColor"
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1871,7 +1878,7 @@ fun TrackingWidget(
                     Text(text = strings.misc.score, color = TextSecondary, fontSize = 14.sp)
                     Text(
                         text = if (sliderValue > 0f) String.format("%.1f", sliderValue) else "-",
-                        color = TextPrimary,
+                        color = if (sliderValue > 0f) animatedScoreColor else TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1887,9 +1894,9 @@ fun TrackingWidget(
                     },
                     valueRange = 0.0f..10.0f,
                     colors = SliderDefaults.colors(
-                        activeTrackColor = NeonCoral,
+                        activeTrackColor = animatedScoreColor,
                         inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                        thumbColor = NeonCoral
+                        thumbColor = animatedScoreColor
                     ),
                     modifier = Modifier.fillMaxWidth().height(32.dp)
                 )

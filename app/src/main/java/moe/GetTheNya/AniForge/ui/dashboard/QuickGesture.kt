@@ -708,7 +708,14 @@ fun QuickGestureWrapper(
                                  val action = selectedAction
                                  val strings = LocalLocaleStrings.current
                                  val title = if (action == QuickGestureAction.Continuous.ScoreSlider) strings.misc.setScore else strings.misc.setEpisodes
-                                 val progressColor = if (action == QuickGestureAction.Continuous.ScoreSlider) NeonCoral else CyberTeal
+                                 val targetScoreColor = if (action == QuickGestureAction.Continuous.ScoreSlider) {
+                                     if (currentScoreValue > 0.0) getScoreColor(currentScoreValue) else NeonCoral
+                                 } else CyberTeal
+                                 val progressColor by animateColorAsState(
+                                     targetValue = targetScoreColor,
+                                     animationSpec = tween(durationMillis = 500),
+                                     label = "gestureProgressColor"
+                                 )
  
                                  Text(
                                      text = title.uppercase(),

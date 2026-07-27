@@ -136,7 +136,10 @@ data class LibraryScreenStrings(
     val continuationHandoverContent: String = "[libraryScreen.continuationHandoverContent]",
     val waitForNextSeason: String = "[libraryScreen.waitForNextSeason]",
     val airingWaitedSequels: String = "[libraryScreen.airingWaitedSequels]",
-    val eps: String = "[libraryScreen.eps]"
+    val eps: String = "[libraryScreen.eps]",
+    val ratedTab: String = "[libraryScreen.ratedTab]",
+    val yourScore: String = "[libraryScreen.yourScore]",
+    val noRatedAnime: String = "[libraryScreen.noRatedAnime]"
 )
 
 @Serializable

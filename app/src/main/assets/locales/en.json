@@ -123,7 +123,10 @@
     "continuationHandoverContent": "You completed {title}! Do you want to continue waiting for the next season/movie?",
     "waitForNextSeason": "🔥 Wait for Next Season",
     "airingWaitedSequels": "Airing Waited Sequels",
-    "eps": "eps"
+    "eps": "eps",
+    "ratedTab": "Rated",
+    "yourScore": "Your Score",
+    "noRatedAnime": "You haven't scored any anime yet"
   },
   "dashboardScreen": {
     "name": "Anime",

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.FilterList
 import android.widget.Toast
 import moe.GetTheNya.AniForge.ui.dashboard.FilterBottomSheet
@@ -139,14 +140,21 @@ fun LibraryFilter.getLabel(strings: moe.GetTheNya.AniForge.ui.localization.Local
         LibraryFilter.COMPLETED -> strings.misc.completed
         LibraryFilter.PAUSED -> strings.misc.paused
         LibraryFilter.DROPPED -> strings.misc.dropped
+        LibraryFilter.RATED -> strings.libraryScreen.ratedTab
         LibraryFilter.WAITING -> strings.libraryScreen.waiting
         LibraryFilter.COLLECTIONS -> strings.libraryScreen.collections
     }
 }
 
+fun LibraryFilter.getLabelWithCount(strings: moe.GetTheNya.AniForge.ui.localization.LocaleStrings, count: Int?): String {
+    val base = getLabel(strings)
+    return if (count != null && count > 0) "$base ($count)" else base
+}
+
 fun LibraryFilter.getColor(): Color {
     val matched = statusConfigs.firstOrNull { it.id == this.dbStatus }
     return when (this) {
+        LibraryFilter.RATED -> Color(0xFFF5A623)
         LibraryFilter.WAITING -> Color(0xFFF59E0B)
         else -> matched?.color ?: ElectricViolet
     }
@@ -543,12 +551,105 @@ fun WaitingAnimeCard(
     }
 }
 
+@Composable
+fun RatedAnimeListContent(
+    animeList: List<Anime>,
+    viewModel: LibraryViewModel,
+    navController: NavController,
+    preferUk: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val strings = LocalLocaleStrings.current
+    var animeForScoreEdit by remember { mutableStateOf<Anime?>(null) }
+    val trackingEntitiesMap by viewModel.trackingEntitiesMap.collectAsState()
+
+    if (animeList.isEmpty()) {
+        val searchQuery by viewModel.searchQuery.collectAsState()
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = TextSecondary.copy(alpha = 0.4f),
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (searchQuery.isNotBlank()) strings.libraryScreen.randomEmpty else strings.libraryScreen.noRatedAnime,
+                    color = TextSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    } else {
+        val lazyGridState = rememberLazyGridState()
+        LazyVerticalGrid(
+            state = lazyGridState,
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 110.dp, top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = modifier
+                .fillMaxSize()
+                .disableSplitTouch()
+        ) {
+            items(
+                items = animeList,
+                key = { it.anilistId }
+            ) { anime ->
+                val trackingEntity = trackingEntitiesMap[anime.anilistId]
+                val userScore = trackingEntity?.score ?: 0.0
+                val watchStatus = trackingEntity?.watchStatus
+
+                RatedAnimeCard(
+                    anime = anime,
+                    score = userScore,
+                    watchStatus = watchStatus,
+                    preferUk = preferUk,
+                    onCardClick = {
+                        navController.navigate(Screen.Detail(anime.anilistId))
+                    },
+                    onQuickScoreEdit = {
+                        animeForScoreEdit = anime
+                    }
+                )
+            }
+        }
+    }
+
+    animeForScoreEdit?.let { targetAnime ->
+        val currentTracking = trackingEntitiesMap[targetAnime.anilistId]
+        QuickScoreDialog(
+            animeTitle = targetAnime.getDisplayTitle(preferUk),
+            currentScore = currentTracking?.score,
+            onDismiss = { animeForScoreEdit = null },
+            onSaveScore = { newScore ->
+                if (newScore == null || newScore == 0.0) {
+                    viewModel.updateScore(targetAnime.anilistId, 0.0)
+                } else {
+                    viewModel.updateScore(targetAnime.anilistId, newScore)
+                }
+                animeForScoreEdit = null
+            }
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CategorySelectionRotor(
     lazyListState: androidx.compose.foundation.lazy.LazyListState,
     strings: moe.GetTheNya.AniForge.ui.localization.LocaleStrings,
     onItemClick: (LibraryFilter) -> Unit,
+    categoryCounts: Map<LibraryFilter, Int> = emptyMap(),
     hasWaitingUpdates: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -582,7 +683,7 @@ fun CategorySelectionRotor(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (filter == LibraryFilter.WAITING) {
+                    if (filter == LibraryFilter.COLLECTIONS) {
                         Box(
                             modifier = Modifier
                                 .width(120.dp)
@@ -625,7 +726,7 @@ fun CategorySelectionRotor(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = filter.getLabel(strings),
+                                text = filter.getLabelWithCount(strings, categoryCounts[filter]),
                                 color = filter.getColor(),
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
@@ -670,6 +771,7 @@ fun LibraryScreen(
 
     val activeFilter by viewModel.activeFilter.collectAsState()
     val activeSectionData by viewModel.activeSectionData.collectAsState()
+    val categoryCounts by viewModel.categoryCounts.collectAsState()
     val listFilterState by viewModel.listFilterState.collectAsState()
     val hasWaitingUpdates by viewModel.hasWaitingUpdates.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -958,6 +1060,15 @@ fun LibraryScreen(
                             preferUk = preferUk
                         )
                     }
+                    LibraryFilter.RATED -> {
+                        val animeList = (activeSectionData as? LibrarySectionData.TrackedAnime)?.list ?: emptyList()
+                        RatedAnimeListContent(
+                            animeList = animeList,
+                            viewModel = viewModel,
+                            navController = navController,
+                            preferUk = preferUk
+                        )
+                    }
                     else -> {
                         val animeList = (activeSectionData as? LibrarySectionData.TrackedAnime)?.list ?: emptyList()
                         UserTrackedListContent(
@@ -985,6 +1096,7 @@ fun LibraryScreen(
             CategorySelectionRotor(
                 lazyListState = dragLazyListState,
                 strings = strings,
+                categoryCounts = categoryCounts,
                 hasWaitingUpdates = hasWaitingUpdates,
                 onItemClick = { filter ->
                     viewModel.setActiveFilter(filter)
@@ -1108,7 +1220,7 @@ fun LibraryScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = activeFilter.getLabel(strings),
+                        text = activeFilter.getLabelWithCount(strings, categoryCounts[activeFilter]),
                         color = activeFilter.getColor(),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
@@ -1205,6 +1317,7 @@ fun LibraryScreen(
                     CategorySelectionRotor(
                         lazyListState = lazyListState,
                         strings = strings,
+                        categoryCounts = categoryCounts,
                         hasWaitingUpdates = hasWaitingUpdates,
                         onItemClick = { filter ->
                             viewModel.setActiveFilter(filter)

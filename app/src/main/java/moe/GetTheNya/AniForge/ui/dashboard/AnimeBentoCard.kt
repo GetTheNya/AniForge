@@ -60,7 +60,7 @@ import moe.GetTheNya.AniForge.ui.utils.statusConfigs
 @Composable
 fun AnimeBentoCard(
     anime: Anime,
-    onGestureActionTriggered: (action: QuickGestureAction, value: Any?) -> Unit,
+    onGestureActionTriggered: (action: QuickGestureAction, value: Any?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     preferUk: Boolean = true,
     status: String? = null,
@@ -68,6 +68,7 @@ fun AnimeBentoCard(
     isMenuVisible: Boolean = false,
     onMenuDismiss: (() -> Unit)? = null,
     initialScore: Double? = null,
+    userScore: Double? = null,
     initialEpisode: Int = 0,
     onDragStateChanged: ((Boolean) -> Unit)? = null,
     onSliderStateChanged: ((Boolean) -> Unit)? = null,
@@ -78,7 +79,8 @@ fun AnimeBentoCard(
     gestureRight: QuickGestureAction = QuickGestureAction.Immediate.ShareLink,
     clickAction: QuickGestureAction = QuickGestureAction.Immediate.OpenDetails,
     enableGestures: Boolean = true,
-    cardHeight: Dp = 260.dp
+    cardHeight: Dp = 260.dp,
+    onScoreClick: (() -> Unit)? = null
 ) {
     val strings = moe.GetTheNya.AniForge.ui.localization.LocalLocaleStrings.current
 
@@ -108,7 +110,7 @@ fun AnimeBentoCard(
     QuickGestureWrapper(
         anime = anime,
         animeTitle = anime.getDisplayTitle(preferUk = preferUk),
-        initialScore = initialScore,
+        initialScore = userScore ?: initialScore,
         initialEpisode = initialEpisode,
         gestureCenter = gestureCenter,
         gestureUp = gestureUp,
@@ -203,30 +205,75 @@ fun AnimeBentoCard(
                 }
 
                 // Score tag (top right)
-                val scoreMal = anime.scoreMal
-                if (scoreMal != null && scoreMal > 0.0) {
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(12.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xE60C0C0E))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = strings.misc.score,
-                            tint = NeonCoral,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = String.format("%.1f", scoreMal),
-                            color = TextPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                val isUserScoreCard = userScore != null && userScore > 0.0
+                val scoreToDisplay = if (isUserScoreCard) userScore else anime.scoreMal
+                if (scoreToDisplay != null && scoreToDisplay > 0.0) {
+                    val scoreThemeColor = moe.GetTheNya.AniForge.ui.theme.getScoreColor(scoreToDisplay)
+                    if (isUserScoreCard) {
+                        // Rating tab style: Yellow-golden border, filled red/orange/green background, white icon & text
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(12.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(scoreThemeColor)
+                                .border(1.5.dp, Color(0xFFFFD700), RoundedCornerShape(12.dp))
+                                .then(
+                                    if (onScoreClick != null) {
+                                        Modifier.clickable { onScoreClick() }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = strings.misc.score,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = String.format("%.1f", scoreToDisplay),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    } else {
+                        // Global score style (all other tabs): Dark glassmorphism background, red/orange/green star icon
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(12.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xE60C0C0E))
+                                .then(
+                                    if (onScoreClick != null) {
+                                        Modifier.clickable { onScoreClick() }
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = strings.misc.score,
+                                tint = scoreThemeColor,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = String.format("%.1f", scoreToDisplay),
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
 

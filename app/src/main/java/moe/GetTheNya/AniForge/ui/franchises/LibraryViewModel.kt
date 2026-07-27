@@ -55,8 +55,9 @@ enum class LibraryFilter(val dbStatus: String?) {
     COMPLETED("COMPLETED"),
     PAUSED("PAUSED"),
     DROPPED("DROPPED"),
+    COLLECTIONS(null),
     WAITING(null),
-    COLLECTIONS(null)
+    RATED(null)
 }
 
 sealed interface LibrarySectionData {
@@ -243,6 +244,87 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun observeRatedAnime(): Flow<List<Anime>> {
+        return combine(
+            allTracking,
+            listFilterState,
+            preferUk,
+            searchQuery,
+            animeRepository.swapSignal.onStart { emit(Unit) }
+        ) { trackingList, filterState, ukPref, query, _ ->
+            val ratedTracking = trackingList.filter { (it.score ?: 0.0) > 0.0 && !it.isDeleted }
+            if (ratedTracking.isEmpty()) {
+                emptyList()
+            } else {
+                val ids = ratedTracking.map { it.anilistId }
+                val queryParams = SearchFilterQuery(
+                    genres = filterState.genres,
+                    excludedGenres = filterState.excludedGenres,
+                    formats = filterState.formats,
+                    excludedFormats = filterState.excludedFormats,
+                    trackingStatuses = listOf("DUMMY"),
+                    trackingStatusIds = ids
+                )
+                val matchedAnimeList = animeRepository.queryAnime(queryParams)
+                val trackingMap = ratedTracking.associateBy { it.anilistId }
+
+                val sorted = matchedAnimeList.sortedWith { a, b ->
+                    val trackingA = trackingMap[a.anilistId]
+                    val trackingB = trackingMap[b.anilistId]
+                    val scoreA = trackingA?.score ?: -1.0
+                    val scoreB = trackingB?.score ?: -1.0
+
+                    when (filterState.sortBy) {
+                        ListSortOption.SCORE_DESC, ListSortOption.DATE_ADDED_DESC -> {
+                            val primary = scoreB.compareTo(scoreA)
+                            if (primary != 0) primary else (trackingB?.lastModified ?: 0L).compareTo(trackingA?.lastModified ?: 0L)
+                        }
+                        ListSortOption.SCORE_ASC -> {
+                            val primary = scoreA.compareTo(scoreB)
+                            if (primary != 0) primary else (trackingB?.lastModified ?: 0L).compareTo(trackingA?.lastModified ?: 0L)
+                        }
+                        ListSortOption.PROGRESS_DESC -> {
+                            val progA = trackingA?.episodeProgress ?: 0
+                            val progB = trackingB?.episodeProgress ?: 0
+                            progB.compareTo(progA)
+                        }
+                        ListSortOption.PROGRESS_ASC -> {
+                            val progA = trackingA?.episodeProgress ?: 0
+                            val progB = trackingB?.episodeProgress ?: 0
+                            progA.compareTo(progB)
+                        }
+                        ListSortOption.DATE_ADDED_ASC -> {
+                            val lmA = trackingA?.lastModified ?: 0L
+                            val lmB = trackingB?.lastModified ?: 0L
+                            lmA.compareTo(lmB)
+                        }
+                        ListSortOption.ALPHABETICAL_ASC -> {
+                            val titleA = a.getDisplayTitle(ukPref)
+                            val titleB = b.getDisplayTitle(ukPref)
+                            titleA.compareTo(titleB, ignoreCase = true)
+                        }
+                        ListSortOption.ALPHABETICAL_DESC -> {
+                            val titleA = a.getDisplayTitle(ukPref)
+                            val titleB = b.getDisplayTitle(ukPref)
+                            titleB.compareTo(titleA, ignoreCase = true)
+                        }
+                    }
+                }
+
+                if (query.isBlank()) {
+                    sorted
+                } else {
+                    sorted.filter { anime ->
+                        anime.titleRomaji.contains(query, ignoreCase = true) ||
+                        (anime.titleEn?.contains(query, ignoreCase = true) == true) ||
+                        (anime.titleUk?.contains(query, ignoreCase = true) == true)
+                    }
+                }
+            }
+        }
+    }
+
     val waitingItems: StateFlow<List<WaitingItem>> = userTrackingRepository.observeWaitingItems()
         .stateIn(
             scope = viewModelScope,
@@ -279,6 +361,7 @@ class LibraryViewModel @Inject constructor(
             when (filter) {
                 LibraryFilter.COLLECTIONS -> filteredCollections.map { LibrarySectionData.Collections(it) }
                 LibraryFilter.WAITING -> waitingItems.map { LibrarySectionData.Waiting(it) }
+                LibraryFilter.RATED -> observeRatedAnime().map { LibrarySectionData.TrackedAnime(it) }
                 else -> {
                     val dbStatus = filter.dbStatus ?: ""
                     observeTrackedAnimeForStatus(dbStatus).map { LibrarySectionData.TrackedAnime(it) }
@@ -399,6 +482,27 @@ class LibraryViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val categoryCounts: StateFlow<Map<LibraryFilter, Int>> = combine(
+        allTracking,
+        waitingItems,
+        collections
+    ) { tracking, waiting, colls ->
+        mapOf(
+            LibraryFilter.WATCHING to tracking.count { it.watchStatus == "CURRENT" && !it.isDeleted },
+            LibraryFilter.PLANNING to tracking.count { it.watchStatus == "PLANNING" && !it.isDeleted },
+            LibraryFilter.COMPLETED to tracking.count { it.watchStatus == "COMPLETED" && !it.isDeleted },
+            LibraryFilter.PAUSED to tracking.count { it.watchStatus == "PAUSED" && !it.isDeleted },
+            LibraryFilter.DROPPED to tracking.count { it.watchStatus == "DROPPED" && !it.isDeleted },
+            LibraryFilter.RATED to tracking.count { (it.score ?: 0.0) > 0.0 && !it.isDeleted },
+            LibraryFilter.WAITING to waiting.size,
+            LibraryFilter.COLLECTIONS to colls.size
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyMap()
+    )
 
     val filteredCollections: StateFlow<List<CollectionWithData>> = combine(
         collections,

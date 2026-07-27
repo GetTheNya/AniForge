@@ -21,6 +21,9 @@ abstract class UserTrackingDao(val db: RoomDatabase) {
     @Query("SELECT * FROM user_tracking WHERE is_deleted = 0 ORDER BY last_modified DESC")
     abstract fun observeAllTracking(): Flow<List<UserTrackingEntity>>
 
+    @Query("SELECT * FROM user_tracking WHERE score IS NOT NULL AND score > 0 AND is_deleted = 0 ORDER BY score DESC, last_modified DESC")
+    abstract fun observeRatedTracking(): Flow<List<UserTrackingEntity>>
+
     @Query("SELECT * FROM user_tracking WHERE watch_status = 'CURRENT' AND is_deleted = 0 ORDER BY last_modified DESC LIMIT 10")
     abstract fun observeContinueWatching(): Flow<List<UserTrackingEntity>>
 

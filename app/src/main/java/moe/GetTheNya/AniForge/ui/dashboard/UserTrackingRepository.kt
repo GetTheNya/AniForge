@@ -48,6 +48,8 @@ class UserTrackingRepository @Inject constructor(
     val gestureRight: Flow<QuickGestureAction> = settingsProvider.gestureRightStr
         .map { QuickGestureAction.fromString(it) }
 
+    fun observeRatedTracking(): Flow<List<UserTrackingEntity>> = userTrackingDao.observeRatedTracking()
+
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun incrementChaosMeter() = withContext(Dispatchers.IO) {

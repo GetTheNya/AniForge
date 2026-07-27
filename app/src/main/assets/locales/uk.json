@@ -126,7 +126,10 @@
     "continuationHandoverContent": "Ви завершили {title}! Бажаєте продовжити очікування наступного сезону/фільму?",
     "waitForNextSeason": "🔥 Чекати наступний сезон",
     "airingWaitedSequels": "Очікувані продовження в ефірі",
-    "eps": "еп."
+    "eps": "еп.",
+    "ratedTab": "Оцінені",
+    "yourScore": "Ваша оцінка",
+    "noRatedAnime": "Ви ще не оцінили жодного аніме"
   },
   "dashboardScreen": {
     "name": "Аніме",
