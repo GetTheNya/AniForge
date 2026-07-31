@@ -186,38 +186,74 @@ class AnimeRepository @Inject constructor(
      * Traverses the SEQUEL relations starting from sourceAnilistId.
      * Skips any sequel target whose ID is in excludedAnimeIds (tracked or dismissed)
      * and continues to evaluate the next sequel in the transitive relation chain.
+     * Selects candidates that are chronologically newer than (or equal to) the base anime.
      */
     suspend fun findCandidateSequel(sourceAnilistId: Long, excludedAnimeIds: Set<Long>): Anime? = withContext(Dispatchers.IO) {
         val db = databaseProvider.getDatabase()
+        val baseAnime = getAnimeById(sourceAnilistId) ?: return@withContext null
         var currentSourceId = sourceAnilistId
         val visited = mutableSetOf<Long>()
 
         while (visited.add(currentSourceId)) {
-            val queryStr = "SELECT target_anilist_id FROM relations WHERE source_anilist_id = ? AND relation_type = 'SEQUEL' LIMIT 1"
-            var targetId: Long? = null
+            val queryStr = "SELECT target_anilist_id FROM relations WHERE source_anilist_id = ? AND relation_type = 'SEQUEL'"
+            val targetIds = mutableListOf<Long>()
             try {
                 db.query(queryStr, arrayOf(currentSourceId.toString())).use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        targetId = cursor.getLong(0)
+                    while (cursor.moveToNext()) {
+                        targetIds.add(cursor.getLong(0))
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
 
-            if (targetId == null) {
+            if (targetIds.isEmpty()) {
                 return@withContext null
             }
 
-            val tid = targetId!!
-            if (excludedAnimeIds.contains(tid)) {
-                // Transitive sequel evaluation: target is excluded, check target's sequel
-                currentSourceId = tid
+            val nonExcludedTargets = targetIds.filter { !excludedAnimeIds.contains(it) }
+            if (nonExcludedTargets.isNotEmpty()) {
+                val candidates = nonExcludedTargets.mapNotNull { getAnimeById(it) }
+                val newerCandidates = candidates.filter { isNewerOrEqual(it, baseAnime) }
+                if (newerCandidates.isNotEmpty()) {
+                    return@withContext newerCandidates.minByOrNull {
+                        it.startDateYear ?: it.seasonYear ?: Int.MAX_VALUE
+                    }
+                }
+            }
+
+            val nextSourceId = targetIds.firstOrNull { excludedAnimeIds.contains(it) }
+            if (nextSourceId != null) {
+                currentSourceId = nextSourceId
             } else {
-                return@withContext getAnimeById(tid)
+                return@withContext null
             }
         }
         null
+    }
+
+    private fun isNewerOrEqual(candidate: Anime, base: Anime): Boolean {
+        val candYear = candidate.startDateYear ?: candidate.seasonYear
+        val baseYear = base.startDateYear ?: base.seasonYear
+
+        if (candYear != null && baseYear != null) {
+            if (candYear < baseYear) return false
+            if (candYear > baseYear) return true
+
+            val candMonth = candidate.startDateMonth
+            val baseMonth = base.startDateMonth
+            if (candMonth != null && baseMonth != null) {
+                if (candMonth < baseMonth) return false
+                if (candMonth > baseMonth) return true
+
+                val candDay = candidate.startDateDay
+                val baseDay = base.startDateDay
+                if (candDay != null && baseDay != null) {
+                    return candDay >= baseDay
+                }
+            }
+        }
+        return true
     }
 
     /**

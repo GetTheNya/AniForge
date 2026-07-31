@@ -59,6 +59,7 @@ data class Anime(
         status?.uppercase() == "RELEASING"
 
     fun getReleasedEpisodes(): Int? {
+        if (isNotYetReleased()) return 0
         if (status?.uppercase() == "RELEASING") {
             if (airingEpisode != null) {
                 return airingEpisode - 1

@@ -104,7 +104,7 @@ class UserTrackingRepository @Inject constructor(
             !it.isDeleted && it.watchStatus == "PLANNING"
         }.mapNotNull { tracking ->
             val anime = animeRepository.getAnimeById(tracking.anilistId)
-            val isReleasing = anime != null && (anime.isReleasing() || (anime.getReleasedEpisodes() ?: 0) > 0 || anime.airingEpisode != null)
+            val isReleasing = anime != null && !anime.isNotYetReleased() && (anime.isReleasing() || (anime.getReleasedEpisodes() ?: 0) > 0 || anime.airingEpisode != null)
             if (!isReleasing) tracking.anilistId else null
         }.toSet()
 
@@ -118,6 +118,7 @@ class UserTrackingRepository @Inject constructor(
 
             val candidateStatus = when {
                 candidateSequel == null -> CandidateStatus.QUIET
+                candidateSequel.isNotYetReleased() -> CandidateStatus.ANNOUNCED
                 trackingMap[candidateSequel.anilistId]?.watchStatus == "PLANNING" &&
                     (candidateSequel.isReleasing() || (candidateSequel.getReleasedEpisodes() ?: 0) > 0 || candidateSequel.airingEpisode != null) -> CandidateStatus.READY_TO_WATCH
                 candidateSequel.status?.uppercase() in listOf("FINISHED", "RELEASING") -> CandidateStatus.RELEASED
