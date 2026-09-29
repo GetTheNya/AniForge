@@ -926,13 +926,7 @@ fun handleQuickGestureAction(
         QuickGestureAction.Immediate.OpenDetails -> onOpenDetails()
         QuickGestureAction.Immediate.OpenWatchStatusPicker -> onOpenWatchStatusPicker()
         QuickGestureAction.Immediate.ShareLink -> {
-            val sendIntent = android.content.Intent().apply {
-                setAction(android.content.Intent.ACTION_SEND)
-                putExtra(android.content.Intent.EXTRA_TEXT, "Check out ${anime.titleRomaji} on AniForge: https://aniforge.pages.dev/anime?id=${anime.anilistId}")
-                setType("text/plain")
-            }
-            val shareIntent = android.content.Intent.createChooser(sendIntent, null)
-            context.startActivity(shareIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            moe.GetTheNya.AniForge.ui.utils.shareAnime(context, anime)
         }
         QuickGestureAction.Continuous.ScoreSlider -> {
             if (value is Double) {

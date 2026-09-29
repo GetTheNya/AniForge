@@ -210,7 +210,13 @@
     "countdownDaySuffix": "d",
     "countdownHourSuffix": "h",
     "countdownMinuteSuffix": "m",
-    "countdownSecondSuffix": "s"
+    "countdownSecondSuffix": "s",
+    "allTitles": "All Titles",
+    "titleUkrainian": "Ukrainian Title",
+    "titleEnglish": "English Title",
+    "titleRomanized": "Romanized Title",
+    "titleSynonym": "Synonym",
+    "copiedToClipboard": "Copied to clipboard"
   },
   "profileScreen": {
     "name": "Profile",

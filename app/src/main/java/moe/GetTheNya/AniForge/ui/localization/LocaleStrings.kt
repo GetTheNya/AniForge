@@ -224,7 +224,13 @@ data class DetailScreenStrings(
     val countdownDaySuffix: String = "[detailScreen.countdownDaySuffix]",
     val countdownHourSuffix: String = "[detailScreen.countdownHourSuffix]",
     val countdownMinuteSuffix: String = "[detailScreen.countdownMinuteSuffix]",
-    val countdownSecondSuffix: String = "[detailScreen.countdownSecondSuffix]"
+    val countdownSecondSuffix: String = "[detailScreen.countdownSecondSuffix]",
+    val allTitles: String = "[detailScreen.allTitles]",
+    val titleUkrainian: String = "[detailScreen.titleUkrainian]",
+    val titleEnglish: String = "[detailScreen.titleEnglish]",
+    val titleRomanized: String = "[detailScreen.titleRomanized]",
+    val titleSynonym: String = "[detailScreen.titleSynonym]",
+    val copiedToClipboard: String = "[detailScreen.copiedToClipboard]"
 )
 
 @Serializable

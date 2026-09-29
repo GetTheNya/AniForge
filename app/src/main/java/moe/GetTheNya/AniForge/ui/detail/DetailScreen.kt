@@ -87,6 +87,7 @@ import moe.GetTheNya.AniForge.ui.dashboard.AnimeBentoCard
 import moe.GetTheNya.AniForge.ui.navigation.NavController
 import moe.GetTheNya.AniForge.ui.navigation.Screen
 import moe.GetTheNya.AniForge.ui.utils.statusConfigs
+import moe.GetTheNya.AniForge.ui.utils.shareAnime
 import androidx.compose.material.icons.filled.Casino
 import moe.GetTheNya.AniForge.ui.theme.*
 import moe.GetTheNya.AniForge.ui.franchises.CollectionFormDialog
@@ -134,6 +135,7 @@ fun DetailScreen(
     var showCollectionSheet by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var showRecommendationsSheet by remember { mutableStateOf(false) }
+    var showTitlesSheet by remember { mutableStateOf(false) }
 
     // Trigger load on startup
     LaunchedEffect(anilistId) {
@@ -266,6 +268,7 @@ fun DetailScreen(
                         onStatusClick = onStatusClick,
                         onSourceClick = onSourceClick,
                         onRecommendationsClick = { showRecommendationsSheet = true },
+                        onTitleClick = { showTitlesSheet = true },
                         preferUk = preferUk,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -290,21 +293,46 @@ fun DetailScreen(
 
 
 
-            // Top Add to Collection Button
-            IconButton(
-                onClick = { showCollectionSheet = true },
+            // Top Action Buttons (Share & Add to Collection)
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0x990C0C0E))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Layers,
-                    contentDescription = strings.libraryScreen.addToCollection,
-                    tint = TextPrimary
-                )
+                val currentAnime = (uiState as? DetailUiState.Success)?.anime
+                IconButton(
+                    onClick = {
+                        currentAnime?.let {
+                            shareAnime(context, it, it.getDisplayTitle(preferUk = preferUk))
+                        }
+                    },
+                    enabled = currentAnime != null,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x990C0C0E))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = strings.settingsScreen.actionShareLink,
+                        tint = if (currentAnime != null) TextPrimary else TextSecondary.copy(alpha = 0.5f)
+                    )
+                }
+
+                IconButton(
+                    onClick = { showCollectionSheet = true },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x990C0C0E))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = strings.libraryScreen.addToCollection,
+                        tint = TextPrimary
+                    )
+                }
             }
 
             if (showCollectionSheet) {
@@ -592,6 +620,134 @@ fun DetailScreen(
                 }
             }
 
+            if (showTitlesSheet && uiState is DetailUiState.Success) {
+                val state = uiState as DetailUiState.Success
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                val isUkrainian = preferUk || strings.languageCode == "uk"
+
+                val titleEntries = remember(state.anime, state.synonyms, isUkrainian, strings) {
+                    val anime = state.anime
+                    val list = mutableListOf<AnimeTitleEntry>()
+                    val seenTitles = mutableSetOf<String>()
+
+                    fun addIfUnique(label: String, title: String?) {
+                        val trimmed = title?.trim() ?: return
+                        if (trimmed.isNotBlank() && seenTitles.add(trimmed.lowercase())) {
+                            list.add(AnimeTitleEntry(label, trimmed))
+                        }
+                    }
+
+                    if (isUkrainian) {
+                        // "Main App Language Title" (ukrainian if ukrainian app language, otherwise english)
+                        val ukTitle = anime.titleUk?.takeIf { it.isNotBlank() } ?: anime.getDisplayTitle(preferUk = true)
+                        addIfUnique(strings.detailScreen.titleUkrainian, ukTitle)
+
+                        // "English Title" (only if ukrainian app language)
+                        addIfUnique(strings.detailScreen.titleEnglish, anime.titleEn)
+
+                        // "Romanized Title"
+                        addIfUnique(strings.detailScreen.titleRomanized, anime.titleRomaji)
+                    } else {
+                        // "Main App Language Title" (english)
+                        val enTitle = anime.titleEn?.takeIf { it.isNotBlank() } ?: anime.getDisplayTitle(preferUk = false)
+                        addIfUnique(strings.detailScreen.titleEnglish, enTitle)
+
+                        // "Romanized Title"
+                        addIfUnique(strings.detailScreen.titleRomanized, anime.titleRomaji)
+
+                        // Ukrainian title if available
+                        if (!anime.titleUk.isNullOrBlank()) {
+                            addIfUnique(strings.detailScreen.titleUkrainian, anime.titleUk)
+                        }
+                    }
+
+                    // <all another titles, in its own rows>
+                    state.synonyms.forEach { synonym ->
+                        addIfUnique(strings.detailScreen.titleSynonym, synonym)
+                    }
+
+                    list
+                }
+
+                ModalBottomSheet(
+                    onDismissRequest = { showTitlesSheet = false },
+                    sheetState = sheetState,
+                    containerColor = BackgroundDark,
+                    dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary.copy(alpha = 0.5f)) },
+                    contentWindowInsets = { WindowInsets(0.dp) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.85f)
+                            .navigationBarsPadding()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp)
+                    ) {
+                        Text(
+                            text = strings.detailScreen.allTitles,
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                        ) {
+                            items(titleEntries, key = { it.label + ":" + it.title }) { entry ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(SurfaceDark)
+                                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                            val clip = android.content.ClipData.newPlainText("Anime Title", entry.title)
+                                            clipboard?.setPrimaryClip(clip)
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "${strings.detailScreen.copiedToClipboard}: ${entry.title}",
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = entry.label,
+                                            color = TextSecondary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = entry.title,
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = strings.detailScreen.copiedToClipboard,
+                                        tint = ElectricViolet,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             if ((sourceStatusId != null || sourceCollectionId != null) && uiState is DetailUiState.Success) {
                 val listColor = statusConfigs.find { it.id == sourceStatusId }?.color ?: ElectricViolet
                 var lastClickTime by remember { mutableLongStateOf(0L) }
@@ -679,6 +835,7 @@ fun DetailContent(
     onStatusClick: (String) -> Unit,
     onSourceClick: (String) -> Unit,
     onRecommendationsClick: () -> Unit,
+    onTitleClick: () -> Unit = {},
     onToggleWaiting: (Boolean) -> Unit = {},
     preferUk: Boolean,
     modifier: Modifier = Modifier
@@ -981,13 +1138,29 @@ fun DetailContent(
                                 }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
-                            AutoScalingTitle(
-                                text = anime.getDisplayTitle(preferUk = preferUk),
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 3,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(onClick = onTitleClick)
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AutoScalingTitle(
+                                    text = anime.getDisplayTitle(preferUk = preferUk),
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 3,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = strings.detailScreen.allTitles,
+                                    tint = TextSecondary.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                             if (anime.titleRomaji.isNotBlank() && anime.titleRomaji != anime.getDisplayTitle(preferUk = preferUk)) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
@@ -996,7 +1169,10 @@ fun DetailContent(
                                     fontSize = 14.sp,
                                     fontStyle = FontStyle.Italic,
                                     maxLines = Int.MAX_VALUE,
-                                    softWrap = true
+                                    softWrap = true,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable(onClick = onTitleClick)
                                 )
                             }
                         }
@@ -2457,3 +2633,10 @@ fun LiveCountdownBanner(
         }
     }
 }
+
+@Immutable
+data class AnimeTitleEntry(
+    val label: String,
+    val title: String
+)
+

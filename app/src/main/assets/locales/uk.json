@@ -214,7 +214,13 @@
     "countdownDaySuffix": "дн.",
     "countdownHourSuffix": "год.",
     "countdownMinuteSuffix": "хв.",
-    "countdownSecondSuffix": "сек."
+    "countdownSecondSuffix": "сек.",
+    "allTitles": "Усі назви",
+    "titleUkrainian": "Українська назва",
+    "titleEnglish": "Англійська назва",
+    "titleRomanized": "Романізована назва",
+    "titleSynonym": "Синонім",
+    "copiedToClipboard": "Скопійовано в буфер обміну"
   },
   "profileScreen": {
     "name": "Профіль",

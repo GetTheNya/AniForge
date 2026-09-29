@@ -419,6 +419,28 @@ class AnimeRepository @Inject constructor(
     }
 
     /**
+     * Fetches the synonyms/alternative titles for the given anime ID.
+     */
+    suspend fun getSynonymsForAnime(anilistId: Long): List<String> = withContext(Dispatchers.IO) {
+        val db = databaseProvider.getDatabase()
+        val list = ArrayList<String>()
+        try {
+            db.query(
+                "SELECT synonym FROM anime_synonyms WHERE anilist_id = ? ORDER BY synonym ASC",
+                arrayOf(anilistId.toString())
+            ).use { cursor ->
+                val synonymIdx = cursor.getColumnIndexOrThrow("synonym")
+                while (cursor.moveToNext()) {
+                    list.add(cursor.getString(synonymIdx))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        list
+    }
+
+    /**
      * Fetches the ranking charts for the given anime ID.
      */
     suspend fun getRankingsForAnime(anilistId: Long): List<Ranking> = withContext(Dispatchers.IO) {
