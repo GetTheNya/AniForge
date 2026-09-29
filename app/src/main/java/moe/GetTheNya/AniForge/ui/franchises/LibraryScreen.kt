@@ -405,11 +405,21 @@ fun WaitingAnimeCard(
                                 CyberTeal,
                                 strings.libraryScreen.readyToWatch
                             )
-                            CandidateStatus.RELEASED -> Triple(
-                                CyberTeal.copy(alpha = 0.18f),
-                                CyberTeal,
-                                strings.libraryScreen.sequelReleased
-                            )
+                            CandidateStatus.RELEASED -> {
+                                if (candidate?.isReleasing() == true) {
+                                    Triple(
+                                        CyberTeal.copy(alpha = 0.18f),
+                                        CyberTeal,
+                                        strings.libraryScreen.currentlyAiring
+                                    )
+                                } else {
+                                    Triple(
+                                        CyberTeal.copy(alpha = 0.18f),
+                                        CyberTeal,
+                                        strings.libraryScreen.sequelReleased
+                                    )
+                                }
+                            }
                             CandidateStatus.ANNOUNCED -> Triple(
                                 NeonCoral.copy(alpha = 0.18f),
                                 NeonCoral,
@@ -474,13 +484,52 @@ fun WaitingAnimeCard(
                         val metaInfo = buildString {
                             val fmt = candidate.format
                             if (fmt != null) append("${strings.formats.getFormatLabel(fmt)} • ")
-                            if (isReleasedOrReady) {
-                                if (candidate.episodes != null) append("${candidate.episodes} ${strings.libraryScreen.eps}") else append(strings.mediaStatuses.getMediaStatusLabel("FINISHED"))
-                            } else {
+                            if (candidate.isReleasing()) {
+                                val releasingLabel = strings.mediaStatuses.getMediaStatusLabel("RELEASING")
+                                val airingEp = candidate.airingEpisode
+                                val releasedEps = if (airingEp != null) {
+                                    (airingEp - 1).coerceAtLeast(0)
+                                } else null
+                                val totalEps = candidate.episodes
+                                when {
+                                    releasedEps != null && releasedEps > 0 && totalEps != null -> {
+                                        if (releasedEps == totalEps) {
+                                            append("$releasingLabel • $totalEps ${strings.libraryScreen.eps}")
+                                        } else {
+                                            append("$releasingLabel • $releasedEps / $totalEps ${strings.libraryScreen.eps}")
+                                        }
+                                    }
+                                    releasedEps != null && releasedEps > 0 && totalEps == null -> {
+                                        append("$releasingLabel • $releasedEps / ? ${strings.libraryScreen.eps}")
+                                    }
+                                    totalEps != null -> {
+                                        append("$releasingLabel • $totalEps ${strings.libraryScreen.eps}")
+                                    }
+                                    else -> {
+                                        append(releasingLabel)
+                                    }
+                                }
+                            } else if (candidate.status?.uppercase() == "FINISHED") {
+                                if (candidate.episodes != null) {
+                                    append("${candidate.episodes} ${strings.libraryScreen.eps}")
+                                } else {
+                                    append(strings.mediaStatuses.getMediaStatusLabel("FINISHED"))
+                                }
+                            } else if (candidate.isNotYetReleased()) {
                                 val seasonLabel = candidate.season?.let { strings.seasons.getSeasonLabel(it) }
                                 val yearLabel = candidate.seasonYear?.toString() ?: candidate.startDateYear?.toString()
                                 val timeframe = listOfNotNull(seasonLabel, yearLabel).joinToString(" ")
                                 if (timeframe.isNotBlank()) append(timeframe) else append(strings.mediaStatuses.getMediaStatusLabel("NOT_YET_RELEASED"))
+                            } else {
+                                val status = candidate.status
+                                if (status != null) {
+                                    append(strings.mediaStatuses.getMediaStatusLabel(status))
+                                } else {
+                                    val seasonLabel = candidate.season?.let { strings.seasons.getSeasonLabel(it) }
+                                    val yearLabel = candidate.seasonYear?.toString() ?: candidate.startDateYear?.toString()
+                                    val timeframe = listOfNotNull(seasonLabel, yearLabel).joinToString(" ")
+                                    if (timeframe.isNotBlank()) append(timeframe) else if (candidate.episodes != null) append("${candidate.episodes} ${strings.libraryScreen.eps}")
+                                }
                             }
                         }
                         Text(

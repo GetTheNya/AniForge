@@ -176,7 +176,7 @@ fun ContinuationUpdatesWidget(
                             ?: (if (isReadyToWatch || isReleased) Color(0xFF3B82F6) else Color(0xFF9067C6))
                         val badgeText = when (item.candidateStatus) {
                             CandidateStatus.READY_TO_WATCH -> strings.libraryScreen.readyToWatch
-                            CandidateStatus.RELEASED -> strings.libraryScreen.sequelReleased
+                            CandidateStatus.RELEASED -> if (candidate.isReleasing()) strings.libraryScreen.currentlyAiring else strings.libraryScreen.sequelReleased
                             else -> strings.libraryScreen.sequelAnnounced
                         }
                         val buttonText = if (isReadyToWatch || isReleased) strings.libraryScreen.addToWatching else strings.libraryScreen.addToPlanned
