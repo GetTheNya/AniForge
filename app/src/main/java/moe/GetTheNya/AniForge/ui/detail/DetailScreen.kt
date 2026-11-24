@@ -638,27 +638,13 @@ fun DetailScreen(
                     }
 
                     if (isUkrainian) {
-                        // "Main App Language Title" (ukrainian if ukrainian app language, otherwise english)
-                        val ukTitle = anime.titleUk?.takeIf { it.isNotBlank() } ?: anime.getDisplayTitle(preferUk = true)
-                        addIfUnique(strings.detailScreen.titleUkrainian, ukTitle)
-
-                        // "English Title" (only if ukrainian app language)
+                        addIfUnique(strings.detailScreen.titleUkrainian, anime.titleUk)
                         addIfUnique(strings.detailScreen.titleEnglish, anime.titleEn)
-
-                        // "Romanized Title"
                         addIfUnique(strings.detailScreen.titleRomanized, anime.titleRomaji)
                     } else {
-                        // "Main App Language Title" (english)
-                        val enTitle = anime.titleEn?.takeIf { it.isNotBlank() } ?: anime.getDisplayTitle(preferUk = false)
-                        addIfUnique(strings.detailScreen.titleEnglish, enTitle)
-
-                        // "Romanized Title"
+                        addIfUnique(strings.detailScreen.titleEnglish, anime.titleEn)
                         addIfUnique(strings.detailScreen.titleRomanized, anime.titleRomaji)
-
-                        // Ukrainian title if available
-                        if (!anime.titleUk.isNullOrBlank()) {
-                            addIfUnique(strings.detailScreen.titleUkrainian, anime.titleUk)
-                        }
+                        addIfUnique(strings.detailScreen.titleUkrainian, anime.titleUk)
                     }
 
                     // <all another titles, in its own rows>
